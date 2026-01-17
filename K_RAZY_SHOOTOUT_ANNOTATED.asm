@@ -23,6 +23,46 @@
 ; Each character is 8x8 pixels, stored as 8 bytes
 ; Bit 1 = pixel on (#), Bit 0 = pixel off (.)
 
+; ===============================================================================
+; PLAYER SPRITE ANIMATION SYSTEM
+; ===============================================================================
+; K-Razy Shoot-Out uses a sophisticated multi-sprite player character system
+; with directional animation and walking cycles.
+;
+; SPRITE COMPONENTS:
+; - Character $02: Player Head (Sideways) - Used for horizontal movement
+; - Character $04: Player Head (Vertical) - Used for vertical/stationary movement  
+; - Character $03: Player Body (Horizontal) Frame 1 - Walking animation frame 1
+; - Character $05: Player Body (Horizontal) Frame 2 - Walking animation frame 2
+; - Character $1E: Player Body (Stationary) - Used for vertical/stationary movement
+; - Characters $06-$09: Death animation and final dead state sprites
+;
+; HARDWARE REGISTERS:
+; - $E804: Player sprite position register
+; - $E805: Player sprite control/character register (loads character codes)
+;
+; ANIMATION STATES:
+; 1. STATIONARY/VERTICAL MOVEMENT:
+;    - Head: Character $04 (centered, vertical orientation)
+;    - Body: Character $1E (standard stationary body)
+;    - Display: Single static 8x16 sprite combination
+;
+; 2. HORIZONTAL MOVEMENT (Walking Animation):
+;    - Head: Character $02 (sideways orientation, constant)
+;    - Body: Alternates between Character $03 and $05 (walking frames)
+;    - Display: Animated 8x16 sprite with 2-frame walking cycle
+;
+; 3. DEATH SEQUENCE:
+;    - Animation: Character $06 (top) + Character $07 (bottom) - vertical pair
+;    - Final State: Character $08 (left) + Character $09 (right) - horizontal pair
+;
+; TECHNICAL IMPLEMENTATION:
+; - Player rendered as two separate 8x8 sprites stacked vertically
+; - Movement detection via collision registers $C004/$C00C and joystick input
+; - Sprite selection based on movement direction and animation frame
+; - Hardware PMG (Player/Missile Graphics) system handles display and positioning
+; ===============================================================================
+
 ; Character $00 - Space/blank character
 ;   ........
 ;   ........
@@ -42,7 +82,7 @@
         .byte $00        ; $A006 - Row 6
         .byte $00        ; $A007 - Row 7
 
-; Character $01 - Player body sprite (vertical bars)
+; Character $01 - Player sprite: Central body column
 ;   ..###...
 ;   ..###...
 ;   ..###...
@@ -61,7 +101,7 @@
         .byte $18        ; $A00E - Row 6
         .byte $00        ; $A00F - Row 7
 
-; Character $02 - Small bullet sprite (diamond pattern)
+; Character $02 - Player sprite: Head (Sideways)
 ;   ........
 ;   ........
 ;   ........
@@ -80,7 +120,7 @@
         .byte $28        ; $A016 - Row 6
         .byte $10        ; $A017 - Row 7
 
-; Character $03 - Game graphics/sprite data
+; Character $03 - Player sprite: Body (Horizontal) - Frame 1
 ;   ..###.#.
 ;   .#.#.#..
 ;   #..#....
@@ -99,7 +139,7 @@
         .byte $E4        ; $A01E - Row 6
         .byte $86        ; $A01F - Row 7
 
-; Character $04 - Tiny bullet sprite (smaller diamond)
+; Character $04 - Player sprite: Head (Vertical)
 ;   ........
 ;   ........
 ;   ........
@@ -118,7 +158,7 @@
         .byte $14        ; $A026 - Row 6
         .byte $08        ; $A027 - Row 7
 
-; Character $05 - Game graphics/sprite data
+; Character $05 - Player sprite: Body (Horizontal) - Frame 2
 ;   ...##...
 ;   ...##...
 ;   ...####.
@@ -137,7 +177,7 @@
         .byte $28        ; $A02E - Row 6
         .byte $1C        ; $A02F - Row 7
 
-; Character $06 - Game graphics/sprite data
+; Character $06 - Player death animation (Top)
 ;   ........
 ;   ........
 ;   #...##..
@@ -156,7 +196,7 @@
         .byte $50        ; $A036 - Row 6
         .byte $8C        ; $A037 - Row 7
 
-; Character $07 - Game graphics/sprite data
+; Character $07 - Player death animation (Bottom)
 ;   .....###
 ;   ....#..#
 ;   ...#...#
@@ -175,7 +215,7 @@
         .byte $10        ; $A03E - Row 6
         .byte $08        ; $A03F - Row 7
 
-; Character $08 - Player left leg sprite
+; Character $08 - Player dead (Left)
 ;   ........
 ;   ........
 ;   ........
@@ -194,7 +234,7 @@
         .byte $C7        ; $A046 - Row 6
         .byte $FF        ; $A047 - Row 7
 
-; Character $09 - Player right leg sprite
+; Character $09 - Player dead (Right)
 ;   ........
 ;   ........
 ;   ........
@@ -213,7 +253,7 @@
         .byte $FD        ; $A04E - Row 6
         .byte $F7        ; $A04F - Row 7
 
-; Character $0A - Explosion/star effect sprite
+; Character $0A - Font Character: * (Asterisk)
 ;   ........
 ;   .##..##.
 ;   ..####..
@@ -232,7 +272,7 @@
         .byte $00        ; $A056 - Row 6
         .byte $00        ; $A057 - Row 7
 
-; Character $0B - Crosshair/plus sprite
+; Character $0B - Font Character: + (Plus)
 ;   ........
 ;   ...##...
 ;   ...##...
@@ -251,7 +291,7 @@
         .byte $00        ; $A05E - Row 6
         .byte $00        ; $A05F - Row 7
 
-; Character $0C - Game graphics/sprite data
+; Character $0C - Font Character: , (Comma)
 ;   ........
 ;   ........
 ;   ........
@@ -270,7 +310,7 @@
         .byte $18        ; $A066 - Row 6
         .byte $30        ; $A067 - Row 7
 
-; Character $0D - Game graphics/sprite data
+; Character $0D - Font Character: - (Hyphen)
 ;   ........
 ;   ........
 ;   ........
@@ -289,7 +329,7 @@
         .byte $00        ; $A06E - Row 6
         .byte $00        ; $A06F - Row 7
 
-; Character $0E - Game graphics/sprite data
+; Character $0E - Font Character: . (Period)
 ;   ........
 ;   ........
 ;   ........
@@ -308,7 +348,7 @@
         .byte $18        ; $A076 - Row 6
         .byte $00        ; $A077 - Row 7
 
-; Character $0F - Game graphics/sprite data
+; Character $0F - Font Character: / (Forward Slash)
 ;   ......##
 ;   .....##.
 ;   ....##..
@@ -517,7 +557,7 @@
         .byte $07        ; $A0CE - Row 6
         .byte $00        ; $A0CF - Row 7
 
-; Character $1A - Game graphics/sprite data
+; Character $1A - Font character: Colon (:)
 ;   ........
 ;   ...##...
 ;   ...##...
@@ -536,7 +576,7 @@
         .byte $00        ; $A0D6 - Row 6
         .byte $00        ; $A0D7 - Row 7
 
-; Character $1B - Game graphics/sprite data
+; Character $1B - Font character: Semicolon (;)
 ;   ........
 ;   ...##...
 ;   ...##...
@@ -555,7 +595,7 @@
         .byte $30        ; $A0DE - Row 6
         .byte $00        ; $A0DF - Row 7
 
-; Character $1C - Game graphics/sprite data
+; Character $1C - Enemy
 ;   ........
 ;   ..#####.
 ;   ....#...
@@ -593,7 +633,7 @@
         .byte $00        ; $A0EE - Row 6
         .byte $00        ; $A0EF - Row 7
 
-; Character $1E - Game graphics/sprite data
+; Character $1E - Player sprite: Stationary body
 ;   ...###..
 ;   ..#.#.#.
 ;   ..#.#.#.
@@ -612,7 +652,7 @@
         .byte $14        ; $A0F6 - Row 6
         .byte $36        ; $A0F7 - Row 7
 
-; Character $1F - Game graphics/sprite data
+; Character $1F - Font character: Question mark (?)
 ;   .#######
 ;   .##...##
 ;   ......##
@@ -1030,7 +1070,7 @@
         .byte $1C        ; $A1A6 - Row 6
         .byte $00        ; $A1A7 - Row 7
 
-; Character $35 - Letter 'U' for text display
+; Character $35 - Letter 'U' / Player sprite: Static player character (lives display)
 ;   .##..###
 ;   .##..###
 ;   .##..###
@@ -1772,6 +1812,36 @@ $A328: 20 D0 A6 JSR $A6D0 ; Setup routine
 $A32B: 20 18 A5 JSR $A518 ; Additional setup - Initialize game variables and text displays
 $A32E: 58       CLI
 $A32F: 20 B6 A9 JSR $A9B6 ; Game initialization
+
+; ===============================================================================
+; PLAYER SPRITE SYSTEM SUMMARY
+; ===============================================================================
+; The K-Razy Shoot-Out player character uses a sophisticated multi-sprite system
+; with directional animation and walking cycles. This was remarkably advanced for 1981.
+;
+; COMPLETE SPRITE INVENTORY:
+; - Character $02: Head (Sideways)  - Used for horizontal movement
+; - Character $04: Head (Vertical)  - Used for vertical/stationary movement
+; - Character $03: Body (Horizontal) Frame 1 - Walking animation frame 1
+; - Character $05: Body (Horizontal) Frame 2 - Walking animation frame 2
+; - Character $1E: Body (Stationary) - Used for vertical/stationary movement
+; - Characters $06-$09: Death animation and final dead state sprites
+;
+; ANIMATION STATES:
+; 1. STATIONARY/VERTICAL: Character $04 (head) + Character $1E (body)
+; 2. HORIZONTAL FRAME 1:  Character $02 (head) + Character $03 (body)
+; 3. HORIZONTAL FRAME 2:  Character $02 (head) + Character $05 (body)
+; 4. DEATH ANIMATION:     Character $06 (top) + Character $07 (bottom)
+; 5. FINAL DEAD STATE:    Character $08 (left) + Character $09 (right)
+;
+; HARDWARE IMPLEMENTATION:
+; - Uses Atari 5200 PMG (Player/Missile Graphics) system
+; - $E804: Player sprite position register (X coordinate)
+; - $E805: Player sprite character register (loads character codes)
+; - Movement detection via collision registers $C004/$C00C and joystick input
+; - Real-time sprite character swapping based on movement state
+; ===============================================================================
+
 ; ===============================================================================
 ; MAIN_GAME_LOOP ($A332)
 ; Core game loop - runs continuously during play
@@ -2494,8 +2564,24 @@ $A638: 41       .byte $41        ; 'A'
 $A639: 4E       .byte $4E        ; 'N'
 ; ===============================================================================
 ; ANIMATION_ENGINE ($A63B)
-; Sprite animation and timing system
-; This routine:
+; **PLAYER SPRITE ANIMATION AND TIMING SYSTEM**
+; This routine manages the sophisticated player sprite animation system:
+; - Controls directional sprite selection (vertical vs horizontal heads)
+; - Manages walking animation frames for horizontal movement
+; - Handles sprite positioning and hardware register updates
+; - Processes animation timing and sequences
+; - Updates sprite character codes in $E805 based on movement state
+; - Coordinates multi-sprite player character display (head + body combinations)
+;
+; SPRITE ANIMATION LOGIC:
+; 1. Movement Detection: Monitors joystick input and collision registers
+; 2. Head Selection: Chooses Character $02 (sideways) or $04 (vertical)
+; 3. Body Selection: Chooses appropriate body sprite based on movement:
+;    - Stationary/Vertical: Character $1E (stationary body)
+;    - Horizontal Frame 1: Character $03 (walking frame 1)
+;    - Horizontal Frame 2: Character $05 (walking frame 2)
+; 4. Hardware Update: Loads selected characters into $E804/$E805 registers
+; ===============================================================================
 ; - Manages sprite animation frames
 ; - Controls animation timing and sequences
 ; - Handles sprite movement and positioning
@@ -2558,11 +2644,11 @@ $A6A5: A5 B8    LDA #$B8 ; Load sprite position
 $A6A7: 38       SEC ; Set carry for subtraction
 $A6A8: E9 04    SBC #$04 ; Move sprite 4 pixels
 $A6AA: 85 B8    STA $B8 ; Store new sprite position
-$A6AC: 8D 04 E8 STA $E804 ; Update sprite register
+$A6AC: 8D 04 E8 STA $E804 ; **PLAYER SPRITE POSITION** - Update player sprite X position
 $A6AF: C9 08    CMP #$08 ; Check if sprite at edge (8 pixels)
 $A6B1: B0 07    BCS $A6BA ; Branch if sprite not at edge
 $A6B3: A9 00    LDA #$00 ; Clear sprite animation
-$A6B5: 8D 05 E8 STA $E805 ; Store to sprite control
+$A6B5: 8D 05 E8 STA $E805 ; **PLAYER SPRITE CHARACTER** - Clear player sprite (load character $00)
 $A6B8: 85 B9    STA $B9 ; Store sprite disable flag
 $A6BA: A5 93    LDA #$93 ; Check game trigger flag
 $A6BC: D0 0F    BNE $A6CD ; Branch if trigger active
@@ -2668,129 +2754,50 @@ $A77E: 99 91 21 STA $2191
 $A781: 88       DEY
 $A782: 10 E5    BPL $A769
 $A784: E6 0C    INC $0C
-$A786: AD 10 C0 LDA $C010
-$A789: D0 F9    BNE $A784
+$A786: AD 10 C0 LDA $C010 ; **TRIGGER INPUT** - Read trigger register (0=pressed, 1=released)
+$A789: D0 F9    BNE $A784 ; Wait for trigger release (wait for 0)
 $A78B: 60       RTS
-$A78C: 47       .byte $47        ; Data byte
-$A78D: 4A       LSR
-$A78E: 49 40    EOR #$40
-$A790: 4A       LSR
-$A791: 4A       LSR
-$A792: 49 40    EOR #$40
-$A794: 47       .byte $47        ; Data byte
-$A795: 4A       LSR
-$A796: 49 40    EOR #$40
-$A798: 4A       LSR
-$A799: 46 4A    LSR $4A
-$A79B: 45 4A    EOR #$4A
-$A79D: 46 4A    LSR $4A
-$A79F: 45 4A    EOR #$4A
-$A7A1: 46 4A    LSR $4A
-$A7A3: 45 4A    EOR #$4A
-$A7A5: 45 43    EOR #$43
-$A7A7: 41 4A    EOR #$4A
-$A7A9: 49 4A    EOR #$4A
-$A7AB: 41 4A    EOR #$4A
-$A7AD: 49 48    EOR #$48
-$A7AF: 40       RTI
-$A7B0: 4A       LSR
-$A7B1: 45 48    EOR #$48
-$A7B3: 44       .byte $44        ; Data byte
-$A7B4: 4A       LSR
-$A7B5: 46 4A    LSR $4A
-$A7B7: 44       .byte $44        ; Data byte
-$A7B8: 42       .byte $42        ; Data byte
-$A7B9: 43       .byte $43        ; Data byte
-$A7BA: 4A       LSR
-$A7BB: 45 4A    EOR #$4A
-$A7BD: 49 4A    EOR #$4A
-$A7BF: 45 4A    EOR #$4A
-$A7C1: 49 4A    EOR #$4A
-$A7C3: 45 4A    EOR #$4A
-$A7C5: 49 4A    EOR #$4A
-$A7C7: 45 42    EOR #$42
-$A7C9: 4A       LSR
-$A7CA: 46 40    LSR $40
-$A7CC: 4A       LSR
-$A7CD: 4A       LSR
-$A7CE: 46 40    LSR $40
-$A7D0: 42       .byte $42        ; Data byte
-$A7D1: 4A       LSR
-$A7D2: 46 40    LSR $40
-$A7D4: 65 6C    ADC #$6C
-$A7D6: 65 63    ADC #$63
-$A7D8: 74       .byte $74        ; Data byte
-$A7D9: 72       .byte $72        ; Data byte
-$A7DA: 6F       .byte $6F        ; Data byte
-$A7DB: 6E 69 63 ROR $6369
-$A7DE: 73       .byte $73        ; Data byte
-$A7DF: 00       BRK
-$A7E0: 00       BRK
-$A7E1: 30 32    BMI $A815
-$A7E3: 25 33    AND #$33
-$A7E5: 25 2E    AND #$2E
-$A7E7: 34       .byte $34        ; Data byte
-$A7E8: 33       .byte $33        ; Data byte
-$A7E9: 00       BRK
-$A7EA: 00       BRK
-$A7EB: 00       BRK
-$A7EC: EB       .byte $EB        ; Data byte
-$A7ED: CD F2 E1 CMP $E1F2
-$A7F0: FA       .byte $FA        ; Data byte
-$A7F1: F9 00 F3 SBC $F300
-$A7F4: E8       INX
-$A7F5: EF       .byte $EF        ; Data byte
-$A7F6: EF       .byte $EF        ; Data byte
-$A7F7: F4       .byte $F4        ; Data byte
-$A7F8: EF       .byte $EF        ; Data byte
-$A7F9: F5 F4    SBC #$F4
-$A7FB: 00       BRK
-$A7FC: 00       BRK
-$A7FD: 00       BRK
-$A7FE: 6B       .byte $6B        ; Data byte
-$A7FF: 4D 62 79 EOR $7962
-$A802: 74       .byte $74        ; Data byte
-$A803: 65 00    ADC #$00
-$A805: 00       BRK
-$A806: 00       BRK
-$A807: 00       BRK
-$A808: 00       BRK
-$A809: 30 32    BMI $A83D
-$A80B: 25 33    AND #$33
-$A80D: 33       .byte $33        ; Data byte
-$A80E: 00       BRK
-$A80F: 34       .byte $34        ; Data byte
-$A810: 32       .byte $32        ; Data byte
-$A811: 29 27    AND #$27
-$A813: 27       .byte $27        ; Data byte
-$A814: 25 32    AND #$32
-$A816: 00       BRK
-$A817: 00       BRK
-$A818: 23       .byte $23        ; Data byte
-$A819: 2F       .byte $2F        ; Data byte
-$A81A: 30 39    BMI $A855
-$A81C: 32       .byte $32        ; Data byte
-$A81D: 29 27    AND #$27
-$A81F: 28       PLP
-$A820: 34       .byte $34        ; Data byte
-$A821: 00       BRK
-$A822: 11 19    ORA #$19
-$A824: 18       CLC
-$A825: 12       .byte $12        ; Data byte
-$A826: 00       BRK
-$A827: 2B       .byte $2B        ; Data byte
-$A828: 21 39    AND #$39
-$A82A: 00       BRK
-$A82B: 25 2E    AND #$2E
-$A82D: 34       .byte $34        ; Data byte
-$A82E: 25 32    AND #$32
-$A830: 30 32    BMI $A864
-$A832: 29 33    AND #$33
-$A834: 25 33    AND #$33
-        .byte $00        ; $A836 - Data byte
-        .byte $23        ; $A837 - Data byte
-        .byte $2F        ; $A838 - Data byte
-        .byte $0E        ; $A839 - Data byte
+; ===============================================================================
+; MAZE PATTERN DATA ($A78C-$A7D3)
+; Primary maze pattern table - 72 bytes of wall pattern data
+; Used by maze generation routine at $A6D0-$A78B
+; Each byte represents a character code for maze wall elements
+; ===============================================================================
+$A78C: .byte $47, $4A, $49, $40, $4A, $4A, $49, $40  ; Wall pattern row 1
+$A794: .byte $47, $4A, $49, $40, $46, $4A, $45, $4A  ; Wall pattern row 2
+$A79C: .byte $46, $4A, $45, $4A, $46, $4A, $45, $4A  ; Wall pattern row 3
+$A7A4: .byte $45, $43, $41, $4A, $49, $4A, $41, $4A  ; Wall pattern row 4
+$A7AC: .byte $49, $48, $40, $4A, $45, $48, $44, $4A  ; Wall pattern row 5
+$A7B4: .byte $46, $4A, $44, $42, $43, $4A, $45, $4A  ; Wall pattern row 6
+$A7BC: .byte $49, $4A, $45, $4A, $49, $4A, $45, $4A  ; Wall pattern row 7
+$A7C4: .byte $49, $4A, $45, $42, $4A, $46, $40, $4A  ; Wall pattern row 8
+$A7CC: .byte $4A, $46, $40, $42, $4A, $46, $40       ; Wall pattern row 9 (7 bytes)
+; ===============================================================================
+; SPECIAL PATTERN TABLES ($A7D4-$A834)
+; Additional pattern data used for specific maze elements and text
+; ===============================================================================
+
+; Pattern Table 1 ($A7D4-$A7DE): "electronics" text pattern
+$A7D4: .byte $65, $6C, $65, $63, $74, $72, $6F, $6E, $69, $63, $73  ; "electronics"
+
+; Pattern Table 2 ($A7DF-$A7EA): Numeric patterns  
+$A7DF: .byte $00, $00, $30, $32, $25, $33, $25, $2E, $34, $33, $00, $00
+
+; Pattern Table 3 ($A7EB-$A806): Special maze elements
+$A7EB: .byte $00, $EB, $CD, $F2, $E1, $FA, $F9, $00, $F3, $E8, $EF, $EF
+$A7F7: .byte $F4, $EF, $F5, $F4, $00, $00, $00, $6B, $4D, $62, $79, $74
+$A7FF: .byte $65, $00, $00, $00
+
+; Pattern Table 4 ($A807-$A817): Additional numeric patterns
+$A807: .byte $00, $00, $30, $32, $25, $33, $33, $00, $34, $32, $29, $27
+$A813: .byte $27, $25, $32, $00, $00
+
+; Pattern Table 5 ($A818-$A834): More maze elements
+$A818: .byte $23, $2F, $30, $39, $32, $29, $27, $28, $34, $00, $11, $19
+$A824: .byte $18, $12, $00, $2B, $21, $39, $00, $25, $2E, $34, $25, $32
+$A830: .byte $30, $32, $29, $33, $25, $33
+$A836: .byte $00, $23, $2F, $0E  ; Additional data bytes
+
 ; ===============================================================================
 ; MISC_UPDATE ($A83A)
 ; Miscellaneous game updates and collision processing
@@ -2808,8 +2815,8 @@ $A83E: 85 92    STA $92
 $A840: A5 94    LDA #$94
 $A842: D0 30    BNE $A874 ; Loop back if not zero
 ; ===============================================================================
-; INPUT_HANDLING ($A844)
-; Player input detection using collision registers
+; PLAYER_ENEMY_COLLISION_DETECTION ($A844)
+; Player-enemy collision detection using hardware collision registers
 ; ===============================================================================
 
 $A844: AD 0A C0 LDA $C00A ; GTIA P2PF - Player 2/Playfield collision
@@ -2893,15 +2900,15 @@ $A8F0: F0 04    BEQ $A8F6 ; Branch if equal/zero
 $A8F2: A9 00    LDA #$00
 $A8F4: 85 AC    STA $AC
 ; ===============================================================================
-; PLAYER MISSILE COLLISION DETECTION ($A8F6-$A930)
-; **PLAYER MISSILE vs ENEMY COLLISION SYSTEM**
+; PLAYER MISSILE vs ENEMY COLLISION DETECTION ($A8F6-$A930)
+; **PLAYER MISSILE HIT DETECTION SYSTEM**
 ; 
 ; This code checks for player missile collisions with each of the 3 possible
 ; enemies on screen. The game uses hardware collision detection to determine
 ; when the player's missile hits an enemy.
 ;
 ; **COLLISION DETECTION SYSTEM**:
-; - Single fire button creates player missile (direction based on joystick)
+; - Player missile (Missile 0) collision with enemies detected via hardware
 ; - Hardware collision register $C008 detects missile/enemy collisions
 ; - Each bit represents collision with a different enemy slot:
 ;   * Bit 1 ($02): Player missile hit enemy slot 1
@@ -2940,43 +2947,43 @@ $A929: A9 01    LDA #$01        ; **ENEMY 3 DEFEATED**
 $A92B: 85 96    STA $96         ; Set enemy slot 3 to DEFEATED
 $A92D: 20 66 BD JSR $BD66       ; Hit sound effect and scoring
 $A930: E6 D4    INC $D4         ; Increment shot counter (accuracy tracking)
-$A932: AD 08 C0 LDA $C008       ; **FIRE BUTTON SUMMARY CHECK** - All fire buttons
+$A932: AD 08 C0 LDA $C008       ; **FIRE BUTTON INPUT DETECTION** - Read fire button register
 $A935: 29 0E    AND #$0E        ; Mask fire button bits (1,2,3)
-$A937: 0D 00 C0 ORA $C000       ; Combine with collision data
-$A93A: F0 05    BEQ $A941       ; Branch if no firing activity
-$A93C: A2 00    LDX #$00        ; **PROCESS INSTANT-HIT DETECTION**
-$A93E: 20 9C A9 JSR $A99C       ; Call collision processing routine
-$A941: A5 93    LDA $93         ; **CHECK HIT DETECTION FLAG**
-$A943: D0 24    BNE $A969       ; Branch if hit detected
+$A937: 0D 00 C0 ORA $C000       ; Combine with base joystick input register
+$A93A: F0 05    BEQ $A941       ; Branch if no fire button pressed
+$A93C: A2 00    LDX #$00        ; **PROCESS FIRE BUTTON PRESS**
+$A93E: 20 9C A9 JSR $A99C       ; Call missile creation routine
+$A941: A5 93    LDA $93         ; **CHECK MISSILE CREATION FLAG**
+$A943: D0 24    BNE $A969       ; Branch if missile created
 $A945: AD 09 C0 LDA $C009       ; GTIA P1PF - Player 1/Playfield collision
 $A948: 0D 0A C0 ORA $C00A       ; OR with P2PF collision
 $A94B: 0D 0B C0 ORA $C00B       ; OR with P3PF collision  
 $A94E: 29 01    AND #$01        ; Check collision bit
 $A950: D0 13    BNE $A965       ; Branch if collision detected
-$A952: AD 04 C0 LDA $C004       ; **PRIMARY HIT DETECTION** - Check collision register
-$A955: 29 04    AND #$04        ; Check specific collision bit
-$A957: F0 04    BEQ $A95D       ; Branch if no collision
-$A959: A9 01    LDA #$01        ; **HIT CONFIRMED**
-$A95B: 85 AD    STA $AD         ; Set hit confirmation flag
-$A95D: AD 04 C0 LDA $C004       ; **SECONDARY HIT DETECTION** - Reload collision register
-$A960: 0D 0C C0 ORA $C00C       ; **CRITICAL**: OR with M0PF (Missile 0/Playfield collision)
-                                ; This combines primary collision with instant-hit detection
-$A963: F0 04    BEQ $A969       ; Branch if no hit detected
-$A965: A9 01    LDA #$01        ; **INSTANT-HIT CONFIRMED**
-$A967: 85 93    STA $93         ; Set master hit detection flag
-$A969: AD 09 C0 LDA $C009 ; GTIA P1PF - Player 1/Playfield collision
+$A952: AD 04 C0 LDA $C004       ; **JOYSTICK X-AXIS INPUT** - Read horizontal position
+$A955: 29 04    AND #$04        ; Check specific input bit
+$A957: F0 04    BEQ $A95D       ; Branch if no horizontal input
+$A959: A9 01    LDA #$01        ; **HORIZONTAL MOVEMENT DETECTED**
+$A95B: 85 AD    STA $AD         ; Set horizontal movement flag
+$A95D: AD 04 C0 LDA $C004       ; **RELOAD JOYSTICK INPUT** - Read position register again
+$A960: 0D 0C C0 ORA $C00C       ; **COMBINE WITH VERTICAL INPUT** - OR with Y-axis register
+                                ; This combines horizontal and vertical joystick input for missile direction
+$A963: F0 04    BEQ $A969       ; Branch if no joystick input detected
+$A965: A9 01    LDA #$01        ; **JOYSTICK INPUT CONFIRMED**
+$A967: 85 93    STA $93         ; Set joystick input detection flag
+$A969: AD 09 C0 LDA $C009 ; **JOYSTICK INPUT REGISTER** - Read additional input data
 $A96C: 29 0D    AND #$0D
 $A96E: 0D 01 C0 ORA $C001
 $A971: F0 05    BEQ $A978 ; Branch if equal/zero
 $A973: A2 01    LDX #$01
 $A975: 20 9C A9 JSR $A99C
-$A978: AD 0A C0 LDA $C00A ; GTIA P2PF - Player 2/Playfield collision
+$A978: AD 0A C0 LDA $C00A ; **JOYSTICK INPUT REGISTER** - Read additional input data
 $A97B: 29 0B    AND #$0B
 $A97D: 0D 02 C0 ORA $C002
 $A980: F0 05    BEQ $A987 ; Branch if equal/zero
 $A982: A2 02    LDX #$02
 $A984: 20 9C A9 JSR $A99C
-$A987: AD 0B C0 LDA $C00B ; GTIA P3PF - Player 3/Playfield collision
+$A987: AD 0B C0 LDA $C00B ; **JOYSTICK INPUT REGISTER** - Read additional input data
 $A98A: 29 07    AND #$07
 $A98C: 0D 03 C0 ORA $C003
 $A98F: F0 05    BEQ $A996 ; Branch if equal/zero
@@ -2986,34 +2993,29 @@ $A996: A9 00    LDA #$00
 $A998: 8D 1E C0 STA $C01E ; GTIA HITCLR - Clear collision registers
 $A99B: 60       RTS
 ; ===============================================================================
-; COLLISION_PROCESSING ($A99C)
-; **PLAYER INSTANT-HIT COLLISION DETECTION AND RESPONSE**
-; This routine processes the instant-hit collision detection system:
-; - Handles immediate hit detection when player fires
-; - Processes collision results from hardware registers
-; - Updates hit statistics and triggers effects
-; - Manages collision timers and cleanup
-;
-; **INSTANT-HIT PROCESSING**:
-; - Called immediately when fire button pressed ($A93E)
-; - Uses hardware collision registers for instant feedback
-; - No missile travel time - hits processed same frame
-; - Combines joystick direction with collision detection
+; MISSILE_CREATION_PROCESSING ($A99C)
+; **PLAYER MISSILE CREATION AND JOYSTICK DIRECTION SAMPLING**
+; This routine processes fire button input and creates player missiles:
+; - Samples joystick direction from input registers $C000-$C00F
+; - Creates player missile using hardware PMG system  
+; - Sets missile trajectory based on joystick position at fire time
+; - Handles missile availability checking and hardware register setup
 ; ===============================================================================
 
-$A99C: B4 E2    LDY #$E2 ; Process player collision (X = player number)
+$A99C: B4 E2    LDY #$E2 ; Process missile creation (X = input type)
 $A99E: A9 00    LDA #$00
 $A9A0: 95 E2    STA $E2
-$A9A2: 88       DEY ; Decrement collision timer
+$A9A2: 88       DEY ; Decrement missile timer
 $A9A3: 20 A9 A9 JSR $A9A9
 $A9A6: 20 A9 A9 JSR $A9A9
 $A9A9: BD 7C BF LDA $BF7C
-$A9AC: 49 FF    EOR #$FF ; Invert collision bits
-$A9AE: 39 00 13 AND $1300 ; Store processed collision
+$A9AC: 49 FF    EOR #$FF ; Invert input bits
+$A9AE: 39 00 13 AND $1300 ; Process missile creation
 $A9B1: 99 00 13 STA $1300
-$A9B4: C8       INY ; Return from collision processing
+$A9B4: C8       INY ; Return from missile processing
 $A9B5: 60       RTS
-; ===============================================================================
+; =============================
+==================================================
 ; GAME_INIT ($A9B6)
 ; Main game initialization and setup
 ; This routine:
@@ -3059,9 +3061,9 @@ $AA02: A9 00    LDA #$00
 $AA04: 85 54    STA $54
 $AA06: 8D 00 E8 STA $E800
 $AA09: A9 A0    LDA #$A0
-$AA0B: 8D 05 E8 STA $E805
+$AA0B: 8D 05 E8 STA $E805 ; **PLAYER SPRITE CHARACTER** - Load character $A0 into player sprite
 $AA0E: A9 14    LDA #$14
-$AA10: 8D 04 E8 STA $E804
+$AA10: 8D 04 E8 STA $E804 ; **PLAYER SPRITE POSITION** - Set player sprite X position to $14
 $AA13: A9 00    LDA #$00
 $AA15: 85 69    STA $69
 $AA17: A9 4D    LDA #$4D
@@ -3153,8 +3155,21 @@ $AAD1: D0 F9    BNE $AACC ; Loop back if not zero
 $AAD3: 4C 0D AB JMP $AB0D
 ; ===============================================================================
 ; SPRITE_UPDATE ($AAD6)
-; Sprite positioning and animation updates
-; This routine:
+; **PLAYER SPRITE POSITIONING AND CHARACTER LOADING**
+; This routine handles the core player sprite display system:
+; - Updates sprite positions in hardware registers $E804 (X position)
+; - Loads character codes into $E805 (sprite character selection)
+; - Manages sprite bounds checking and visibility
+; - Controls sprite movement and animation frame updates
+; - Coordinates multi-sprite player character rendering
+;
+; CHARACTER LOADING PROCESS:
+; 1. Determines current movement state (stationary/vertical/horizontal)
+; 2. Selects appropriate head sprite (Character $02 or $04)
+; 3. Selects appropriate body sprite (Character $03, $05, or $1E)
+; 4. Loads character codes into hardware sprite registers
+; 5. Updates sprite positions for proper alignment
+; ===============================================================================
 ; - Updates sprite positions
 ; - Manages sprite animations
 ; - Handles sprite bounds checking
@@ -3488,17 +3503,45 @@ $ACA7: 20 50 4F JSR $4F50
 $ACAA: 49 4E    EOR #$4E
 $ACAC: 54       .byte $54        ; Data byte
 $ACAD: 53       .byte $53        ; Data byte
-$ACAE: 20 32 30 JSR $3032
-$ACB1: 30 20    BMI $ACD3
-$ACB3: 58       CLI
-$ACB4: 31 30    AND #$30
-$ACB6: 30 20    BMI $ACD8
-$ACB8: 58       CLI
-$ACB9: 35 30    AND #$30
-$ACBB: 20 58 31 JSR $3158
-$ACBE: 30 20    BMI $ACE0
-$ACC0: 58       CLI
+; ===============================================================================
+; DISPLAY TEXT DATA SECTION ($ACAE-$ACC0)
+; ===============================================================================
+; This section contains ASCII text strings for bonus scoring displays
+; These are the text strings shown during bonus point calculations:
+; - "20 X100" (20 enemies worth 100 points each)
+; - "10 X50" (10 enemies worth 50 points each)  
+; - "X10" (remaining enemies worth 10 points each)
+; Used by the bonus display system after level completion
+; ===============================================================================
+$ACAE: 20       .byte $20        ; ' ' (space)
+$ACAF: 32       .byte $32        ; '2'
+$ACB0: 30       .byte $30        ; '0'
+$ACB1: 20       .byte $20        ; ' ' (space)
+$ACB2: 58       .byte $58        ; 'X'
+$ACB3: 31       .byte $31        ; '1'
+$ACB4: 30       .byte $30        ; '0'
+$ACB5: 30       .byte $30        ; '0'
+$ACB6: 20       .byte $20        ; ' ' (space)
+$ACB7: 58       .byte $58        ; 'X'
+$ACB8: 35       .byte $35        ; '5'
+$ACB9: 30       .byte $30        ; '0'
+$ACBA: 20       .byte $20        ; ' ' (space)
+$ACBB: 58       .byte $58        ; 'X'
+$ACBC: 31       .byte $31        ; '1'
+$ACBD: 30       .byte $30        ; '0'
+$ACBE: 20       .byte $20        ; ' ' (space)
+$ACBF: 58       .byte $58        ; 'X'
+$ACC0: 31       .byte $31        ; '1'
 $ACC1: A2 00    LDX #$00
+
+; ===============================================================================
+; SCREEN_MEMORY_MANAGEMENT ($ACC1-$AD04)
+; ===============================================================================
+; Screen memory clearing and character positioning routines
+; - Clears screen memory areas ($2400, $2C00-$2D00)
+; - Complex screen positioning calculations using indirect addressing
+; - Character placement and screen coordinate management
+; ===============================================================================
 $ACC3: 8A       TXA
 $ACC4: 9D 00 24 STA $2400
 $ACC7: CA       DEX
@@ -3537,532 +3580,704 @@ $ACFF: 91 7C    STA $7C
 $AD01: 88       DEY
 $AD02: 10 FB    BPL $ACFF
 $AD04: 60       RTS
-$AD05: A5 84    LDA #$84
-$AD07: 85 77    STA $77
-$AD09: 20 EB BD JSR $BDEB
-$AD0C: A2 13    LDX #$13
-$AD0E: E8       INX
-$AD0F: 8A       TXA
-$AD10: 85 7A    STA $7A
-$AD12: A9 0C    LDA #$0C
-$AD14: 85 72    STA $72
-$AD16: 85 71    STA $71
-$AD18: A9 00    LDA #$00
-$AD1A: 85 74    STA $74
-$AD1C: A5 80    LDA #$80
-$AD1E: 85 78    STA $78
-$AD20: A2 14    LDX #$14
-$AD22: A0 1E    LDY #$1E
-$AD24: CA       DEX
-$AD25: D0 FD    BNE $AD24 ; Loop back if not zero
-$AD27: 88       DEY
-$AD28: D0 FA    BNE $AD24 ; Loop back if not zero
-$AD2A: A5 93    LDA #$93
-$AD2C: D0 5E    BNE $AD8C ; Loop back if not zero
-$AD2E: AD 10 C0 LDA $C010 ; GTIA collision register
-$AD31: 05 E2    ORA #$E2
-$AD33: D0 17    BNE $AD4C ; Loop back if not zero
-$AD35: A5 60    LDA #$60
-$AD37: C9 FF    CMP #$FF
-$AD39: F0 11    BEQ $AD4C ; Branch if equal/zero
-$AD3B: A9 AC    LDA #$AC
-$AD3D: 8D 03 E8 STA $E803
-$AD40: 85 B7    STA $B7
-$AD42: A9 04    LDA #$04
-$AD44: 85 B6    STA $B6
-$AD46: E6 CF    INC $CF
-$AD48: D0 02    BNE $AD4C ; Loop back if not zero
-$AD4A: E6 CE    INC $CE
-$AD4C: AD 10 C0 LDA $C010 ; GTIA collision register
-$AD4F: F0 03    BEQ $AD54 ; Branch if equal/zero
-$AD51: 4C 04 AF JMP $AF04
-$AD54: 85 04    STA $04
-$AD56: A5 60    LDA #$60
-$AD58: C9 FF    CMP #$FF
-$AD5A: D0 03    BNE $AD5F ; Loop back if not zero
-$AD5C: 4C 04 AF JMP $AF04
-$AD5F: C9 F7    CMP #$F7
-$AD61: D0 2A    BNE $AD8D ; Loop back if not zero
-$AD63: A9 78    LDA #$78
-$AD65: 85 64    STA $64
-$AD67: 20 41 BC JSR $BC41
-$AD6A: A5 E2    LDA #$E2
-$AD6C: D0 1E    BNE $AD8C ; Loop back if not zero
-$AD6E: A9 05    LDA #$05
-$AD70: 85 88    STA $88
-$AD72: A5 80    LDA #$80
-$AD74: 18       CLC
-$AD75: 69 04    ADC #$04
-$AD77: 85 DE    STA $DE
-$AD79: 8D 04 C0 STA $C004
-$AD7C: A5 84    LDA #$84
-$AD7E: 18       CLC
-$AD7F: 69 05    ADC #$05
-$AD81: 85 E2    STA $E2
-$AD83: A8       TAY
-$AD84: A9 03    LDA #$03
-$AD86: 19 00 13 ORA $1300
-$AD89: 99 00 13 STA $1300
-$AD8C: 60       RTS
-$AD8D: C9 FB    CMP #$FB
-$AD8F: D0 2A    BNE $ADBB ; Loop back if not zero
-$AD91: A9 54    LDA #$54
-$AD93: 85 64    STA $64
-$AD95: 20 41 BC JSR $BC41
-$AD98: A5 E2    LDA #$E2
-$AD9A: D0 1E    BNE $ADBA ; Loop back if not zero
-$AD9C: A9 02    LDA #$02
-$AD9E: 85 88    STA $88
-$ADA0: A5 80    LDA #$80
-$ADA2: 18       CLC
-$ADA3: 69 02    ADC #$02
-$ADA5: 85 DE    STA $DE
-$ADA7: 8D 04 C0 STA $C004
-$ADAA: A5 84    LDA #$84
-$ADAC: 18       CLC
-$ADAD: 69 05    ADC #$05
-$ADAF: 85 E2    STA $E2
-$ADB1: A8       TAY
-$ADB2: A9 03    LDA #$03
-$ADB4: 19 00 13 ORA $1300
-$ADB7: 99 00 13 STA $1300
-$ADBA: 60       RTS
-$ADBB: C9 FE    CMP #$FE
-$ADBD: D0 33    BNE $ADF2 ; Loop back if not zero
-$ADBF: A9 9C    LDA #$9C
-$ADC1: 85 64    STA $64
-$ADC3: 20 41 BC JSR $BC41
-$ADC6: A5 E2    LDA #$E2
-$ADC8: D0 27    BNE $ADF1 ; Loop back if not zero
-$ADCA: A9 07    LDA #$07
-$ADCC: 85 88    STA $88
-$ADCE: A5 80    LDA #$80
-$ADD0: 18       CLC
-$ADD1: 69 05    ADC #$05
-$ADD3: 85 DE    STA $DE
-$ADD5: 8D 04 C0 STA $C004
-$ADD8: A5 84    LDA #$84
-$ADDA: A8       TAY
-$ADDB: 38       SEC
-$ADDC: E9 01    SBC #$01
-$ADDE: 85 E2    STA $E2
-$ADE0: A9 02    LDA #$02
-$ADE2: 19 00 13 ORA $1300
-$ADE5: 99 00 13 STA $1300
-$ADE8: 88       DEY
-$ADE9: A9 02    LDA #$02
-$ADEB: 19 00 13 ORA $1300
-$ADEE: 99 00 13 STA $1300
-$ADF1: 60       RTS
-$ADF2: C9 FD    CMP #$FD
-$ADF4: D0 30    BNE $AE26 ; Loop back if not zero
-$ADF6: A9 A8    LDA #$A8
-$ADF8: 85 64    STA $64
-$ADFA: 20 41 BC JSR $BC41
-$ADFD: A5 E2    LDA #$E2
-$ADFF: D0 24    BNE $AE25 ; Loop back if not zero
-$AE01: A9 09    LDA #$09
-$AE03: 85 88    STA $88
-$AE05: A5 80    LDA #$80
-$AE07: 85 DE    STA $DE
-$AE09: 8D 04 C0 STA $C004
-$AE0C: A5 84    LDA #$84
-$AE0E: 18       CLC
-$AE0F: 69 0A    ADC #$0A
-$AE11: 85 E2    STA $E2
-$AE13: A8       TAY
-$AE14: A9 01    LDA #$01
-$AE16: 19 00 13 ORA $1300
-$AE19: 99 00 13 STA $1300
-$AE1C: C8       INY
-$AE1D: A9 01    LDA #$01
-$AE1F: 19 00 13 ORA $1300
-$AE22: 99 00 13 STA $1300
-$AE25: 60       RTS
-$AE26: C9 F6    CMP #$F6
-$AE28: D0 34    BNE $AE5E ; Loop back if not zero
-$AE2A: A9 84    LDA #$84
-$AE2C: 85 64    STA $64
-$AE2E: 20 41 BC JSR $BC41
-$AE31: A5 E2    LDA #$E2
-$AE33: D0 F0    BNE $AE25 ; Loop back if not zero
-$AE35: A9 04    LDA #$04
-$AE37: 85 88    STA $88
-$AE39: A5 80    LDA #$80
-$AE3B: 18       CLC
-$AE3C: 69 03    ADC #$03
-$AE3E: 85 DE    STA $DE
-$AE40: 8D 04 C0 STA $C004
-$AE43: A5 84    LDA #$84
-$AE45: 18       CLC
-$AE46: 69 03    ADC #$03
-$AE48: A8       TAY
-$AE49: C8       INY
-$AE4A: 85 E2    STA $E2
-$AE4C: A9 02    LDA #$02
-$AE4E: 19 00 13 ORA $1300
-$AE51: 99 00 13 STA $1300
-$AE54: 88       DEY
-$AE55: A9 01    LDA #$01
-$AE57: 19 00 13 ORA $1300
-$AE5A: 99 00 13 STA $1300
-$AE5D: 60       RTS
-$AE5E: C9 F5    CMP #$F5
-$AE60: D0 33    BNE $AE95 ; Loop back if not zero
-$AE62: A9 90    LDA #$90
-$AE64: 85 64    STA $64
-$AE66: 20 41 BC JSR $BC41
-$AE69: A5 E2    LDA #$E2
-$AE6B: D0 27    BNE $AE94 ; Loop back if not zero
-$AE6D: A9 06    LDA #$06
-$AE6F: 85 88    STA $88
-$AE71: A5 80    LDA #$80
-$AE73: 18       CLC
-$AE74: 69 04    ADC #$04
-$AE76: 85 DE    STA $DE
-$AE78: 8D 04 C0 STA $C004
-$AE7B: A5 84    LDA #$84
-$AE7D: 18       CLC
-$AE7E: 69 05    ADC #$05
-$AE80: 85 E2    STA $E2
-$AE82: A8       TAY
-$AE83: A9 02    LDA #$02
-$AE85: 19 00 13 ORA $1300
-$AE88: 99 00 13 STA $1300
-$AE8B: C8       INY
-$AE8C: A9 01    LDA #$01
-$AE8E: 19 00 13 ORA $1300
-$AE91: 99 00 13 STA $1300
-$AE94: 60       RTS
-$AE95: C9 FA    CMP #$FA
-$AE97: D0 34    BNE $AECD ; Loop back if not zero
-$AE99: A9 60    LDA #$60
-$AE9B: 85 64    STA $64
-$AE9D: 20 41 BC JSR $BC41
-$AEA0: A5 E2    LDA #$E2
-$AEA2: D0 28    BNE $AECC ; Loop back if not zero
-$AEA4: A9 01    LDA #$01
-$AEA6: 85 88    STA $88
-$AEA8: A5 80    LDA #$80
-$AEAA: 18       CLC
-$AEAB: 69 03    ADC #$03
-$AEAD: 85 DE    STA $DE
-$AEAF: 8D 04 C0 STA $C004
-$AEB2: A5 84    LDA #$84
-$AEB4: 18       CLC
-$AEB5: 69 03    ADC #$03
-$AEB7: A8       TAY
-$AEB8: C8       INY
-$AEB9: 85 E2    STA $E2
-$AEBB: A9 01    LDA #$01
-$AEBD: 19 00 13 ORA $1300
-$AEC0: 99 00 13 STA $1300
-$AEC3: 88       DEY
-$AEC4: A9 02    LDA #$02
-$AEC6: 19 00 13 ORA $1300
-$AEC9: 99 00 13 STA $1300
-$AECC: 60       RTS
-$AECD: C9 F9    CMP #$F9
-$AECF: D0 32    BNE $AF03 ; Loop back if not zero
-$AED1: A9 6C    LDA #$6C
-$AED3: 85 64    STA $64
-$AED5: 20 41 BC JSR $BC41
-$AED8: A5 E2    LDA #$E2
-$AEDA: D0 27    BNE $AF03 ; Loop back if not zero
-$AEDC: A9 03    LDA #$03
-$AEDE: 85 88    STA $88
-$AEE0: A5 80    LDA #$80
-$AEE2: 18       CLC
-$AEE3: 69 02    ADC #$02
-$AEE5: 85 DE    STA $DE
-$AEE7: 8D 04 C0 STA $C004
-$AEEA: A5 84    LDA #$84
-$AEEC: 18       CLC
-$AEED: 69 05    ADC #$05
-$AEEF: 85 E2    STA $E2
-$AEF1: A8       TAY
-$AEF2: A9 01    LDA #$01
-$AEF4: 19 00 13 ORA $1300
-$AEF7: 99 00 13 STA $1300
-$AEFA: C8       INY
-$AEFB: A9 02    LDA #$02
-$AEFD: 19 00 13 ORA $1300
-$AF00: 99 00 13 STA $1300
-$AF03: 60       RTS
-$AF04: A5 8C    LDA #$8C
-$AF06: 85 64    STA $64
-$AF08: A2 00    LDX #$00
-$AF0A: A5 60    LDA #$60
-$AF0C: C9 FF    CMP #$FF
-$AF0E: D0 06    BNE $AF16 ; Loop back if not zero
-$AF10: 86 8C    STX $8C
-$AF12: 20 41 BC JSR $BC41
-$AF15: 60       RTS
-$AF16: 86 04    STX $04
-$AF18: C9 FD    CMP #$FD
-$AF1A: 30 25    BMI $AF41
-$AF1C: A9 3C    LDA #$3C
-$AF1E: C5 64    CMP #$64
-$AF20: D0 02    BNE $AF24 ; Loop back if not zero
-$AF22: A9 48    LDA #$48
-$AF24: 85 64    STA $64
-$AF26: 85 8C    STA $8C
-$AF28: 20 41 BC JSR $BC41
-$AF2B: A5 60    LDA #$60
-$AF2D: C9 FE    CMP #$FE
-$AF2F: D0 04    BNE $AF35 ; Loop back if not zero
-$AF31: A9 00    LDA #$00
-$AF33: F0 02    BEQ $AF37 ; Branch if equal/zero
-$AF35: A9 01    LDA #$01
-$AF37: 85 73    STA $73
-$AF39: 20 7C BC JSR $BC7C
-$AF3C: A5 77    LDA #$77
-$AF3E: 85 84    STA $84
-$AF40: 60       RTS
-$AF41: C9 F9    CMP #$F9
-$AF43: 30 34    BMI $AF79
-$AF45: A9 0C    LDA #$0C
-$AF47: C5 64    CMP #$64
-$AF49: D0 02    BNE $AF4D ; Loop back if not zero
-$AF4B: A9 18    LDA #$18
-$AF4D: 85 64    STA $64
-$AF4F: 85 8C    STA $8C
-$AF51: 20 41 BC JSR $BC41
-$AF54: A9 00    LDA #$00
-$AF56: 85 73    STA $73
-$AF58: 20 58 BC JSR $BC58
-$AF5B: A5 78    LDA #$78
-$AF5D: 85 80    STA $80
-$AF5F: A5 60    LDA #$60
-$AF61: C9 FB    CMP #$FB
-$AF63: F0 47    BEQ $AFAC ; Branch if equal/zero
-$AF65: C9 FA    CMP #$FA
-$AF67: D0 04    BNE $AF6D ; Loop back if not zero
-$AF69: A9 00    LDA #$00
-$AF6B: F0 02    BEQ $AF6F ; Branch if equal/zero
-$AF6D: A9 01    LDA #$01
-$AF6F: 85 73    STA $73
-$AF71: 20 7C BC JSR $BC7C
-$AF74: A5 77    LDA #$77
-$AF76: 85 84    STA $84
-$AF78: 60       RTS
-$AF79: A9 24    LDA #$24
-$AF7B: C5 64    CMP #$64
-$AF7D: D0 02    BNE $AF81 ; Loop back if not zero
-$AF7F: A9 30    LDA #$30
-$AF81: 85 64    STA $64
-$AF83: 85 8C    STA $8C
-$AF85: 20 41 BC JSR $BC41
-$AF88: A9 01    LDA #$01
-$AF8A: 85 73    STA $73
-$AF8C: 20 58 BC JSR $BC58
-$AF8F: A5 78    LDA #$78
-$AF91: 85 80    STA $80
-$AF93: A5 60    LDA #$60
-$AF95: C9 F7    CMP #$F7
-$AF97: F0 13    BEQ $AFAC ; Branch if equal/zero
-$AF99: C9 F6    CMP #$F6
-$AF9B: D0 04    BNE $AFA1 ; Loop back if not zero
-$AF9D: A9 00    LDA #$00
-$AF9F: F0 02    BEQ $AFA3 ; Branch if equal/zero
-$AFA1: A9 01    LDA #$01
-$AFA3: 85 73    STA $73
-$AFA5: 20 7C BC JSR $BC7C
-$AFA8: A5 77    LDA #$77
-$AFAA: 85 84    STA $84
-$AFAC: 60       RTS
-$AFAD: A2 00    LDX #$00 ; Main input processing routine
-$AFAF: A9 00    LDA #$00
-$AFB1: 95 80    STA $80
-$AFB3: E8       INX ; Handle directional input
-$AFB4: E0 45    CPX #$45
-$AFB6: D0 F9    BNE $AFB1 ; Loop back if not zero
-$AFB8: A2 00    LDX #$00
-$AFBA: A9 00    LDA #$00
-$AFBC: 9D 00 C0 STA $C000
-$AFBF: E8       INX ; Store input state
-$AFC0: E0 0C    CPX #$0C
-$AFC2: D0 F8    BNE $AFBC ; Loop back if not zero
-$AFC4: A9 00    LDA #$00
-$AFC6: AA       TAX
-$AFC7: 9D 00 13 STA $1300
-$AFCA: 9D 00 14 STA $1400
-$AFCD: 9D 00 15 STA $1500
-$AFD0: 9D 00 16 STA $1600
-$AFD3: 9D 00 17 STA $1700
-$AFD6: E8       INX
-$AFD7: D0 EE    BNE $AFC7 ; Loop back if not zero
-$AFD9: A2 13    LDX #$13
-$AFDB: CA       DEX
-$AFDC: CA       DEX
-$AFDD: CA       DEX
-$AFDE: 8A       TXA
-$AFDF: 8D 07 D4 STA $D407 ; ANTIC PMBASE - Player/Missile base address
-$AFE2: A9 00    LDA #$00
-$AFE4: 8D 1E C0 STA $C01E ; GTIA HITCLR - Clear collision registers
-$AFE7: 85 79    STA $79
-$AFE9: A9 01    LDA #$01
-$AFEB: 85 98    STA $98
-$AFED: 85 99    STA $99
-$AFEF: 85 9A    STA $9A
-$AFF1: A9 00    LDA #$00
-$AFF3: 85 0E    STA $0E
-$AFF5: 85 91    STA $91
-$AFF7: A9 7C    LDA #$7C
-$AFF9: 85 08    STA $08
-$AFFB: A9 3E    LDA #$3E
-$AFFD: 8D 00 D4 STA $D400 ; ANTIC DMACTL - DMA control
-$B000: 85 07    STA $07
-$B002: A9 03    LDA #$03
-$B004: 8D 1D C0 STA $C01D ; GTIA GRACTL - Graphics control
-$B007: AD 0A E8 LDA $E80A
-$B00A: 29 01    AND #$01
-$B00C: D0 05    BNE $B013 ; Loop back if not zero
-$B00E: A2 02    LDX #$02
-$B010: 4C 15 B0 JMP $B015
-$B013: A2 03    LDX #$03
-$B015: BD D4 BF LDA $BFD4
-$B018: 8D 00 C0 STA $C000
-$B01B: 85 80    STA $80
-$B01D: A9 01    LDA #$01
-$B01F: 85 65    STA $65
-$B021: A9 66    LDA #$66
-$B023: 85 84    STA $84
-$B025: 85 A7    STA $A7
-$B027: 20 BD BD JSR $BDBD
-$B02A: A9 07    LDA #$07
-$B02C: A2 A6    LDX #$A6
-$B02E: A0 3B    LDY #$3B
-$B030: 4C D5 BD JMP $BDD5
-$B033: A9 00    LDA #$00
-$B035: 8D 08 E8 STA $E808
-$B038: A9 AC    LDA #$AC
-$B03A: 8D 01 E8 STA $E801
-$B03D: A9 0C    LDA #$0C
-$B03F: 85 A4    STA $A4
-$B041: A9 20    LDA #$20
-$B043: A0 08    LDY #$08
-$B045: 20 8E B0 JSR $B08E
-$B048: 38       SEC
-$B049: E9 01    SBC #$01
-$B04B: 8D 00 E8 STA $E800
-$B04E: C9 08    CMP #$08
-$B050: D0 F1    BNE $B043 ; Loop back if not zero
-$B052: A5 A4    LDA #$A4
-$B054: 38       SEC
-$B055: E9 01    SBC #$01
-$B057: 85 A4    STA $A4
-$B059: D0 1E    BNE $B079 ; Loop back if not zero
-$B05B: A9 00    LDA #$00
-$B05D: 8D 01 E8 STA $E801
-$B060: 85 0E    STA $0E
-$B062: 85 10    STA $10
-$B064: A0 FF    LDY #$FF
-$B066: 20 8E B0 JSR $B08E
-$B069: A0 FF    LDY #$FF
-$B06B: 20 8E B0 JSR $B08E
-$B06E: A0 FF    LDY #$FF
-$B070: 20 8E B0 JSR $B08E
-$B073: A0 FF    LDY #$FF
-$B075: 20 8E B0 JSR $B08E
-$B078: 60       RTS
-$B079: A5 0E    LDA #$0E
-$B07B: F0 08    BEQ $B085 ; Branch if equal/zero
-$B07D: A9 00    LDA #$00
-$B07F: 85 0E    STA $0E
-$B081: 85 10    STA $10
-$B083: F0 02    BEQ $B087 ; Branch if equal/zero
-$B085: A5 A5    LDA #$A5
-$B087: 85 0E    STA $0E
-$B089: 85 10    STA $10
-$B08B: 4C 41 B0 JMP $B041
-$B08E: A2 30    LDX #$30
-$B090: CA       DEX
-$B091: D0 FD    BNE $B090 ; Loop back if not zero
-$B093: 88       DEY
-$B094: D0 FA    BNE $B090 ; Loop back if not zero
-$B096: 60       RTS
-$B097: A9 5B    LDA #$5B
-$B099: 8D 00 E8 STA $E800
-$B09C: 20 0A B1 JSR $B10A
-$B09F: 20 17 B1 JSR $B117
-$B0A2: 20 17 B1 JSR $B117
-$B0A5: 20 FD B0 JSR $B0FD
-$B0A8: 20 17 B1 JSR $B117
-$B0AB: 20 0A B1 JSR $B10A
-$B0AE: A9 60    LDA #$60
-$B0B0: 85 BC    STA $BC
-$B0B2: 20 17 B1 JSR $B117
-$B0B5: A9 4C    LDA #$4C
-$B0B7: 8D 00 E8 STA $E800
-$B0BA: 20 0A B1 JSR $B10A
-$B0BD: 20 17 B1 JSR $B117
-$B0C0: A9 51    LDA #$51
-$B0C2: 8D 00 E8 STA $E800
-$B0C5: 20 FD B0 JSR $B0FD
-$B0C8: 20 17 B1 JSR $B117
-$B0CB: 20 0A B1 JSR $B10A
-$B0CE: 20 17 B1 JSR $B117
-$B0D1: A9 5B    LDA #$5B
-$B0D3: 8D 00 E8 STA $E800
-$B0D6: 20 FD B0 JSR $B0FD
-$B0D9: 20 17 B1 JSR $B117
-$B0DC: 20 0A B1 JSR $B10A
-$B0DF: 20 17 B1 JSR $B117
-$B0E2: A9 60    LDA #$60
-$B0E4: 8D 00 E8 STA $E800
-$B0E7: 20 FD B0 JSR $B0FD
-$B0EA: 20 17 B1 JSR $B117
-$B0ED: A9 5B    LDA #$5B
-$B0EF: 8D 00 E8 STA $E800
-$B0F2: 20 0A B1 JSR $B10A
-$B0F5: A9 FF    LDA #$FF
-$B0F7: 85 BC    STA $BC
-$B0F9: 20 17 B1 JSR $B117
-$B0FC: 60       RTS
-$B0FD: A9 1C    LDA #$1C
-$B0FF: 85 BA    STA $BA
-$B101: A9 3E    LDA #$3E
-$B103: 85 BB    STA $BB
-$B105: A9 2A    LDA #$2A
-$B107: 85 BC    STA $BC
-$B109: 60       RTS
-$B10A: A9 2E    LDA #$2E
-$B10C: 85 BA    STA $BA
-$B10E: A9 7A    LDA #$7A
-$B110: 85 BB    STA $BB
-$B112: A9 4A    LDA #$4A
-$B114: 85 BC    STA $BC
-$B116: 60       RTS
-$B117: A9 A0    LDA #$A0
-$B119: 8D 01 E8 STA $E801
-$B11C: A6 BA    LDX #$BA
-$B11E: 20 46 B1 JSR $B146
-$B121: 18       CLC
-$B122: 69 01    ADC #$01
-$B124: C9 B0    CMP #$B0
-$B126: D0 F1    BNE $B119 ; Loop back if not zero
-$B128: A9 0E    LDA #$0E
-$B12A: A6 BB    LDX #$BB
-$B12C: 20 46 B1 JSR $B146
-$B12F: 38       SEC
-$B130: E9 01    SBC #$01
-$B132: D0 F6    BNE $B12A ; Loop back if not zero
-$B134: A9 AF    LDA #$AF
-$B136: 8D 01 E8 STA $E801
-$B139: A6 BC    LDX #$BC
-$B13B: 20 46 B1 JSR $B146
-$B13E: 38       SEC
-$B13F: E9 01    SBC #$01
-$B141: C9 9F    CMP #$9F
-$B143: D0 F1    BNE $B136 ; Loop back if not zero
-$B145: 60       RTS
-$B146: A0 13    LDY #$13
-$B148: 88       DEY
-$B149: D0 FD    BNE $B148 ; Loop back if not zero
-$B14B: CA       DEX
-$B14C: D0 F8    BNE $B146 ; Loop back if not zero
-$B14E: 60       RTS
+; ===============================================================================
+; MAJOR INPUT/MOVEMENT PROCESSING SECTION ($AD05-$AF03)
+; ===============================================================================
+; **8-DIRECTIONAL INPUT HANDLING WITH SPRITE SELECTION**
+; This is the core player movement system that processes joystick input and
+; selects appropriate player sprites based on movement direction.
+; 
+; **INPUT VALUES AND SPRITE COMBINATIONS**:
+; - $F7: UP-LEFT diagonal movement (sprite combination $78)
+; - $FB: UP-RIGHT diagonal movement (sprite combination $54)  
+; - $FE: DOWN movement (sprite combination $9C)
+; - $FD: DOWN-RIGHT diagonal movement (sprite combination $A8)
+; - $F6: LEFT movement (sprite combination $84)
+; - $F5: UP movement (sprite combination $90)
+; - $FA: DOWN-LEFT diagonal movement (sprite combination $60)
+; - $F9: RIGHT movement (sprite combination $6C)
+; - $FF: No input (stationary - sprite combination $8C)
+; 
+; **SPRITE SELECTION LOGIC**:
+; Each direction loads a specific sprite combination value into $64, which
+; determines which player head/body sprites are displayed:
+; - Head sprites: $02 (sideways), $04 (vertical)
+; - Body sprites: $03 (frame 1), $05 (frame 2), $1E (stationary)
+; - Death sprites: $06-$09 (death animation sequence)
+; 
+; **PMG SYSTEM INTEGRATION**:
+; The routine interfaces with the Player/Missile Graphics system by:
+; - Setting sprite positions in $DE (X coordinate) and $E2 (Y coordinate)
+; - Updating PMG memory at $1300 (Player 0) and $1400 (Player 1)
+; - Managing sprite visibility and collision detection
+; ===============================================================================
+
+$AD05: A5 84    LDA $84         ; Load current player Y position
+$AD07: 85 77    STA $77         ; Store for sprite positioning
+$AD09: 20 EB BD JSR $BDEB       ; Call sprite update routine
+$AD0C: A2 13    LDX #$13        ; Initialize PMG system
+$AD0E: E8       INX             ; Increment counter
+$AD0F: 8A       TXA             ; Transfer to accumulator
+$AD10: 85 7A    STA $7A         ; Store PMG counter
+$AD12: A9 0C    LDA #$0C        ; Set sprite parameters
+$AD14: 85 72    STA $72         ; Store sprite parameter 1
+$AD16: 85 71    STA $71         ; Store sprite parameter 2
+$AD18: A9 00    LDA #$00        ; Clear collision flags
+$AD1A: 85 74    STA $74         ; Clear collision register
+$AD1C: A5 80    LDA $80         ; Load player X position
+$AD1E: 85 78    STA $78         ; Store for sprite positioning
+$AD20: A2 14    LDX #$14        ; Set timing delay
+$AD22: A0 1E    LDY #$1E        ; Set timing delay
+$AD24: CA       DEX             ; Countdown delay loop
+$AD25: D0 FD    BNE $AD24       ; Loop until X = 0
+$AD27: 88       DEY             ; Countdown delay loop
+$AD28: D0 FA    BNE $AD24       ; Loop until Y = 0
+$AD2A: A5 93    LDA $93         ; Check game state
+$AD2C: D0 5E    BNE $AD8C       ; Branch if game active
+$AD2E: AD 10 C0 LDA $C010       ; **TRIGGER INPUT** - Read trigger register (0=pressed, 1=released)
+$AD31: 05 E2    ORA $E2         ; Combine with missile status
+$AD33: D0 17    BNE $AD4C       ; Branch if trigger not pressed or missile active
+$AD35: A5 60    LDA $60         ; **READ JOYSTICK INPUT** - Load joystick register
+$AD37: C9 FF    CMP #$FF        ; Check for no input (stationary)
+$AD39: F0 11    BEQ $AD4C       ; Branch if no input
+$AD3B: A9 AC    LDA #$AC        ; Set firing sound parameter
+$AD3D: 8D 03 E8 STA $E803       ; Store to sound register
+$AD40: 85 B7    STA $B7         ; Store sound parameter
+$AD42: A9 04    LDA #$04        ; Set missile parameters
+$AD44: 85 B6    STA $B6         ; Store missile parameter
+$AD46: E6 CF    INC $CF         ; Increment shot counter (for accuracy tracking)
+$AD48: D0 02    BNE $AD4C       ; Branch if no overflow
+$AD4A: E6 CE    INC $CE         ; Increment high byte of shot counter
+$AD4C: AD 10 C0 LDA $C010       ; **TRIGGER INPUT** - Read trigger register again
+$AD4F: F0 03    BEQ $AD54       ; Branch if trigger pressed (0 = pressed)
+$AD51: 4C 04 AF JMP $AF04       ; Jump to stationary sprite handling
+$AD54: 85 04    STA $04         ; Clear trigger flag
+$AD56: A5 60    LDA $60         ; **READ JOYSTICK INPUT** - Load joystick register
+$AD58: C9 FF    CMP #$FF        ; Check for no input
+$AD5A: D0 03    BNE $AD5F       ; Branch if input detected
+$AD5C: 4C 04 AF JMP $AF04       ; Jump to stationary sprite handling
+
+; **DIRECTIONAL INPUT PROCESSING** - Each case handles specific movement direction
+$AD5F: C9 F7    CMP #$F7        ; **UP-LEFT DIAGONAL** input check
+$AD61: D0 2A    BNE $AD8D       ; Branch if not UP-LEFT
+$AD63: A9 78    LDA #$78        ; Load UP-LEFT sprite combination
+$AD65: 85 64    STA $64         ; Store sprite combination
+$AD67: 20 41 BC JSR $BC41       ; Call sprite positioning routine
+$AD6A: A5 E2    LDA $E2         ; Check missile status
+$AD6C: D0 1E    BNE $AD8C       ; Branch if missile active
+$AD6E: A9 05    LDA #$05        ; Set movement direction (UP-LEFT)
+$AD70: 85 88    STA $88         ; Store movement direction
+$AD72: A5 80    LDA $80         ; Load player X position
+$AD74: 18       CLC             ; Clear carry
+$AD75: 69 04    ADC #$04        ; Move right (+4 pixels)
+$AD77: 85 DE    STA $DE         ; Store new X position
+$AD79: 8D 04 C0 STA $C004       ; Update hardware X position register
+$AD7C: A5 84    LDA $84         ; Load player Y position
+$AD7E: 18       CLC             ; Clear carry
+$AD7F: 69 05    ADC #$05        ; Move down (+5 pixels)
+$AD81: 85 E2    STA $E2         ; Store new Y position
+$AD83: A8       TAY             ; Transfer to Y register
+$AD84: A9 03    LDA #$03        ; Set sprite data (head sprite)
+$AD86: 19 00 13 ORA $1300,Y     ; Combine with PMG data
+$AD89: 99 00 13 STA $1300,Y     ; Store to Player 0 PMG memory
+$AD8C: 60       RTS             ; Return from UP-LEFT processing
+
+$AD8D: C9 FB    CMP #$FB        ; **UP-RIGHT DIAGONAL** input check
+$AD8F: D0 2A    BNE $ADBB       ; Branch if not UP-RIGHT
+$AD91: A9 54    LDA #$54        ; Load UP-RIGHT sprite combination
+$AD93: 85 64    STA $64         ; Store sprite combination
+$AD95: 20 41 BC JSR $BC41       ; Call sprite positioning routine
+$AD98: A5 E2    LDA $E2         ; Check missile status
+$AD9A: D0 1E    BNE $ADBA       ; Branch if missile active
+$AD9C: A9 02    LDA #$02        ; Set movement direction (UP-RIGHT)
+$AD9E: 85 88    STA $88         ; Store movement direction
+$ADA0: A5 80    LDA $80         ; Load player X position
+$ADA2: 18       CLC             ; Clear carry
+$ADA3: 69 02    ADC #$02        ; Move right (+2 pixels)
+$ADA5: 85 DE    STA $DE         ; Store new X position
+$ADA7: 8D 04 C0 STA $C004       ; Update hardware X position register
+$ADAA: A5 84    LDA $84         ; Load player Y position
+$ADAC: 18       CLC             ; Clear carry
+$ADAD: 69 05    ADC #$05        ; Move down (+5 pixels)
+$ADAF: 85 E2    STA $E2         ; Store new Y position
+$ADB1: A8       TAY             ; Transfer to Y register
+$ADB2: A9 03    LDA #$03        ; Set sprite data (head sprite)
+$ADB4: 19 00 13 ORA $1300,Y     ; Combine with PMG data
+$ADB7: 99 00 13 STA $1300,Y     ; Store to Player 0 PMG memory
+$ADBA: 60       RTS             ; Return from UP-RIGHT processing
+
+$ADBB: C9 FE    CMP #$FE        ; **DOWN MOVEMENT** input check
+$ADBD: D0 33    BNE $ADF2       ; Branch if not DOWN
+$ADBF: A9 9C    LDA #$9C        ; Load DOWN sprite combination
+$ADC1: 85 64    STA $64         ; Store sprite combination
+$ADC3: 20 41 BC JSR $BC41       ; Call sprite positioning routine
+$ADC6: A5 E2    LDA $E2         ; Check missile status
+$ADC8: D0 27    BNE $ADF1       ; Branch if missile active
+$ADCA: A9 07    LDA #$07        ; Set movement direction (DOWN)
+$ADCC: 85 88    STA $88         ; Store movement direction
+$ADCE: A5 80    LDA $80         ; Load player X position
+$ADD0: 18       CLC             ; Clear carry
+$ADD1: 69 05    ADC #$05        ; Move right (+5 pixels)
+$ADD3: 85 DE    STA $DE         ; Store new X position
+$ADD5: 8D 04 C0 STA $C004       ; Update hardware X position register
+$ADD8: A5 84    LDA $84         ; Load player Y position
+$ADDA: A8       TAY             ; Transfer to Y register
+$ADDB: 38       SEC             ; Set carry
+$ADDC: E9 01    SBC #$01        ; Move up (-1 pixel)
+$ADDE: 85 E2    STA $E2         ; Store new Y position
+$ADE0: A9 02    LDA #$02        ; Set sprite data (body sprite)
+$ADE2: 19 00 13 ORA $1300,Y     ; Combine with PMG data
+$ADE5: 99 00 13 STA $1300,Y     ; Store to Player 0 PMG memory
+$ADE8: 88       DEY             ; Move to next PMG position
+$ADE9: A9 02    LDA #$02        ; Set sprite data (head sprite)
+$ADEB: 19 00 13 ORA $1300,Y     ; Combine with PMG data
+$ADEE: 99 00 13 STA $1300,Y     ; Store to Player 0 PMG memory
+$ADF1: 60       RTS             ; Return from DOWN processing
+
+$ADF2: C9 FD    CMP #$FD        ; **DOWN-RIGHT DIAGONAL** input check
+$ADF4: D0 30    BNE $AE26       ; Branch if not DOWN-RIGHT
+$ADF6: A9 A8    LDA #$A8        ; Load DOWN-RIGHT sprite combination
+$ADF8: 85 64    STA $64         ; Store sprite combination
+$ADFA: 20 41 BC JSR $BC41       ; Call sprite positioning routine
+$ADFD: A5 E2    LDA $E2         ; Check missile status
+$ADFF: D0 24    BNE $AE25       ; Branch if missile active
+$AE01: A9 09    LDA #$09        ; Set movement direction (DOWN-RIGHT)
+$AE03: 85 88    STA $88         ; Store movement direction
+$AE05: A5 80    LDA $80         ; Load player X position
+$AE07: 85 DE    STA $DE         ; Store X position (no change)
+$AE09: 8D 04 C0 STA $C004       ; Update hardware X position register
+$AE0C: A5 84    LDA $84         ; Load player Y position
+$AE0E: 18       CLC             ; Clear carry
+$AE0F: 69 0A    ADC #$0A        ; Move down (+10 pixels)
+$AE11: 85 E2    STA $E2         ; Store new Y position
+$AE13: A8       TAY             ; Transfer to Y register
+$AE14: A9 01    LDA #$01        ; Set sprite data (body sprite)
+$AE16: 19 00 13 ORA $1300,Y     ; Combine with PMG data
+$AE19: 99 00 13 STA $1300,Y     ; Store to Player 0 PMG memory
+$AE1C: C8       INY             ; Move to next PMG position
+$AE1D: A9 01    LDA #$01        ; Set sprite data (head sprite)
+$AE1F: 19 00 13 ORA $1300,Y     ; Combine with PMG data
+$AE22: 99 00 13 STA $1300,Y     ; Store to Player 0 PMG memory
+$AE25: 60       RTS             ; Return from DOWN-RIGHT processing
+
+$AE26: C9 F6    CMP #$F6        ; **LEFT MOVEMENT** input check
+$AE28: D0 34    BNE $AE5E       ; Branch if not LEFT
+$AE2A: A9 84    LDA #$84        ; Load LEFT sprite combination
+$AE2C: 85 64    STA $64         ; Store sprite combination
+$AE2E: 20 41 BC JSR $BC41       ; Call sprite positioning routine
+$AE31: A5 E2    LDA $E2         ; Check missile status
+$AE33: D0 F0    BNE $AE25       ; Branch if missile active
+$AE35: A9 04    LDA #$04        ; Set movement direction (LEFT)
+$AE37: 85 88    STA $88         ; Store movement direction
+$AE39: A5 80    LDA $80         ; Load player X position
+$AE3B: 18       CLC             ; Clear carry
+$AE3C: 69 03    ADC #$03        ; Move right (+3 pixels)
+$AE3E: 85 DE    STA $DE         ; Store new X position
+$AE40: 8D 04 C0 STA $C004       ; Update hardware X position register
+$AE43: A5 84    LDA $84         ; Load player Y position
+$AE45: 18       CLC             ; Clear carry
+$AE46: 69 03    ADC #$03        ; Move down (+3 pixels)
+$AE48: A8       TAY             ; Transfer to Y register
+$AE49: C8       INY             ; Move to next PMG position
+$AE4A: 85 E2    STA $E2         ; Store new Y position
+$AE4C: A9 02    LDA #$02        ; Set sprite data (body sprite)
+$AE4E: 19 00 13 ORA $1300,Y     ; Combine with PMG data
+$AE51: 99 00 13 STA $1300,Y     ; Store to Player 0 PMG memory
+$AE54: 88       DEY             ; Move to previous PMG position
+$AE55: A9 01    LDA #$01        ; Set sprite data (head sprite)
+$AE57: 19 00 13 ORA $1300,Y     ; Combine with PMG data
+$AE5A: 99 00 13 STA $1300,Y     ; Store to Player 0 PMG memory
+$AE5D: 60       RTS             ; Return from LEFT processing
+
+$AE5E: C9 F5    CMP #$F5        ; **UP MOVEMENT** input check
+$AE60: D0 33    BNE $AE95       ; Branch if not UP
+$AE62: A9 90    LDA #$90        ; Load UP sprite combination
+$AE64: 85 64    STA $64         ; Store sprite combination
+$AE66: 20 41 BC JSR $BC41       ; Call sprite positioning routine
+$AE69: A5 E2    LDA $E2         ; Check missile status
+$AE6B: D0 27    BNE $AE94       ; Branch if missile active
+$AE6D: A9 06    LDA #$06        ; Set movement direction (UP)
+$AE6F: 85 88    STA $88         ; Store movement direction
+$AE71: A5 80    LDA $80         ; Load player X position
+$AE73: 18       CLC             ; Clear carry
+$AE74: 69 04    ADC #$04        ; Move right (+4 pixels)
+$AE76: 85 DE    STA $DE         ; Store new X position
+$AE78: 8D 04 C0 STA $C004       ; Update hardware X position register
+$AE7B: A5 84    LDA $84         ; Load player Y position
+$AE7D: 18       CLC             ; Clear carry
+$AE7E: 69 05    ADC #$05        ; Move down (+5 pixels)
+$AE80: 85 E2    STA $E2         ; Store new Y position
+$AE82: A8       TAY             ; Transfer to Y register
+$AE83: A9 02    LDA #$02        ; Set sprite data (body sprite)
+$AE85: 19 00 13 ORA $1300,Y     ; Combine with PMG data
+$AE88: 99 00 13 STA $1300,Y     ; Store to Player 0 PMG memory
+$AE8B: C8       INY             ; Move to next PMG position
+$AE8C: A9 01    LDA #$01        ; Set sprite data (head sprite)
+$AE8E: 19 00 13 ORA $1300,Y     ; Combine with PMG data
+$AE91: 99 00 13 STA $1300,Y     ; Store to Player 0 PMG memory
+$AE94: 60       RTS             ; Return from UP processing
+
+$AE95: C9 FA    CMP #$FA        ; **DOWN-LEFT DIAGONAL** input check
+$AE97: D0 34    BNE $AECD       ; Branch if not DOWN-LEFT
+$AE99: A9 60    LDA #$60        ; Load DOWN-LEFT sprite combination
+$AE9B: 85 64    STA $64         ; Store sprite combination
+$AE9D: 20 41 BC JSR $BC41       ; Call sprite positioning routine
+$AEA0: A5 E2    LDA $E2         ; Check missile status
+$AEA2: D0 28    BNE $AECC       ; Branch if missile active
+$AEA4: A9 01    LDA #$01        ; Set movement direction (DOWN-LEFT)
+$AEA6: 85 88    STA $88         ; Store movement direction
+$AEA8: A5 80    LDA $80         ; Load player X position
+$AEAA: 18       CLC             ; Clear carry
+$AEAB: 69 03    ADC #$03        ; Move right (+3 pixels)
+$AEAD: 85 DE    STA $DE         ; Store new X position
+$AEAF: 8D 04 C0 STA $C004       ; Update hardware X position register
+$AEB2: A5 84    LDA $84         ; Load player Y position
+$AEB4: 18       CLC             ; Clear carry
+$AEB5: 69 03    ADC #$03        ; Move down (+3 pixels)
+$AEB7: A8       TAY             ; Transfer to Y register
+$AEB8: C8       INY             ; Move to next PMG position
+$AEB9: 85 E2    STA $E2         ; Store new Y position
+$AEBB: A9 01    LDA #$01        ; Set sprite data (body sprite)
+$AEBD: 19 00 13 ORA $1300,Y     ; Combine with PMG data
+$AEC0: 99 00 13 STA $1300,Y     ; Store to Player 0 PMG memory
+$AEC3: 88       DEY             ; Move to previous PMG position
+$AEC4: A9 02    LDA #$02        ; Set sprite data (head sprite)
+$AEC6: 19 00 13 ORA $1300,Y     ; Combine with PMG data
+$AEC9: 99 00 13 STA $1300,Y     ; Store to Player 0 PMG memory
+$AECC: 60       RTS             ; Return from DOWN-LEFT processing
+
+$AECD: C9 F9    CMP #$F9        ; **RIGHT MOVEMENT** input check
+$AECF: D0 32    BNE $AF03       ; Branch if not RIGHT
+$AED1: A9 6C    LDA #$6C        ; Load RIGHT sprite combination
+$AED3: 85 64    STA $64         ; Store sprite combination
+$AED5: 20 41 BC JSR $BC41       ; Call sprite positioning routine
+$AED8: A5 E2    LDA $E2         ; Check missile status
+$AEDA: D0 27    BNE $AF03       ; Branch if missile active
+$AEDC: A9 03    LDA #$03        ; Set movement direction (RIGHT)
+$AEDE: 85 88    STA $88         ; Store movement direction
+$AEE0: A5 80    LDA $80         ; Load player X position
+$AEE2: 18       CLC             ; Clear carry
+$AEE3: 69 02    ADC #$02        ; Move right (+2 pixels)
+$AEE5: 85 DE    STA $DE         ; Store new X position
+$AEE7: 8D 04 C0 STA $C004       ; Update hardware X position register
+$AEEA: A5 84    LDA $84         ; Load player Y position
+$AEEC: 18       CLC             ; Clear carry
+$AEED: 69 05    ADC #$05        ; Move down (+5 pixels)
+$AEEF: 85 E2    STA $E2         ; Store new Y position
+$AEF1: A8       TAY             ; Transfer to Y register
+$AEF2: A9 01    LDA #$01        ; Set sprite data (body sprite)
+$AEF4: 19 00 13 ORA $1300,Y     ; Combine with PMG data
+$AEF7: 99 00 13 STA $1300,Y     ; Store to Player 0 PMG memory
+$AEFA: C8       INY             ; Move to next PMG position
+$AEFB: A9 02    LDA #$02        ; Set sprite data (head sprite)
+$AEFD: 19 00 13 ORA $1300,Y     ; Combine with PMG data
+$AF00: 99 00 13 STA $1300,Y     ; Store to Player 0 PMG memory
+$AF03: 60       RTS             ; Return from RIGHT processing
+; ===============================================================================
+; STATIONARY PLAYER SPRITE HANDLING ($AF04-$AFAC)
+; ===============================================================================
+; **NO INPUT / STATIONARY SPRITE MANAGEMENT**
+; This section handles player sprite display when no joystick input is detected
+; or when the trigger is not pressed. It manages the stationary sprite combination
+; and handles different sprite orientations based on the current player state.
+; 
+; **STATIONARY SPRITE COMBINATIONS**:
+; - $8C: Default stationary sprite (Head $04 + Body $1E)
+; - $3C/$48: Vertical orientation sprites
+; - $0C/$18: Horizontal orientation sprites  
+; - $24/$30: Alternative orientation sprites
+; 
+; **SPRITE POSITIONING LOGIC**:
+; The routine determines appropriate sprite combinations based on:
+; - Current player position ($80/$84)
+; - Previous movement direction ($73)
+; - Joystick input state ($60)
+; - Collision detection requirements
+; ===============================================================================
+
+$AF04: A5 8C    LDA $8C         ; Load stationary sprite parameter
+$AF06: 85 64    STA $64         ; Store as current sprite combination
+$AF08: A2 00    LDX #$00        ; Clear sprite index
+$AF0A: A5 60    LDA $60         ; **READ JOYSTICK INPUT** - Check for input
+$AF0C: C9 FF    CMP #$FF        ; Check if no input (stationary)
+$AF0E: D0 06    BNE $AF16       ; Branch if input detected
+$AF10: 86 8C    STX $8C         ; Clear stationary sprite parameter
+$AF12: 20 41 BC JSR $BC41       ; Call sprite positioning routine
+$AF15: 60       RTS             ; Return (no input case)
+
+$AF16: 86 04    STX $04         ; Clear input flag
+$AF18: C9 FD    CMP #$FD        ; Check for DOWN-RIGHT input ($FD)
+$AF1A: 30 25    BMI $AF41       ; Branch if input < $FD (other directions)
+$AF1C: A9 3C    LDA #$3C        ; Load vertical sprite combination
+$AF1E: C5 64    CMP $64         ; Compare with current sprite
+$AF20: D0 02    BNE $AF24       ; Branch if different
+$AF22: A9 48    LDA #$48        ; Load alternate vertical sprite
+$AF24: 85 64    STA $64         ; Store sprite combination
+$AF26: 85 8C    STA $8C         ; Store stationary parameter
+$AF28: 20 41 BC JSR $BC41       ; Call sprite positioning routine
+$AF2B: A5 60    LDA $60         ; **READ JOYSTICK INPUT** - Check direction
+$AF2D: C9 FE    CMP #$FE        ; Check for DOWN movement ($FE)
+$AF2F: D0 04    BNE $AF35       ; Branch if not DOWN
+$AF31: A9 00    LDA #$00        ; Set sprite orientation flag (vertical)
+$AF33: F0 02    BEQ $AF37       ; Branch to store orientation
+$AF35: A9 01    LDA #$01        ; Set sprite orientation flag (horizontal)
+$AF37: 85 73    STA $73         ; Store orientation flag
+$AF39: 20 7C BC JSR $BC7C       ; Call sprite rendering routine
+$AF3C: A5 77    LDA $77         ; Load sprite position parameter
+$AF3E: 85 84    STA $84         ; Store as Y position
+$AF40: 60       RTS             ; Return from vertical sprite handling
+
+$AF41: C9 F9    CMP #$F9        ; Check for RIGHT input ($F9)
+$AF43: 30 34    BMI $AF79       ; Branch if input < $F9 (other directions)
+$AF45: A9 0C    LDA #$0C        ; Load horizontal sprite combination
+$AF47: C5 64    CMP $64         ; Compare with current sprite
+$AF49: D0 02    BNE $AF4D       ; Branch if different
+$AF4B: A9 18    LDA #$18        ; Load alternate horizontal sprite
+$AF4D: 85 64    STA $64         ; Store sprite combination
+$AF4F: 85 8C    STA $8C         ; Store stationary parameter
+$AF51: 20 41 BC JSR $BC41       ; Call sprite positioning routine
+$AF54: A9 00    LDA #$00        ; Set sprite orientation flag
+$AF56: 85 73    STA $73         ; Store orientation flag
+$AF58: 20 58 BC JSR $BC58       ; Call sprite setup routine
+$AF5B: A5 78    LDA $78         ; Load sprite position parameter
+$AF5D: 85 80    STA $80         ; Store as X position
+$AF5F: A5 60    LDA $60         ; **READ JOYSTICK INPUT** - Check direction
+$AF61: C9 FB    CMP #$FB        ; Check for UP-RIGHT input ($FB)
+$AF63: F0 47    BEQ $AFAC       ; Branch if UP-RIGHT (return)
+$AF65: C9 FA    CMP #$FA        ; Check for DOWN-LEFT input ($FA)
+$AF67: D0 04    BNE $AF6D       ; Branch if not DOWN-LEFT
+$AF69: A9 00    LDA #$00        ; Set sprite orientation flag (horizontal)
+$AF6B: F0 02    BEQ $AF6F       ; Branch to store orientation
+$AF6D: A9 01    LDA #$01        ; Set sprite orientation flag (vertical)
+$AF6F: 85 73    STA $73         ; Store orientation flag
+$AF71: 20 7C BC JSR $BC7C       ; Call sprite rendering routine
+$AF74: A5 77    LDA $77         ; Load sprite position parameter
+$AF76: 85 84    STA $84         ; Store as Y position
+$AF78: 60       RTS             ; Return from horizontal sprite handling
+
+$AF79: A9 24    LDA #$24        ; Load alternative sprite combination
+$AF7B: C5 64    CMP $64         ; Compare with current sprite
+$AF7D: D0 02    BNE $AF81       ; Branch if different
+$AF7F: A9 30    LDA #$30        ; Load alternate alternative sprite
+$AF81: 85 64    STA $64         ; Store sprite combination
+$AF83: 85 8C    STA $8C         ; Store stationary parameter
+$AF85: 20 41 BC JSR $BC41       ; Call sprite positioning routine
+$AF88: A9 01    LDA #$01        ; Set sprite orientation flag
+$AF8A: 85 73    STA $73         ; Store orientation flag
+$AF8C: 20 58 BC JSR $BC58       ; Call sprite setup routine
+$AF8F: A5 78    LDA $78         ; Load sprite position parameter
+$AF91: 85 80    STA $80         ; Store as X position
+$AF93: A5 60    LDA $60         ; **READ JOYSTICK INPUT** - Check direction
+$AF95: C9 F7    CMP #$F7        ; Check for UP-LEFT input ($F7)
+$AF97: F0 13    BEQ $AFAC       ; Branch if UP-LEFT (return)
+$AF99: C9 F6    CMP #$F6        ; Check for LEFT input ($F6)
+$AF9B: D0 04    BNE $AFA1       ; Branch if not LEFT
+$AF9D: A9 00    LDA #$00        ; Set sprite orientation flag (horizontal)
+$AF9F: F0 02    BEQ $AFA3       ; Branch to store orientation
+$AFA1: A9 01    LDA #$01        ; Set sprite orientation flag (vertical)
+$AFA3: 85 73    STA $73         ; Store orientation flag
+$AFA5: 20 7C BC JSR $BC7C       ; Call sprite rendering routine
+$AFA8: A5 77    LDA $77         ; Load sprite position parameter
+$AFAA: 85 84    STA $84         ; Store as Y position
+$AFAC: 60       RTS             ; Return from alternative sprite handling
+; ===============================================================================
+; PMG SYSTEM INITIALIZATION ($AFAD-$B030)
+; ===============================================================================
+; **PLAYER/MISSILE GRAPHICS SYSTEM SETUP**
+; This routine initializes the Atari 5200's Player/Missile Graphics (PMG) system
+; which is used for all sprite rendering in the game. The PMG system provides
+; hardware-accelerated sprite display with collision detection.
+; 
+; **PMG MEMORY LAYOUT**:
+; - $1300-$13FF: Player 0 data (player character sprites)
+; - $1400-$14FF: Player 1 data (enemy sprites)  
+; - $1500-$15FF: Player 2 data (additional sprites)
+; - $1600-$16FF: Player 3 data (additional sprites)
+; - $1700-$17FF: Missile data (bullets/projectiles)
+; 
+; **HARDWARE REGISTERS CONFIGURED**:
+; - $D407 (PMBASE): Sets PMG memory base address
+; - $C01E (HITCLR): Clears collision detection registers
+; - $D400 (DMACTL): Enables DMA for PMG display
+; - $C01D (GRACTL): Enables PMG graphics display
+; - $C000-$C00B: Player/Missile position registers
+; 
+; **INITIALIZATION SEQUENCE**:
+; 1. Clear all PMG memory areas ($1300-$17FF)
+; 2. Clear input registers ($C000-$C00B)
+; 3. Set PMG base address in ANTIC
+; 4. Clear collision registers
+; 5. Initialize game state variables
+; 6. Enable PMG DMA and graphics display
+; 7. Load initial player position and sprite data
+; ===============================================================================
+
+$AFAD: A2 00    LDX #$00        ; **CLEAR PMG MEMORY** - Initialize index
+$AFAF: A9 00    LDA #$00        ; Load zero for clearing
+$AFB1: 95 80    STA $80,X       ; Clear zero page PMG variables
+$AFB3: E8       INX             ; Increment index
+$AFB4: E0 45    CPX #$45        ; Check if all variables cleared (69 bytes)
+$AFB6: D0 F9    BNE $AFB1       ; Loop until all cleared
+$AFB8: A2 00    LDX #$00        ; **CLEAR INPUT REGISTERS** - Reset index
+$AFBA: A9 00    LDA #$00        ; Load zero for clearing
+$AFBC: 9D 00 C0 STA $C000,X     ; Clear input registers $C000-$C00B
+$AFBF: E8       INX             ; Increment register index
+$AFC0: E0 0C    CPX #$0C        ; Check if all 12 registers cleared
+$AFC2: D0 F8    BNE $AFBC       ; Loop until all input registers cleared
+$AFC4: A9 00    LDA #$00        ; **CLEAR PMG MEMORY AREAS** - Load zero
+$AFC6: AA       TAX             ; Transfer to X (index = 0)
+$AFC7: 9D 00 13 STA $1300,X     ; Clear Player 0 memory ($1300-$13FF)
+$AFCA: 9D 00 14 STA $1400,X     ; Clear Player 1 memory ($1400-$14FF)
+$AFCD: 9D 00 15 STA $1500,X     ; Clear Player 2 memory ($1500-$15FF)
+$AFD0: 9D 00 16 STA $1600,X     ; Clear Player 3 memory ($1600-$16FF)
+$AFD3: 9D 00 17 STA $1700,X     ; Clear Missile memory ($1700-$17FF)
+$AFD6: E8       INX             ; Increment memory index
+$AFD7: D0 EE    BNE $AFC7       ; Loop until all 256 bytes cleared (X wraps to 0)
+$AFD9: A2 13    LDX #$13        ; **SET PMG BASE ADDRESS** - Load base page ($13xx)
+$AFDB: CA       DEX             ; Decrement to get actual base ($12xx)
+$AFDC: CA       DEX             ; Decrement again ($11xx)
+$AFDD: CA       DEX             ; Final decrement ($10xx) - PMG base at $1000
+$AFDE: 8A       TXA             ; Transfer base address to accumulator
+$AFDF: 8D 07 D4 STA $D407       ; **ANTIC PMBASE** - Set PMG base address
+$AFE2: A9 00    LDA #$00        ; **CLEAR COLLISION REGISTERS**
+$AFE4: 8D 1E C0 STA $C01E       ; **GTIA HITCLR** - Clear collision registers
+$AFE7: 85 79    STA $79         ; Clear collision flag variable
+$AFE9: A9 01    LDA #$01        ; **INITIALIZE GAME STATE** - Set active flags
+$AFEB: 85 98    STA $98         ; Set player active flag
+$AFED: 85 99    STA $99         ; Set enemy active flag
+$AFEF: 85 9A    STA $9A         ; Set missile active flag
+$AFF1: A9 00    LDA #$00        ; **CLEAR DISPLAY VARIABLES**
+$AFF3: 85 0E    STA $0E         ; Clear display parameter 1
+$AFF5: 85 91    STA $91         ; Clear display parameter 2
+$AFF7: A9 7C    LDA #$7C        ; **SET DISPLAY PARAMETERS**
+$AFF9: 85 08    STA $08         ; Set display control parameter
+$AFFB: A9 3E    LDA #$3E        ; **ENABLE PMG DMA** - Set DMA control value
+$AFFD: 8D 00 D4 STA $D400       ; **ANTIC DMACTL** - Enable PMG DMA
+$B000: 85 07    STA $07         ; Store DMA control value
+$B002: A9 03    LDA #$03        ; **ENABLE PMG GRAPHICS** - Set graphics control
+$B004: 8D 1D C0 STA $C01D       ; **GTIA GRACTL** - Enable PMG graphics display
+$B007: AD 0A E8 LDA $E80A       ; **READ RANDOM SEED** - Load hardware random
+$B00A: 29 01    AND #$01        ; Mask to single bit (0 or 1)
+$B00C: D0 05    BNE $B013       ; Branch if bit set (random = 1)
+$B00E: A2 02    LDX #$02        ; Load player data index (option 1)
+$B010: 4C 15 B0 JMP $B015       ; Jump to player setup
+$B013: A2 03    LDX #$03        ; Load player data index (option 2)
+$B015: BD D4 BF LDA $BFD4,X     ; **LOAD INITIAL PLAYER DATA** from table
+$B018: 8D 00 C0 STA $C000       ; **HPOSP0** - Set Player 0 horizontal position
+$B01B: 85 80    STA $80         ; Store player X position
+$B01D: A9 01    LDA #$01        ; **SET PLAYER STATE** - Set active flag
+$B01F: 85 65    STA $65         ; Set player active flag
+$B021: A9 66    LDA #$66        ; **SET PLAYER Y POSITION** - Load Y coordinate
+$B023: 85 84    STA $84         ; Store player Y position
+$B025: 85 A7    STA $A7         ; Store enemy firing counter
+$B027: 20 BD BD JSR $BDBD       ; **INITIALIZE DISPLAY SYSTEM** - Setup screen
+$B02A: A9 07    LDA #$07        ; **SET SOUND PARAMETERS** - Load sound value
+$B02C: A2 A6    LDX #$A6        ; Load sound parameter X
+$B02E: A0 3B    LDY #$3B        ; Load sound parameter Y
+$B030: 4C D5 BD JMP $BDD5       ; **JUMP TO SOUND SETUP** - Initialize audio system
+; ===============================================================================
+; AUDIO/SOUND SYSTEM ($B033-$B116)
+; ===============================================================================
+; **COMPLETE SOUND GENERATION SYSTEM**
+; This section handles all audio output for the game using the Atari 5200's
+; POKEY sound chip. The system generates various sound effects including:
+; - Enemy firing sounds (different tones and durations)
+; - Player firing sounds
+; - Bonus point collection sounds
+; - Background audio effects
+; - Sound timing and synchronization
+; 
+; **POKEY SOUND REGISTERS**:
+; - $E800 (AUDF1): Audio Frequency Channel 1
+; - $E801 (AUDC1): Audio Control Channel 1  
+; - $E808: Sound control register
+; 
+; **SOUND EFFECT TYPES**:
+; 1. **Firing Sounds**: Sharp, brief tones for weapon discharge
+; 2. **Bonus Sounds**: Musical tones for point collection
+; 3. **Background Audio**: Ambient sound effects
+; 4. **Timing Effects**: Sound-synchronized visual effects
+; 
+; **FREQUENCY GENERATION**:
+; The system uses mathematical frequency calculations to generate precise
+; tones and sound effects. Different frequency values create different
+; pitches and timbres for various game events.
+; ===============================================================================
+
+$B033: A9 00    LDA #$00        ; **INITIALIZE SOUND SYSTEM** - Clear sound control
+$B035: 8D 08 E8 STA $E808       ; Clear sound control register
+$B038: A9 AC    LDA #$AC        ; **SET BASE FREQUENCY** - Load frequency value
+$B03A: 8D 01 E8 STA $E801       ; **AUDC1** - Set audio control channel 1
+$B03D: A9 0C    LDA #$0C        ; **SET SOUND DURATION** - Load duration counter
+$B03F: 85 A4    STA $A4         ; Store duration counter
+$B041: A9 20    LDA #$20        ; **SOUND GENERATION LOOP** - Load frequency base
+$B043: A0 08    LDY #$08        ; Load frequency modifier
+$B045: 20 8E B0 JSR $B08E       ; **CALL TIMING ROUTINE** - Generate sound timing
+$B048: 38       SEC             ; Set carry flag
+$B049: E9 01    SBC #$01        ; Decrement frequency value
+$B04B: 8D 00 E8 STA $E800       ; **AUDF1** - Set audio frequency channel 1
+$B04E: C9 08    CMP #$08        ; Check if frequency reached minimum
+$B050: D0 F1    BNE $B043       ; Loop back if not minimum (continue sound)
+$B052: A5 A4    LDA $A4         ; **CHECK DURATION** - Load duration counter
+$B054: 38       SEC             ; Set carry flag
+$B055: E9 01    SBC #$01        ; Decrement duration counter
+$B057: 85 A4    STA $A4         ; Store updated duration
+$B059: D0 1E    BNE $B079       ; Branch if duration not expired (continue)
+$B05B: A9 00    LDA #$00        ; **SOUND COMPLETE** - Clear sound registers
+$B05D: 8D 01 E8 STA $E801       ; Clear audio control channel 1
+$B060: 85 0E    STA $0E         ; Clear sound parameter 1
+$B062: 85 10    STA $10         ; Clear sound parameter 2
+$B064: A0 FF    LDY #$FF        ; **SOUND FADE OUT** - Load fade parameter
+$B066: 20 8E B0 JSR $B08E       ; Call timing routine (fade delay)
+$B069: A0 FF    LDY #$FF        ; Load fade parameter
+$B06B: 20 8E B0 JSR $B08E       ; Call timing routine (fade delay)
+$B06E: A0 FF    LDY #$FF        ; Load fade parameter
+$B070: 20 8E B0 JSR $B08E       ; Call timing routine (fade delay)
+$B073: A0 FF    LDY #$FF        ; Load fade parameter
+$B075: 20 8E B0 JSR $B08E       ; Call timing routine (fade delay)
+$B078: 60       RTS             ; **RETURN** - Sound generation complete
+$B079: A5 0E    LDA $0E         ; **SOUND MODULATION** - Load modulation flag
+$B07B: F0 08    BEQ $B085       ; Branch if no modulation
+$B07D: A9 00    LDA #$00        ; Clear modulation parameters
+$B07F: 85 0E    STA $0E         ; Clear modulation flag
+$B081: 85 10    STA $10         ; Clear modulation parameter
+$B083: F0 02    BEQ $B087       ; Branch to continue (always taken)
+$B085: A5 A5    LDA $A5         ; Load alternate modulation parameter
+$B087: 85 0E    STA $0E         ; Store modulation parameter 1
+$B089: 85 10    STA $10         ; Store modulation parameter 2
+$B08B: 4C 41 B0 JMP $B041       ; **LOOP BACK** - Continue sound generation
+
+; **TIMING DELAY ROUTINE** ($B08E-$B096):
+; Creates precise timing delays for sound generation and synchronization
+$B08E: A2 30    LDX #$30        ; **TIMING DELAY** - Load delay counter (48 cycles)
+$B090: CA       DEX             ; Decrement delay counter
+$B091: D0 FD    BNE $B090       ; Loop until counter reaches zero
+$B093: 88       DEY             ; Decrement outer delay counter
+$B094: D0 FA    BNE $B090       ; Loop back to inner delay (creates longer delay)
+$B096: 60       RTS             ; Return from timing routine
+
+; ===============================================================================
+; COMPLEX SOUND EFFECT GENERATOR ($B097-$B0FC)
+; **MULTI-TONE SOUND SEQUENCE** - Creates complex audio patterns
+; This routine generates sophisticated sound effects by combining multiple
+; frequencies, timing patterns, and modulation effects. Used for special
+; game events like bonus collection, level completion, and dramatic moments.
+; ===============================================================================
+
+$B097: A9 5B    LDA #$5B        ; **START COMPLEX SOUND** - Load initial frequency
+$B099: 8D 00 E8 STA $E800       ; Set audio frequency channel 1
+$B09C: 20 0A B1 JSR $B10A       ; **CALL SOUND SETUP 1** - Configure sound parameters
+$B09F: 20 17 B1 JSR $B117       ; **CALL FLASHING EFFECT** - Sync with visual effects
+$B0A2: 20 17 B1 JSR $B117       ; Call flashing effect (repeat for emphasis)
+$B0A5: 20 FD B0 JSR $B0FD       ; **CALL SOUND SETUP 2** - Configure alternate parameters
+$B0A8: 20 17 B1 JSR $B117       ; Call flashing effect
+$B0AB: 20 0A B1 JSR $B10A       ; Call sound setup 1 (return to original)
+$B0AE: A9 60    LDA #$60        ; **CHANGE FREQUENCY** - Load new frequency
+$B0B0: 85 BC    STA $BC         ; Store frequency parameter
+$B0B2: 20 17 B1 JSR $B117       ; Call flashing effect with new frequency
+$B0B5: A9 4C    LDA #$4C        ; **FREQUENCY TRANSITION** - Load transition frequency
+$B0B7: 8D 00 E8 STA $E800       ; Set audio frequency channel 1
+$B0BA: 20 0A B1 JSR $B10A       ; Call sound setup 1
+$B0BD: 20 17 B1 JSR $B117       ; Call flashing effect
+$B0C0: A9 51    LDA #$51        ; **CONTINUE SEQUENCE** - Load next frequency
+$B0C2: 8D 00 E8 STA $E800       ; Set audio frequency channel 1
+$B0C5: 20 FD B0 JSR $B0FD       ; Call sound setup 2
+$B0C8: 20 17 B1 JSR $B117       ; Call flashing effect
+$B0CB: 20 0A B1 JSR $B10A       ; Call sound setup 1
+$B0CE: 20 17 B1 JSR $B117       ; Call flashing effect
+$B0D1: A9 5B    LDA #$5B        ; **RETURN TO START** - Load original frequency
+$B0D3: 8D 00 E8 STA $E800       ; Set audio frequency channel 1
+$B0D6: 20 FD B0 JSR $B0FD       ; Call sound setup 2
+$B0D9: 20 17 B1 JSR $B117       ; Call flashing effect
+$B0DC: 20 0A B1 JSR $B10A       ; Call sound setup 1
+$B0DF: 20 17 B1 JSR $B117       ; Call flashing effect
+$B0E2: A9 60    LDA #$60        ; **FINAL FREQUENCY** - Load ending frequency
+$B0E4: 8D 00 E8 STA $E800       ; Set audio frequency channel 1
+$B0E7: 20 FD B0 JSR $B0FD       ; Call sound setup 2
+$B0EA: 20 17 B1 JSR $B117       ; Call flashing effect
+$B0ED: A9 5B    LDA #$5B        ; **SEQUENCE END** - Load final frequency
+$B0EF: 8D 00 E8 STA $E800       ; Set audio frequency channel 1
+$B0F2: 20 0A B1 JSR $B10A       ; Call sound setup 1
+$B0F5: A9 FF    LDA #$FF        ; **SET END FLAG** - Load completion flag
+$B0F7: 85 BC    STA $BC         ; Store completion flag
+$B0F9: 20 17 B1 JSR $B117       ; Call flashing effect (final)
+$B0FC: 60       RTS             ; **RETURN** - Complex sound sequence complete
+
+; **SOUND PARAMETER SETUP ROUTINES**:
+; These routines configure different sound parameter combinations
+$B0FD: A9 1C    LDA #$1C        ; **SOUND SETUP 2** - Load parameter set 2
+$B0FF: 85 BA    STA $BA         ; Store sound parameter A
+$B101: A9 3E    LDA #$3E        ; Load parameter B
+$B103: 85 BB    STA $BB         ; Store sound parameter B
+$B105: A9 2A    LDA #$2A        ; Load parameter C
+$B107: 85 BC    STA $BC         ; Store sound parameter C
+$B109: 60       RTS             ; Return from setup 2
+
+$B10A: A9 2E    LDA #$2E        ; **SOUND SETUP 1** - Load parameter set 1
+$B10C: 85 BA    STA $BA         ; Store sound parameter A
+$B10E: A9 7A    LDA #$7A        ; Load parameter B
+$B110: 85 BB    STA $BB         ; Store sound parameter B
+$B112: A9 4A    LDA #$4A        ; Load parameter C
+$B114: 85 BC    STA $BC         ; Store sound parameter C
+$B116: 60       RTS             ; Return from setup 1
+; ===============================================================================
+; FLASHING VISUAL EFFECTS SYSTEM ($B117-$B14E)
+; ===============================================================================
+; **SYNCHRONIZED AUDIO-VISUAL EFFECTS**
+; This routine creates flashing visual effects that are synchronized with
+; sound generation. Used during bonus point displays, level transitions,
+; and other dramatic game moments. The system coordinates timing between
+; audio output and visual display changes.
+; 
+; **EFFECT PARAMETERS**:
+; - $BA: Flash timing parameter A (controls flash rate)
+; - $BB: Flash timing parameter B (controls flash duration)  
+; - $BC: Flash timing parameter C (controls flash intensity)
+; 
+; **VISUAL EFFECTS**:
+; 1. **Screen Flashing**: Alternates display brightness/color
+; 2. **Text Blinking**: Makes text appear/disappear rhythmically
+; 3. **Color Cycling**: Changes display colors in sequence
+; 4. **Synchronized Timing**: Matches visual effects to audio beats
+; 
+; **HARDWARE INTEGRATION**:
+; - Uses POKEY sound registers ($E800/$E801) for audio
+; - Coordinates with display timing for smooth effects
+; - Provides precise timing control for dramatic impact
+; ===============================================================================
+
+$B117: A9 A0    LDA #$A0        ; **START FLASHING SEQUENCE** - Load flash control value
+$B119: 8D 01 E8 STA $E801       ; Set audio control register (sound sync)
+$B11C: A6 BA    LDX $BA         ; **LOAD FLASH PARAMETER A** - Get timing value
+$B11E: 20 46 B1 JSR $B146       ; **CALL TIMING DELAY** - Create flash timing
+$B121: 18       CLC             ; Clear carry flag
+$B122: 69 01    ADC #$01        ; Increment flash counter
+$B124: C9 B0    CMP #$B0        ; Check if flash cycle complete
+$B126: D0 F1    BNE $B119       ; Loop back if cycle not complete (continue flashing)
+$B128: A9 0E    LDA #$0E        ; **FLASH PARAMETER B SEQUENCE** - Load parameter B
+$B12A: A6 BB    LDX $BB         ; Load flash parameter B
+$B12C: 20 46 B1 JSR $B146       ; Call timing delay
+$B12F: 38       SEC             ; Set carry flag
+$B130: E9 01    SBC #$01        ; Decrement parameter B counter
+$B132: D0 F6    BNE $B12A       ; Loop back if counter not zero (continue B sequence)
+$B134: A9 AF    LDA #$AF        ; **FLASH PARAMETER C SEQUENCE** - Load parameter C
+$B136: 8D 01 E8 STA $E801       ; Set audio control register
+$B139: A6 BC    LDX $BC         ; Load flash parameter C
+$B13B: 20 46 B1 JSR $B146       ; Call timing delay
+$B13E: 38       SEC             ; Set carry flag
+$B13F: E9 01    SBC #$01        ; Decrement parameter C counter
+$B141: C9 9F    CMP #$9F        ; Check if C sequence complete
+$B143: D0 F1    BNE $B136       ; Loop back if sequence not complete (continue C sequence)
+$B145: 60       RTS             ; **RETURN** - Flashing sequence complete
+
+; **PRECISION TIMING DELAY ROUTINE** ($B146-$B14E):
+; Creates precise timing delays for flashing effects and sound synchronization
+$B146: A0 13    LDY #$13        ; **TIMING DELAY** - Load inner delay counter (19 cycles)
+$B148: 88       DEY             ; Decrement inner delay counter
+$B149: D0 FD    BNE $B148       ; Loop until inner counter reaches zero
+$B14B: CA       DEX             ; Decrement outer delay counter (X register)
+$B14C: D0 F8    BNE $B146       ; Loop back to inner delay until X reaches zero
+$B14E: 60       RTS             ; Return from timing delay routine
 ; ===============================================================================
 ; COLLISION_DETECT ($B14F)
 ; Collision detection system
@@ -4574,14 +4789,15 @@ $B4B1: 85 B6    STA $B6         ; Store sound timer
 ; K-Razy Shoot-Out uses TWO DIFFERENT missile systems:
 ;
 ; **PLAYER MISSILE SYSTEM**:
-; - Single fire button creates player missile
-; - Joystick direction at fire time determines missile trajectory
-; - Player missile travels across screen (like enemy missiles)
+; - Fire button detection via $C008 register (bits 1,2,3) at $A932
+; - Joystick direction sampling from $C000-$C00F registers at fire time
+; - Player missile creation through hardware PMG system (Missile 0)
 ; - Hardware collision detection via $C008 register bits:
 ;   * Bit 1: Player missile hit enemy slot 1
 ;   * Bit 2: Player missile hit enemy slot 2  
 ;   * Bit 3: Player missile hit enemy slot 3
 ; - When collision detected, enemy is marked defeated
+; - Trigger detection via $C010 register for menus/transitions
 ;
 ; **ENEMY MISSILE SYSTEM**:
 ; - AI decision creates physical missile sprite
@@ -4594,7 +4810,14 @@ $B4B1: 85 B6    STA $B6         ; Store sound timer
 ; - Player has ONE missile that can hit any of 3 enemies
 ; - Enemies have UP TO 3 missiles (one per enemy) targeting player
 ; - Both use hardware PMG system for movement and collision detection
-; - Direction control: Player uses joystick, enemies use AI calculations
+; - Direction control: Player uses joystick input, enemies use AI calculations
+;
+; **INPUT SYSTEM ARCHITECTURE**:
+; - $C000-$C00F: Joystick position and fire button input registers
+; - $C008: Fire button status register (bits 1,2,3)
+; - $C010: Primary trigger register (0=pressed, 1=released)
+; - Fire button processing: $A932 reads $C008, creates missile via $A99C
+; - Trigger waiting loops: $A786, $AD4C, $BFF2 for game transitions
 ; ===============================================================================
 ; ENEMY FIRING FREQUENCY CONTROL ($B4B3-$B4BC)
 ; **COMPLETE FIRING FREQUENCY MECHANISM**
@@ -4784,7 +5007,7 @@ $B581: B5 8C    LDA #$8C
 $B583: C9 FF    CMP #$FF
 $B585: D0 0B    BNE $B592 ; Loop back if not zero
 $B587: A9 AC    LDA #$AC
-$B589: 8D 05 E8 STA $E805
+$B589: 8D 05 E8 STA $E805 ; **PLAYER SPRITE CHARACTER** - Load character $AC into player sprite
 $B58C: A9 20    LDA #$20
 $B58E: 85 B8    STA $B8
 $B590: 85 B9    STA $B9
@@ -6047,351 +6270,531 @@ $BE19: A5 60    LDA #$60
 $BE1B: 29 F7    AND #$F7
 $BE1D: 85 60    STA $60
 $BE1F: 60       RTS
-$BE20: 08       PHP
-$BE21: 14       .byte $14        ; Data byte
-$BE22: 14       .byte $14        ; Data byte
-$BE23: 08       PHP
-$BE24: 1C       .byte $1C        ; Data byte
-$BE25: 2A       ROL
-$BE26: 2A       ROL
-$BE27: 08       PHP
-$BE28: 14       .byte $14        ; Data byte
-$BE29: 14       .byte $14        ; Data byte
-$BE2A: 14       .byte $14        ; Data byte
-$BE2B: 36 08    ROL $08
-$BE2D: 14       .byte $14        ; Data byte
-$BE2E: 14       .byte $14        ; Data byte
-$BE2F: 08       PHP
-$BE30: 5C       .byte $5C        ; Data byte
-$BE31: 2A       ROL
-$BE32: 09 0A    ORA #$0A
-$BE34: 18       CLC
-$BE35: 24 27    BIT $27
-$BE37: 61 08    ADC #$08
-$BE39: 14       .byte $14        ; Data byte
-$BE3A: 14       .byte $14        ; Data byte
-$BE3B: 08       PHP
-$BE3C: 0C       .byte $0C        ; Data byte
-$BE3D: 0C       .byte $0C        ; Data byte
-$BE3E: 3C       .byte $3C        ; Data byte
-$BE3F: 08       PHP
-$BE40: 18       CLC
-$BE41: 0C       .byte $0C        ; Data byte
-$BE42: 0A       ASL
-$BE43: 1C       .byte $1C        ; Data byte
-$BE44: 10 28    BPL $BE6E
-$BE46: 28       PLP
-$BE47: 10 3A    BPL $BE83
-$BE49: 54       .byte $54        ; Data byte
-$BE4A: 90 50    BCC $BE9C ; Branch if carry clear
-$BE4C: 18       CLC
-$BE4D: 24 E4    BIT $E4
-$BE4F: 86 10    STX $10
-$BE51: 28       PLP
-$BE52: 28       PLP
-$BE53: 10 30    BPL $BE85
-$BE55: 30 3C    BMI $BE93
-$BE57: 10 18    BPL $BE71
-$BE59: 30 50    BMI $BEAB
-$BE5B: 38       SEC
-$BE5C: 08       PHP
-$BE5D: 14       .byte $14        ; Data byte
-$BE5E: 34       .byte $34        ; Data byte
-$BE5F: 28       PLP
-$BE60: 1C       .byte $1C        ; Data byte
-$BE61: 0A       ASL
-$BE62: 0A       ASL
-$BE63: 08       PHP
-$BE64: 14       .byte $14        ; Data byte
-$BE65: 16 10    ASL $10
-$BE67: 30 08    BMI $BE71
-$BE69: 14       .byte $14        ; Data byte
-$BE6A: 16 0A    ASL $0A
-$BE6C: 1C       .byte $1C        ; Data byte
-$BE6D: 28       PLP
-$BE6E: 28       PLP
-$BE6F: 08       PHP
-$BE70: 14       .byte $14        ; Data byte
-$BE71: 34       .byte $34        ; Data byte
-$BE72: 04       .byte $04        ; Data byte
-$BE73: 06 00    ASL $00
-$BE75: 00       BRK
-$BE76: 04       .byte $04        ; Data byte
-$BE77: 0A       ASL
-$BE78: 0A       ASL
-$BE79: C4 7C    CPY #$7C
-$BE7B: 04       .byte $04        ; Data byte
-$BE7C: 0C       .byte $0C        ; Data byte
-$BE7D: 14       .byte $14        ; Data byte
-$BE7E: 0F       .byte $0F        ; Data byte
-$BE7F: 19 00 40 ORA $4000
-$BE82: 24 4A    BIT $4A
-$BE84: 2A       ROL
-$BE85: 14       .byte $14        ; Data byte
-$BE86: 0C       .byte $0C        ; Data byte
-$BE87: 04       .byte $04        ; Data byte
-$BE88: 0C       .byte $0C        ; Data byte
-$BE89: 14       .byte $14        ; Data byte
-$BE8A: 0F       .byte $0F        ; Data byte
-$BE8B: 19 00 00 ORA $0000
-$BE8E: 04       .byte $04        ; Data byte
-$BE8F: 0A       ASL
-$BE90: 0A       ASL
-$BE91: 04       .byte $04        ; Data byte
-$BE92: 0C       .byte $0C        ; Data byte
-$BE93: 54       .byte $54        ; Data byte
-$BE94: AC 14 0F LDY $0F14
-$BE97: 19 00 00 ORA $0000
-$BE9A: 20 50 50 JSR $5050
-$BE9D: 23       .byte $23        ; Data byte
-$BE9E: 3E 20 30 ROL $3020
-$BEA1: 28       PLP
-$BEA2: F0 98    BEQ $BE3C ; Branch if equal/zero
-$BEA4: 00       BRK
-$BEA5: 02       .byte $02        ; Data byte
-$BEA6: 24 52    BIT $52
-$BEA8: 54       .byte $54        ; Data byte
-$BEA9: 28       PLP
-$BEAA: 30 20    BMI $BECC
-$BEAC: 30 28    BMI $BED6
-$BEAE: F0 98    BEQ $BE48 ; Branch if equal/zero
-$BEB0: 00       BRK
-$BEB1: 00       BRK
-$BEB2: 20 50 50 JSR $5050
-$BEB5: 20 30 2A JSR $2A30
-$BEB8: 35 28    AND #$28
-$BEBA: F0 98    BEQ $BE54 ; Branch if equal/zero
-$BEBC: 00       BRK
-$BEBD: 04       .byte $04        ; Data byte
-$BEBE: 24 52    BIT $52
-$BEC0: 54       .byte $54        ; Data byte
-$BEC1: 28       PLP
-$BEC2: 30 20    BMI $BEE4
-$BEC4: 30 28    BMI $BEEE
-$BEC6: F0 98    BEQ $BE60 ; Branch if equal/zero
-$BEC8: 00       BRK
-$BEC9: 00       BRK
-$BECA: 04       .byte $04        ; Data byte
-$BECB: 0A       ASL
-$BECC: 0A       ASL
-$BECD: 04       .byte $04        ; Data byte
-$BECE: 0C       .byte $0C        ; Data byte
-$BECF: 14       .byte $14        ; Data byte
-$BED0: 6C 54 0F JMP $0F54
-$BED3: 19 00 00 ORA $0000
-$BED6: 00       BRK
-$BED7: 00       BRK
-$BED8: 00       BRK
-$BED9: 00       BRK
-$BEDA: 08       PHP
-$BEDB: 08       PHP
-$BEDC: 00       BRK
-$BEDD: 00       BRK
-$BEDE: 00       BRK
-$BEDF: 00       BRK
-$BEE0: 00       BRK
-$BEE1: 00       BRK
-$BEE2: 00       BRK
-$BEE3: 00       BRK
-$BEE4: 00       BRK
-$BEE5: 00       BRK
-$BEE6: 00       BRK
-$BEE7: 10 38    BPL $BF21
-$BEE9: 10 00    BPL $BEEB
-$BEEB: 00       BRK
-$BEEC: 00       BRK
-$BEED: 00       BRK
-$BEEE: 00       BRK
-$BEEF: 00       BRK
-$BEF0: 00       BRK
-$BEF1: 00       BRK
-$BEF2: 00       BRK
-$BEF3: 00       BRK
-$BEF4: 00       BRK
-$BEF5: 14       .byte $14        ; Data byte
-$BEF6: 00       BRK
-$BEF7: 2C 00 14 BIT $1400
-$BEFA: 00       BRK
-$BEFB: 00       BRK
-$BEFC: 00       BRK
-$BEFD: 00       BRK
-$BEFE: 00       BRK
-$BEFF: 00       BRK
-$BF00: 00       BRK
-$BF01: 10 00    BPL $BF03
-$BF03: 58       CLI
-$BF04: 00       BRK
-$BF05: 2C 00 50 BIT $5000
-$BF08: 00       BRK
-$BF09: 10 00    BPL $BF0B
-$BF0B: 00       BRK
-$BF0C: 00       BRK
-$BF0D: 38       SEC
-$BF0E: 00       BRK
-$BF0F: 92       .byte $92        ; Data byte
-$BF10: 00       BRK
-$BF11: 58       CLI
-$BF12: 00       BRK
-$BF13: AA       TAX
-$BF14: 00       BRK
-$BF15: 54       .byte $54        ; Data byte
-$BF16: 00       BRK
-$BF17: 54       .byte $54        ; Data byte
-$BF18: 00       BRK
-$BF19: 00       BRK
-$BF1A: 48       PHA
-$BF1B: 10 28    BPL $BF45
-$BF1D: 92       .byte $92        ; Data byte
-$BF1E: 01 58    ORA #$58
-$BF20: 00       BRK
-$BF21: 82       .byte $82        ; Data byte
-$BF22: 00       BRK
-$BF23: 54       .byte $54        ; Data byte
-$BF24: 00       BRK
-$BF25: A0 10    LDY #$10
-$BF27: 44       .byte $44        ; Data byte
-$BF28: 52       .byte $52        ; Data byte
-$BF29: 24 10    BIT $10
-$BF2B: A4 09    LDY #$09
-$BF2D: A0 00    LDY #$00
-$BF2F: 00       BRK
-$BF30: 84 00    STY $00
-$BF32: 55 00    EOR #$00
-$BF34: 29 52    AND #$52
-$BF36: 52       .byte $52        ; Data byte
-$BF37: A4 10    LDY #$10
-$BF39: A4 01    LDY #$01
-$BF3B: 80       .byte $80        ; Data byte
-$BF3C: 01 00    ORA #$00
-$BF3E: 80       .byte $80        ; Data byte
-$BF3F: 00       BRK
-$BF40: 45 00    EOR #$00
-$BF42: A8       TAY
-$BF43: 52       .byte $52        ; Data byte
-$BF44: 52       .byte $52        ; Data byte
-$BF45: 24 10    BIT $10
-$BF47: 24 00    BIT $00
-$BF49: 80       .byte $80        ; Data byte
-$BF4A: 01 00    ORA #$00
-$BF4C: 00       BRK
-$BF4D: 00       BRK
-$BF4E: 01 00    ORA #$00
-$BF50: 29 50    AND #$50
-$BF52: 50 A1    BVC $BEF5
-$BF54: 00       BRK
-$BF55: 00       BRK
-$BF56: 00       BRK
-$BF57: 80       .byte $80        ; Data byte
-$BF58: 01 00    ORA #$00
-$BF5A: 80       .byte $80        ; Data byte
-$BF5B: 00       BRK
-$BF5C: 00       BRK
-$BF5D: 00       BRK
-$BF5E: 81 10    STA $10
-$BF60: 00       BRK
-$BF61: 40       RTI
-$BF62: 00       BRK
-$BF63: 02       .byte $02        ; Data byte
-$BF64: 00       BRK
-$BF65: 80       .byte $80        ; Data byte
-$BF66: 00       BRK
-$BF67: 01 00    ORA #$00
-$BF69: 00       BRK
-$BF6A: 20 00 00 JSR $0000
-$BF6D: 10 00    BPL $BF6F
-$BF6F: 00       BRK
-$BF70: 00       BRK
-$BF71: 00       BRK
-$BF72: 00       BRK
-$BF73: 00       BRK
-$BF74: 00       BRK
-$BF75: 00       BRK
-$BF76: 00       BRK
-$BF77: 00       BRK
-$BF78: 00       BRK
-$BF79: 00       BRK
-$BF7A: 00       BRK
-$BF7B: 00       BRK
-$BF7C: 03       .byte $03        ; Data byte
-$BF7D: 0C       .byte $0C        ; Data byte
-$BF7E: 30 C0    BMI $BF40
-$BF80: 7E 18 FF ROR $FF18
-$BF83: BD BD BD LDA $BDBD
-$BF86: BD BD 3C LDA $3CBD
-$BF89: 24 24    BIT $24
-$BF8B: 66 7E    ROR $7E
-$BF8D: 18       CLC
-$BF8E: 3F       .byte $3F        ; Data byte
-$BF8F: 3D 3D 3D AND $3D3D
-$BF92: 3D 3D 3C AND $3C3D
-$BF95: 24 24    BIT $24
-$BF97: 6C 7E 18 JMP $187E
-$BF9A: 3F       .byte $3F        ; Data byte
-$BF9B: 3D 3D 3D AND $3D3D
-$BF9E: 3D 3D 3C AND $3C3D
-$BFA1: 08       PHP
-$BFA2: 08       PHP
-$BFA3: 18       CLC
-$BFA4: 7E 18 FC ROR $FC18
-$BFA7: BC BC BC LDY $BCBC
-$BFAA: BC BC 3C LDY $3CBC
+
+; Player sprite animation data.
+
+$BE20: 08       .byte $08        ; ....#... - Sprite data byte
+$BE21: 14       .byte $14        ; ...#.#.. - Sprite data byte
+$BE22: 14       .byte $14        ; ...#.#.. - Sprite data byte
+$BE23: 08       .byte $08        ; ....#... - Sprite data byte
+$BE24: 1C       .byte $1C        ; ...###.. - **ENEMY SPRITE CHARACTER** - Character $1C used for moving enemies
+$BE25: 2A       .byte $2A        ; ..#.#.#. - Sprite data byte
+$BE26: 2A       .byte $2A        ; ..#.#.#. - Sprite data byte
+$BE27: 08       .byte $08        ; ....#... - Sprite data byte
+$BE28: 14       .byte $14        ; ...#.#.. - Sprite data byte
+$BE29: 14       .byte $14        ; ...#.#.. - Sprite data byte
+$BE2A: 14       .byte $14        ; ...#.#.. - Sprite data byte
+$BE2B: 36       .byte $36        ; ..##.##. - Sprite data byte
+
+$BE2C: 08       .byte $08        ; ....#... - Sprite data byte
+$BE2D: 14       .byte $14        ; ...#.#.. - Sprite data byte
+$BE2E: 14       .byte $14        ; ...#.#.. - Sprite data byte
+$BE2F: 08       .byte $08        ; ....#... - Sprite data byte
+$BE30: 5C       .byte $5C        ; .#.###.. - Sprite data byte
+$BE31: 2A       .byte $2A        ; ..#.#.#. - Sprite data byte
+$BE32: 09       .byte $09        ; ....#..# - Sprite data byte
+$BE33: 0A       .byte $0A        ; ....#.#. - Sprite data byte
+$BE34: 18       .byte $18        ; ...##... - Sprite data byte
+$BE35: 24       .byte $24        ; ..#..#.. - Sprite data byte
+$BE36: 27       .byte $27        ; ..#..### - Sprite data byte
+$BE37: 61       .byte $61        ; .##....# - Sprite data byte
+
+$BE38: 08       .byte $08        ; ....#... - Sprite data byte
+$BE39: 14       .byte $14        ; ...#.#.. - Sprite data byte
+$BE3A: 14       .byte $14        ; ...#.#.. - Sprite data byte
+$BE3B: 08       .byte $08        ; ....#... - Sprite data byte
+$BE3C: 0C       .byte $0C        ; ....##.. - Sprite data byte
+$BE3D: 0C       .byte $0C        ; ....##.. - Sprite data byte
+$BE3E: 3C       .byte $3C        ; ..####.. - Sprite data byte
+$BE3F: 08       .byte $08        ; ....#... - Sprite data byte
+$BE40: 18       .byte $18        ; ...##... - Sprite data byte
+$BE41: 0C       .byte $0C        ; ....##.. - Sprite data byte
+$BE42: 0A       .byte $0A        ; ....#.#. - Sprite data byte
+$BE43: 1C       .byte $1C        ; ...###.. - **ENEMY SPRITE CHARACTER** - Character $1C used for moving enemies
+
+$BE44: 10       .byte $10        ; ...#.... - Sprite data byte
+$BE45: 28       .byte $28        ; ..#.#... - Sprite data byte
+$BE46: 28       .byte $28        ; ..#.#... - Sprite data byte
+$BE47: 10       .byte $10        ; ...#.... - Sprite data byte
+$BE48: 3A       .byte $3A        ; ..###.#. - Sprite data byte
+$BE49: 54       .byte $54        ; .#.#.#.. - Sprite data byte
+$BE4A: 90       .byte $90        ; #..#.... - Sprite data byte
+$BE4B: 50       .byte $50        ; .#.#.... - Sprite data byte
+$BE4C: 18       .byte $18        ; ...##... - Sprite data byte
+$BE4D: 24       .byte $24        ; ..#..#.. - Sprite data byte
+$BE4E: E4       .byte $E4        ; ###..#.. - Sprite data byte
+$BE4F: 86       .byte $86        ; #....##. - Sprite data byte
+
+$BE50: 10       .byte $10        ; ...#.... - Sprite data byte
+$BE51: 28       .byte $28        ; ..#.#... - Sprite data byte
+$BE52: 28       .byte $28        ; ..#.#... - Sprite data byte
+$BE53: 10       .byte $10        ; ...#.... - Sprite data byte
+$BE54: 30       .byte $30        ; ..##.... - Sprite data byte
+$BE55: 30       .byte $30        ; ..##.... - Sprite data byte
+$BE56: 3C       .byte $3C        ; ..####.. - Sprite data byte
+$BE57: 10       .byte $10        ; ...#.... - Sprite data byte
+$BE58: 18       .byte $18        ; ...##... - Sprite data byte
+$BE59: 30       .byte $30        ; ..##.... - Sprite data byte
+$BE5A: 50       .byte $50        ; .#.#.... - Sprite data byte
+$BE5B: 38       .byte $38        ; ..###... - Sprite data byte
+
+$BE5C: 08       .byte $08        ; ....#... - Sprite data byte
+$BE5D: 14       .byte $14        ; ...#.#.. - Sprite data byte
+$BE5E: 34       .byte $34        ; ..##.#.. - Sprite data byte
+$BE5F: 28       .byte $28        ; ..#.#... - Sprite data byte
+$BE60: 1C       .byte $1C        ; ...###.. - **ENEMY SPRITE CHARACTER** - Character $1C used for moving enemies
+$BE61: 0A       .byte $0A        ; ....#.#. - Sprite data byte
+$BE62: 0A       .byte $0A        ; ....#.#. - Sprite data byte
+$BE63: 08       .byte $08        ; ....#... - Sprite data byte
+$BE64: 14       .byte $14        ; ...#.#.. - Sprite data byte
+$BE65: 16       .byte $16        ; ...#.##. - Sprite data byte
+$BE66: 10       .byte $10        ; ...#.... - Sprite data byte
+$BE67: 30       .byte $30        ; ..##.... - Sprite data byte
+
+$BE68: 08       .byte $08        ; ....#... - Sprite data byte
+$BE69: 14       .byte $14        ; ...#.#.. - Sprite data byte
+$BE6A: 16       .byte $16        ; ...#.##. - Sprite data byte
+$BE6B: 0A       .byte $0A        ; ....#.#. - Sprite data byte
+$BE6C: 1C       .byte $1C        ; ...###.. - **ENEMY SPRITE CHARACTER** - Character $1C used for moving enemies
+$BE6D: 28       .byte $28        ; ..#.#... - Sprite data byte
+$BE6E: 28       .byte $28        ; ..#.#... - Sprite data byte
+$BE6F: 08       .byte $08        ; ....#... - Sprite data byte
+$BE70: 14       .byte $14        ; ...#.#.. - Sprite data byte
+$BE71: 34       .byte $34        ; ..##.#.. - Sprite data byte
+$BE72: 04       .byte $04        ; .....#.. - Sprite data byte
+$BE73: 06       .byte $06        ; .....##. - Sprite data byte
+
+$BE74: 00       .byte $00        ; ........ - Sprite data byte
+$BE75: 00       .byte $00        ; ........ - Sprite data byte
+$BE76: 04       .byte $04        ; .....#.. - Sprite data byte
+$BE77: 0A       .byte $0A        ; ....#.#. - Sprite data byte
+$BE78: 0A       .byte $0A        ; ....#.#. - Sprite data byte
+$BE79: C4       .byte $C4        ; ##...#.. - Sprite data byte
+$BE7A: 7C       .byte $7C        ; .#####.. - Sprite data byte
+$BE7B: 04       .byte $04        ; .....#.. - Sprite data byte
+$BE7C: 0C       .byte $0C        ; ....##.. - Sprite data byte
+$BE7D: 14       .byte $14        ; ...#.#.. - Sprite data byte
+$BE7E: 0F       .byte $0F        ; ....#### - Sprite data byte
+$BE7F: 19       .byte $19        ; ...##..# - Sprite data byte
+
+$BE80: 00       .byte $00        ; ........ - Sprite data byte
+$BE81: 40       .byte $40        ; .#...... - Sprite data byte
+$BE82: 24       .byte $24        ; ..#..#.. - Animation pattern data
+$BE83: 4A       .byte $4A        ; .#..#.#. - Animation pattern data
+$BE84: 2A       .byte $2A        ; ..#.#.#. - Animation pattern data
+$BE85: 14       .byte $14        ; ...#.#.. - Animation pattern data
+$BE86: 0C       .byte $0C        ; ....##.. - Animation pattern data
+$BE87: 04       .byte $04        ; .....#.. - **PLAYER HEAD (VERTICAL)** - Character $04
+$BE88: 0C       .byte $0C        ; ....##.. - Animation pattern data
+$BE89: 14       .byte $14        ; ...#.#.. - Animation pattern data
+$BE8A: 0F       .byte $0F        ; ....#### - Animation pattern data
+$BE8B: 19       .byte $19        ; ...##..# - Animation pattern data
+
+$BE8C: 00       .byte $00        ; ........ - Animation pattern data
+$BE8D: 00       .byte $00        ; ........ - Animation pattern data
+$BE8E: 04       .byte $04        ; .....#.. - **PLAYER HEAD (VERTICAL)** - Character $04
+$BE8F: 0A       .byte $0A        ; ....#.#. - Animation pattern data
+$BE90: 0A       .byte $0A        ; ....#.#. - Animation pattern data
+$BE91: 04       .byte $04        ; .....#.. - **PLAYER HEAD (VERTICAL)** - Character $04
+$BE92: 0C       .byte $0C        ; ....##.. - Animation pattern data
+$BE93: 54       .byte $54        ; .#.#.#.. - Animation pattern data
+$BE94: AC       .byte $AC        ; #.#.##.. - Animation pattern data
+$BE95: 14       .byte $14        ; ...#.#.. - Animation pattern data
+$BE96: 0F       .byte $0F        ; ....#### - Animation pattern data
+$BE97: 19       .byte $19        ; ...##..# - Animation pattern data
+
+$BE98: 00       .byte $00        ; ........ - Animation pattern data
+$BE99: 00       .byte $00        ; ........ - Animation pattern data
+$BE9A: 20       .byte $20        ; ..#..... - Animation pattern data
+$BE9B: 50       .byte $50        ; .#.#.... - Animation pattern data
+$BE9C: 50       .byte $50        ; .#.#.... - Animation pattern data
+$BE9D: 23       .byte $23        ; ..#...## - Animation pattern data
+$BE9E: 3E       .byte $3E        ; ..#####. - Animation pattern data
+$BE9F: 20       .byte $20        ; ..#..... - Animation pattern data
+$BEA0: 30       .byte $30        ; ..##.... - Animation pattern data
+$BEA1: 28       .byte $28        ; ..#.#... - Animation pattern data
+$BEA2: F0       .byte $F0        ; ####.... - Animation pattern data
+$BEA3: 98       .byte $98        ; #..##... - Animation pattern data
+
+$BEA4: 00       .byte $00        ; ........ - Animation pattern data
+$BEA5: 02       .byte $02        ; ......#. - **PLAYER HEAD (SIDEWAYS)** - Character $02
+$BEA6: 24       .byte $24        ; ..#..#.. - Animation pattern data
+$BEA7: 52       .byte $52        ; .#.#..#. - Animation pattern data
+$BEA8: 54       .byte $54        ; .#.#.#.. - Animation pattern data
+$BEA9: 28       .byte $28        ; ..#.#... - Animation pattern data
+$BEAA: 30       .byte $30        ; ..##.... - Animation pattern data
+$BEAB: 20       .byte $20        ; ..#..... - Animation pattern data
+$BEAC: 30       .byte $30        ; ..##.... - Animation pattern data
+$BEAD: 28       .byte $28        ; ..#.#... - Animation pattern data
+$BEAE: F0       .byte $F0        ; ####.... - Animation pattern data
+$BEAF: 98       .byte $98        ; #..##... - Animation pattern data
+
+$BEB0: 00       .byte $00        ; ........ - Animation pattern data
+$BEB1: 00       .byte $00        ; ........ - Animation pattern data
+$BEB2: 20       .byte $20        ; ..#..... - Animation pattern data
+$BEB3: 50       .byte $50        ; .#.#.... - Animation pattern data
+$BEB4: 50       .byte $50        ; .#.#.... - Animation pattern data
+$BEB5: 20       .byte $20        ; ..#..... - Animation pattern data
+$BEB6: 30       .byte $30        ; ..##.... - Animation pattern data
+$BEB7: 2A       .byte $2A        ; ..#.#.#. - Animation pattern data
+$BEB8: 35       .byte $35        ; ..##.#.# - Animation pattern data
+$BEB9: 28       .byte $28        ; ..#.#... - Animation pattern data
+$BEBA: F0       .byte $F0        ; ####.... - Animation pattern data
+$BEBB: 98       .byte $98        ; #..##... - Animation pattern data
+
+$BEBC: 00       .byte $00        ; ........ - Animation pattern data
+$BEBD: 04       .byte $04        ; .....#.. - **PLAYER HEAD (VERTICAL)** - Character $04
+$BEBE: 24       .byte $24        ; ..#..#.. - Animation pattern data
+$BEBF: 52       .byte $52        ; .#.#..#. - Animation pattern data
+$BEC0: 54       .byte $54        ; .#.#.#.. - Animation pattern data
+$BEC1: 28       .byte $28        ; ..#.#... - Animation pattern data
+$BEC2: 30       .byte $30        ; ..##.... - Animation pattern data
+$BEC3: 20       .byte $20        ; ..#..... - Animation pattern data
+$BEC4: 30       .byte $30        ; ..##.... - Animation pattern data
+$BEC5: 28       .byte $28        ; ..#.#... - Animation pattern data
+$BEC6: F0       .byte $F0        ; ####.... - Animation pattern data
+$BEC7: 98       .byte $98        ; #..##... - Animation pattern data
+
+$BEC8: 00       .byte $00        ; ........ - Animation pattern data
+$BEC9: 00       .byte $00        ; ........ - Animation pattern data
+$BECA: 04       .byte $04        ; .....#.. - **PLAYER HEAD (VERTICAL)** - Character $04
+$BECB: 0A       .byte $0A        ; ....#.#. - Animation pattern data
+$BECC: 0A       .byte $0A        ; ....#.#. - Animation pattern data
+$BECD: 04       .byte $04        ; .....#.. - **PLAYER HEAD (VERTICAL)** - Character $04
+$BECE: 0C       .byte $0C        ; ....##.. - Animation pattern data
+$BECF: 14       .byte $14        ; ...#.#.. - Animation pattern data
+$BED0: 6C       .byte $6C        ; .##.##.. - Complex sprite pattern
+$BED1: 54       .byte $54        ; .#.#.#.. - Complex sprite pattern  
+$BED2: 0F       .byte $0F        ; ....#### - Complex sprite pattern
+$BED3: 19       .byte $19        ; ...##..# - Animation pattern data
+
+# Player / enemy explosion sprite animation.
+
+$BED4: 00       .byte $00        ; ........ - Padding/empty data
+$BED5: 00       .byte $00        ; ........ - Padding/empty data
+$BED6: 00       .byte $00        ; ........ - Padding/empty data
+$BED7: 00       .byte $00        ; ........ - Padding/empty data
+$BED8: 00       .byte $00        ; ........ - Padding/empty data
+$BED9: 00       .byte $00        ; ........ - Padding/empty data
+$BEDA: 08       .byte $08        ; ....#... - **DEATH ANIMATION** - Character $08
+$BEDB: 08       .byte $08        ; ....#... - **DEATH ANIMATION** - Character $08
+$BEDC: 00       .byte $00        ; ........ - Padding/empty data
+$BEDD: 00       .byte $00        ; ........ - Padding/empty data
+$BEDE: 00       .byte $00        ; ........ - Padding/empty data
+$BEDF: 00       .byte $00        ; ........ - Padding/empty data
+
+$BEE0: 00       .byte $00        ; ........ - Padding/empty data
+$BEE1: 00       .byte $00        ; ........ - Padding/empty data
+$BEE2: 00       .byte $00        ; ........ - Padding/empty data
+$BEE3: 00       .byte $00        ; ........ - Padding/empty data
+$BEE4: 00       .byte $00        ; ........ - Padding/empty data
+$BEE5: 00       .byte $00        ; ........ - Padding/empty data
+$BEE6: 00       .byte $00        ; ........ - Padding/empty data
+$BEE7: 10       .byte $10        ; ...#.... - Sparse pattern data
+$BEE8: 38       .byte $38        ; ..###... - Sprite pattern data
+$BEE9: 10       .byte $10        ; ...#.... - Sprite pattern data
+$BEEA: 00       .byte $00        ; ........ - Padding/empty data
+$BEEB: 00       .byte $00        ; ........ - Padding/empty data
+
+$BEEC: 00       .byte $00        ; ........ - Padding/empty data
+$BEED: 00       .byte $00        ; ........ - Padding/empty data
+$BEEE: 00       .byte $00        ; ........ - Padding/empty data
+$BEEF: 00       .byte $00        ; ........ - Padding/empty data
+$BEF0: 00       .byte $00        ; ........ - Padding/empty data
+$BEF1: 00       .byte $00        ; ........ - Padding/empty data
+$BEF2: 00       .byte $00        ; ........ - Padding/empty data
+$BEF3: 00       .byte $00        ; ........ - Padding/empty data
+$BEF4: 00       .byte $00        ; ........ - Padding/empty data
+$BEF5: 14       .byte $14        ; ...#.#.. - Sprite pattern data
+$BEF6: 00       .byte $00        ; ........ - Padding/empty data
+$BEF7: 2C       .byte $2C        ; ..#.##.. - Sprite pattern data
+
+
+$BEF8: 00       .byte $00        ; ........ - Padding/empty data
+$BEF9: 14       .byte $14        ; ...#.#.. - Sprite pattern data
+$BEFA: 00       .byte $00        ; ........ - Padding/empty data
+$BEFB: 00       .byte $00        ; ........ - Padding/empty data
+$BEFC: 00       .byte $00        ; ........ - Padding/empty data
+$BEFD: 00       .byte $00        ; ........ - Padding/empty data
+$BEFE: 00       .byte $00        ; ........ - Padding/empty data
+$BEFF: 00       .byte $00        ; ........ - Padding/empty data
+$BF00: 00       .byte $00        ; ........ - Table entry
+$BF01: 10       .byte $10        ; ...#.... - Table entry
+$BF02: 00       .byte $00        ; ........ - Table entry
+$BF03: 58       .byte $58        ; .#.##... - Table entry
+
+$BF04: 00       .byte $00        ; ........ - Table entry
+$BF05: 2C       .byte $2C        ; ..#.##.. - Table entry
+$BF06: 00       .byte $00        ; ........ - Table entry
+$BF07: 50       .byte $50        ; .#.#.... - Table entry
+$BF08: 00       .byte $00        ; ........ - Table entry
+$BF09: 10       .byte $10        ; ...#.... - Table entry
+$BF0A: 00       .byte $00        ; ........ - Table entry
+$BF0B: 00       .byte $00        ; ........ - Table entry
+$BF0C: 00       .byte $00        ; ........ - Table entry
+$BF0D: 38       .byte $38        ; ..###... - Table entry
+$BF0E: 00       .byte $00        ; ........ - Table entry
+$BF0F: 92       .byte $92        ; #..#..#. - Table entry
+
+$BF10: 00       .byte $00        ; ........ - Table entry
+$BF11: 58       .byte $58        ; .#.##... - Table entry
+$BF12: 00       .byte $00        ; ........ - Table entry
+$BF13: AA       .byte $AA        ; #.#.#.#. - Table entry
+$BF14: 00       .byte $00        ; ........ - Table entry
+$BF15: 54       .byte $54        ; .#.#.#.. - Table entry
+$BF16: 00       .byte $00        ; ........ - Table entry
+$BF17: 54       .byte $54        ; .#.#.#.. - Table entry
+$BF18: 00       .byte $00        ; ........ - Table entry
+$BF19: 00       .byte $00        ; ........ - Table entry
+$BF1A: 48       .byte $48        ; .#..#... - Table entry
+$BF1B: 10       .byte $10        ; ...#.... - Table entry
+
+$BF1C: 28       .byte $28        ; ..#.#... - Table entry
+$BF1D: 92       .byte $92        ; #..#..#. - Table entry
+$BF1E: 01       .byte $01        ; .......# - Table entry
+$BF1F: 58       .byte $58        ; .#.##... - Table entry
+$BF20: 00       .byte $00        ; ........ - Table entry
+$BF21: 82       .byte $82        ; #.....#. - Table entry
+$BF22: 00       .byte $00        ; ........ - Table entry
+$BF23: 54       .byte $54        ; .#.#.#.. - Table entry
+$BF24: 00       .byte $00        ; ........ - Table entry
+$BF25: A0       .byte $A0        ; #.#..... - Table entry
+$BF26: 10       .byte $10        ; ...#.... - Table entry
+$BF27: 44       .byte $44        ; .#...#.. - Table entry
+
+$BF28: 52       .byte $52        ; .#.#..#. - Table entry
+$BF29: 24       .byte $24        ; ..#..#.. - Table entry
+$BF2A: 10       .byte $10        ; ...#.... - Table entry
+$BF2B: A4       .byte $A4        ; #.#..#.. - Table entry
+$BF2C: 09       .byte $09        ; ....#..# - **DEATH ANIMATION** - Character $09
+$BF2D: A0       .byte $A0        ; #.#..... - Table entry
+$BF2E: 00       .byte $00        ; ........ - Table entry
+$BF2F: 00       .byte $00        ; ........ - Table entry
+$BF30: 84       .byte $84        ; #....#.. - Table entry
+$BF31: 00       .byte $00        ; ........ - Table entry
+$BF32: 55       .byte $55        ; .#.#.#.# - Table entry
+$BF33: 00       .byte $00        ; ........ - Table entry
+
+$BF34: 29       .byte $29        ; ..#.#..# - Table entry
+$BF35: 52       .byte $52        ; .#.#..#. - Table entry
+$BF36: 52       .byte $52        ; .#.#..#. - Table entry
+$BF37: A4       .byte $A4        ; #.#..#.. - Table entry
+$BF38: 10       .byte $10        ; ...#.... - Table entry
+$BF39: A4       .byte $A4        ; #.#..#.. - Table entry
+$BF3A: 01       .byte $01        ; .......# - Table entry
+$BF3B: 80       .byte $80        ; #....... - Table entry
+$BF3C: 01       .byte $01        ; .......# - Table entry
+$BF3D: 00       .byte $00        ; ........ - Table entry
+$BF3E: 80       .byte $80        ; #....... - Table entry
+$BF3F: 00       .byte $00        ; ........ - Table entry
+
+$BF40: 45       .byte $45        ; .#...#.# - Table entry
+$BF41: 00       .byte $00        ; ........ - Table entry
+$BF42: A8       .byte $A8        ; #.#.#... - Table entry
+$BF43: 52       .byte $52        ; .#.#..#. - Table entry
+$BF44: 52       .byte $52        ; .#.#..#. - Table entry
+$BF45: 24       .byte $24        ; ..#..#.. - Table entry
+$BF46: 10       .byte $10        ; ...#.... - Table entry
+$BF47: 24       .byte $24        ; ..#..#.. - Table entry
+$BF48: 00       .byte $00        ; ........ - Table entry
+$BF49: 80       .byte $80        ; #....... - Table entry
+$BF4A: 01       .byte $01        ; .......# - Table entry
+$BF4B: 00       .byte $00        ; ........ - Table entry
+
+$BF4C: 00       .byte $00        ; ........ - Table entry
+$BF4D: 00       .byte $00        ; ........ - Table entry
+$BF4E: 01       .byte $01        ; .......# - Table entry
+$BF4F: 00       .byte $00        ; ........ - Table entry
+$BF50: 29       .byte $29        ; ..#.#..# - Table entry
+$BF51: 50       .byte $50        ; .#.#.... - Table entry
+$BF52: 50       .byte $50        ; .#.#.... - Table entry
+$BF53: A1       .byte $A1        ; #.#....# - Table entry
+$BF54: 00       .byte $00        ; ........ - Table entry
+$BF55: 00       .byte $00        ; ........ - Table entry
+$BF56: 00       .byte $00        ; ........ - Table entry
+$BF57: 80       .byte $80        ; #....... - Table entry
+
+$BF58: 01       .byte $01        ; .......# - Table entry
+$BF59: 00       .byte $00        ; ........ - Table entry
+$BF5A: 80       .byte $80        ; #....... - Table entry
+$BF5B: 00       .byte $00        ; ........ - Table entry
+$BF5C: 00       .byte $00        ; ........ - Table entry
+$BF5D: 00       .byte $00        ; ........ - Table entry
+$BF5E: 81       .byte $81        ; #......# - Table entry
+$BF5F: 10       .byte $10        ; ...#.... - Table entry
+$BF60: 00       .byte $00        ; ........ - Table entry
+$BF61: 40       .byte $40        ; .#...... - Table entry
+$BF62: 00       .byte $00        ; ........ - Table entry
+$BF63: 02       .byte $02        ; ......#. - **PLAYER HEAD (SIDEWAYS)** - Character $02
+
+$BF64: 00       .byte $00        ; ........ - Table entry
+$BF65: 80       .byte $80        ; #....... - Table entry
+$BF66: 00       .byte $00        ; ........ - Table entry
+$BF67: 01       .byte $01        ; .......# - Table entry
+$BF68: 00       .byte $00        ; ........ - Table entry
+$BF69: 00       .byte $00        ; ........ - Table entry
+$BF6A: 20       .byte $20        ; ..#..... - Table entry
+$BF6B: 00       .byte $00        ; ........ - Table entry
+$BF6C: 00       .byte $00        ; ........ - Table entry
+$BF6D: 10       .byte $10        ; ...#.... - Table entry
+$BF6E: 00       .byte $00        ; ........ - Table entry
+$BF6F: 00       .byte $00        ; ........ - Table entry
+
+$BF70: 00       .byte $00        ; ........ - Table entry
+$BF71: 00       .byte $00        ; ........ - Table entry
+$BF72: 00       .byte $00        ; ........ - Table entry
+$BF73: 00       .byte $00        ; ........ - Table entry
+$BF74: 00       .byte $00        ; ........ - Table entry
+$BF75: 00       .byte $00        ; ........ - Table entry
+$BF76: 00       .byte $00        ; ........ - Table entry
+$BF77: 00       .byte $00        ; ........ - Table entry
+$BF78: 00       .byte $00        ; ........ - Table entry
+$BF79: 00       .byte $00        ; ........ - Table entry
+$BF7A: 00       .byte $00        ; ........ - Table entry
+$BF7B: 00       .byte $00        ; ........ - Table entry
+
+$BF7C: 03       .byte $03        ; ......## - **PLAYER BODY (FRAME 1)** - Character $03
+$BF7D: 0C       .byte $0C        ; ....##.. - Pattern data
+$BF7E: 30       .byte $30        ; ..##.... - Pattern data
+$BF7F: C0       .byte $C0        ; ##...... - Pattern data
+
+# Enemy sprites and animations.
+
+$BF80: 7E       .byte $7E        ; .######. - **DETAILED SPRITE** - Complex border pattern
+$BF81: 18       .byte $18        ; ...##... - **DETAILED SPRITE** - Center detail
+$BF82: FF       .byte $FF        ; ######## - **DETAILED SPRITE** - Full width line
+$BF83: BD       .byte $BD        ; #.####.# - **DETAILED SPRITE** - Detailed body pattern
+$BF84: BD       .byte $BD        ; #.####.# - **DETAILED SPRITE** - Repeated body pattern
+$BF85: BD       .byte $BD        ; #.####.# - **DETAILED SPRITE** - Repeated body pattern
+$BF86: BD       .byte $BD        ; #.####.# - **DETAILED SPRITE** - Repeated body pattern
+$BF87: BD       .byte $BD        ; #.####.# - **DETAILED SPRITE** - Repeated body pattern
+$BF88: 3C       .byte $3C        ; ..####.. - **DETAILED SPRITE** - Complex pattern
+$BF89: 24       .byte $24        ; ..#..#.. - **DETAILED SPRITE** - Complex pattern
+$BF8A: 24       .byte $24        ; ..#..#.. - **DETAILED SPRITE** - Complex pattern
+$BF8B: 66       .byte $66        ; .##..##. - **DETAILED SPRITE** - Complex pattern
+
+$BF8C: 7E       .byte $7E        ; .######. - **DETAILED SPRITE** - Complex pattern
+$BF8D: 18       .byte $18        ; ...##... - **DETAILED SPRITE** - Complex pattern
+$BF8E: 3F       .byte $3F        ; ..###### - **DETAILED SPRITE** - Complex pattern
+$BF8F: 3D       .byte $3D        ; ..####.# - **DETAILED SPRITE** - Complex pattern
+$BF90: 3D       .byte $3D        ; ..####.# - **DETAILED SPRITE** - Complex pattern
+$BF91: 3D       .byte $3D        ; ..####.# - **DETAILED SPRITE** - Complex pattern
+$BF92: 3D       .byte $3D        ; ..####.# - **DETAILED SPRITE** - Complex pattern
+$BF93: 3D       .byte $3D        ; ..####.# - **DETAILED SPRITE** - Complex pattern
+$BF94: 3C       .byte $3C        ; ..####.. - **DETAILED SPRITE** - Complex pattern
+$BF95: 24       .byte $24        ; ..#..#.. - **DETAILED SPRITE** - Complex pattern
+$BF96: 24       .byte $24        ; ..#..#.. - **DETAILED SPRITE** - Complex pattern
+$BF97: 6C       .byte $6C        ; .##.##.. - **DETAILED SPRITE** - Complex pattern
+
+$BF98: 7E       .byte $7E        ; .######. - **DETAILED SPRITE** - Complex pattern
+$BF99: 18       .byte $18        ; ...##... - **DETAILED SPRITE** - Complex pattern
+$BF9A: 3F       .byte $3F        ; ..###### - **DETAILED SPRITE** - Complex pattern
+$BF9B: 3D       .byte $3D        ; ..######  - **DETAILED SPRITE** - Complex pattern
+$BF9C: 3D       .byte $3D        ; ..######  - **DETAILED SPRITE** - Complex pattern  
+$BF9D: 3D       .byte $3D        ; ..######  - **DETAILED SPRITE** - Complex pattern
+$BF9E: 3D       .byte $3D        ; ..######  - **DETAILED SPRITE** - Complex pattern
+$BF9F: 3D       .byte $3D        ; ..######  - **DETAILED SPRITE** - Complex pattern
+$BFA0: 3C       .byte $3C        ; ..####..  - **DETAILED SPRITE** - Complex pattern
+$BFA1: 08       .byte $08        ; ....#...  - **DETAILED SPRITE** - Complex pattern
+$BFA2: 08       .byte $08        ; ....#...  - **DETAILED SPRITE** - Complex pattern
+$BFA3: 18       .byte $18        ; ...##...  - **DETAILED SPRITE** - Complex pattern
+
+$BFA4: 7E       .byte $7E        ; .######.  - **DETAILED SPRITE** - Complex pattern
+$BFA5: 18       .byte $18        ; ...##...  - **DETAILED SPRITE** - Complex pattern
+$BFA6: FC       .byte $FC        ; ######..  - **DETAILED SPRITE** - Complex pattern
+$BFA7: BC       .byte $BC        ; #.####..  - **DETAILED SPRITE** - Complex pattern
+$BFA8: BC       .byte $BC        ; #.####..  - **DETAILED SPRITE** - Complex pattern
+$BFA9: BC       .byte $BC        ; #.####..  - **DETAILED SPRITE** - Complex pattern
+$BFAA: BC       .byte $BC        ; #.####..  - **DETAILED SPRITE** - Complex pattern
+$BFAB: BC       .byte $BC        ; #.####..  - **DETAILED SPRITE** - Complex pattern
+$BFAC: 3C       .byte $3C        ; ..####..  - **DETAILED SPRITE** - Complex pattern
+$BFAD: 24       .byte $24        ; ..#..#..  - **DETAILED SPRITE** - Complex pattern
+$BFAE: 24       .byte $24        ; ..#..#..  - **DETAILED SPRITE** - Complex pattern
+$BFAF: 36       .byte $36        ; ..##.##.  - **DETAILED SPRITE** - Complex pattern
+
+$BFB0: 7E       .byte $7E        ; .######.  - **DETAILED SPRITE** - Complex pattern
+$BFB1: 18       .byte $18        ; ...##...  - **DETAILED SPRITE** - Complex pattern
+$BFB2: FC       .byte $FC        ; ######..  - **DETAILED SPRITE** - Complex pattern
+$BFB3: BC       .byte $BC        ; #.####..  - **DETAILED SPRITE** - Complex pattern
+$BFB4: BC       .byte $BC        ; #.####..  - **DETAILED SPRITE** - Complex pattern
+$BFB5: BC       .byte $BC        ; #.####..  - **DETAILED SPRITE** - Complex pattern
+$BFB6: BC       .byte $BC        ; #.####..  - **DETAILED SPRITE** - Complex pattern
+$BFB7: BC       .byte $BC        ; #.####..  - **DETAILED SPRITE** - Complex pattern
+$BFB8: 3C       .byte $3C        ; ..####..  - **DETAILED SPRITE** - Complex pattern
+$BFB9: 10       .byte $10        ; ...#....  - **DETAILED SPRITE** - Complex pattern
+$BFBA: 10       .byte $10        ; ...#....  - **DETAILED SPRITE** - Complex pattern
+$BFBB: 18       .byte $18        ; ...##...  - **DETAILED SPRITE** - Complex pattern
+
+$BFBC: 7E       .byte $7E        ; .######.  - **DETAILED SPRITE** - Complex pattern
+$BFBD: 18       .byte $18        ; ...##...  - **DETAILED SPRITE** - Complex pattern
+$BFBE: FF       .byte $FF        ; ########  - **DETAILED SPRITE** - Complex pattern
+$BFBF: BD       .byte $BD        ; #.####.#  - **DETAILED SPRITE** - Complex pattern
+$BFC0: BD       .byte $BD        ; #.####.#  - **DETAILED SPRITE** - Complex pattern
+$BFC1: BD       .byte $BD        ; #.####.#  - **DETAILED SPRITE** - Complex pattern
+$BFC2: 3D       .byte $3D        ; ..######  - **DETAILED SPRITE** - Complex pattern
+$BFC3: 3D       .byte $3D        ; ..######  - **DETAILED SPRITE** - Complex pattern
+$BFC4: 3C       .byte $3C        ; ..####..  - **DETAILED SPRITE** - Complex pattern
+$BFC5: 26       .byte $26        ; ..#..##.  - **DETAILED SPRITE** - Complex pattern
+$BFC6: 20       .byte $20        ; ..#.....  - **DETAILED SPRITE** - Complex pattern
+$BFC7: 60       .byte $60        ; .##.....  - **DETAILED SPRITE** - Complex pattern
+
 ; ===============================================================================
-; INPUT_ROUTINE ($AFAD)
-; **MAIN INPUT PROCESSING WITH DIRECTIONAL FIRING SUPPORT**
-; Main input processing routine
-; This routine:
-; - Reads controller inputs from POKEY registers ($D200-$D207)
-; - Processes fire button states (used for instant-hit system)
-; - **CRITICAL**: Samples joystick direction for directional firing
-; - Updates player movement and position
-; - Manages input debouncing and timing
-;
-; **DIRECTIONAL FIRING INTEGRATION**:
-; - Joystick X/Y position sampled from analog POKEY registers
-; - Direction vector calculated and stored for instant-hit system
-; - When fire button pressed, stored direction determines hit area
-; - Precision aiming required - joystick position at fire time is critical
+; SPRITE DATA CONTINUATION ($BFC8-$BFD2)
+; **DETAILED SPRITE PATTERNS** - More complex sprite graphics data
 ; ===============================================================================
 
-$BFAD: 24 24    BIT $24
-$BFAF: 36 7E    ROL $7E
-$BFB1: 18       CLC
-$BFB2: FC       .byte $FC        ; Data byte
-$BFB3: BC BC BC LDY $BCBC
-$BFB6: BC BC 3C LDY $3CBC
-$BFB9: 10 10    BPL $BFCB
-$BFBB: 18       CLC
-$BFBC: 7E 18 FF ROR $FF18
-$BFBF: BD BD BD LDA $BDBD
-$BFC2: 3D 3D 3C AND $3C3D
-$BFC5: 26 20    ROL $20
-$BFC7: 60       RTS
-$BFC8: 7E 18 FF ROR $FF18
-$BFCB: BD BD BD LDA $BDBD
-$BFCE: BC BC 3C LDY $3CBC
-$BFD1: 64       .byte $64        ; Data byte
-$BFD2: 04       .byte $04        ; Data byte
-$BFD3: 06 3D    ASL $3D
-$BFD5: 55 6E    EOR #$6E
-$BFD7: 87       .byte $87        ; Data byte
-$BFD8: A0 BB    LDY #$BB
-$BFDA: 30 66    BMI $C042
-$BFDC: A6 C9    LDX #$C9
-$BFDE: 0E D0 06 ASL $06D0
-$BFE1: A2 FF    LDX #$FF
-$BFE3: 9A       TXS
-$BFE4: 4C C8 A2 JMP $A2C8
-$BFE7: C9 0C    CMP #$0C
-$BFE9: D0 03    BNE $BFEE ; Loop back if not zero
-$BFEB: 4C 2B A3 JMP $A32B
-$BFEE: C9 0D    CMP #$0D
-$BFF0: D0 05    BNE $BFF7 ; Loop back if not zero
-$BFF2: AD 10 C0 LDA $C010 ; GTIA collision register
-$BFF5: D0 FB    BNE $BFF2 ; Loop back if not zero
-$BFF7: 4C B2 FC JMP $FCB2
-$BFFA: 00       BRK
-$BFFB: 00       BRK
-$BFFC: 00       BRK
-$BFFD: FF       .byte $FF        ; Data byte
-$BFFE: C8       INY
-$BFFF: A2       LDX ??
+$BFC8: 7E       .byte $7E        ; .######.  - **DETAILED SPRITE** - Complex pattern
+$BFC9: 18       .byte $18        ; ...##...  - **DETAILED SPRITE** - Complex pattern
+$BFCA: FF       .byte $FF        ; ########  - **DETAILED SPRITE** - Complex pattern
+$BFCB: BD       .byte $BD        ; #.####.#  - **DETAILED SPRITE** - Complex pattern
+$BFCC: BD       .byte $BD        ; #.####.#  - **DETAILED SPRITE** - Complex pattern
+$BFCD: BD       .byte $BD        ; #.####.#  - **DETAILED SPRITE** - Complex pattern
+$BFCE: BC       .byte $BC        ; #.####..  - **DETAILED SPRITE** - Complex pattern
+$BFCF: BC       .byte $BC        ; #.####..  - **DETAILED SPRITE** - Complex pattern
+$BFD0: 3C       .byte $3C        ; ..####..  - **DETAILED SPRITE** - Complex pattern
+$BFD1: 64       .byte $64        ; .##..#..  - **DETAILED SPRITE** - Complex pattern
+$BFD2: 04       .byte $04        ; .....#..  - **DETAILED SPRITE** - Complex pattern
+
+; ===============================================================================
+; SYSTEM INITIALIZATION AND RESET VECTORS ($BFD3-$BFFF)
+; **SYSTEM STARTUP CODE** - Reset vector handling and initialization
+; This section contains the system reset and initialization code
+; ===============================================================================
+
+$BFD3: 06 3D    ASL $3D          ; Arithmetic shift left on memory location $3D
+$BFD5: 55 6E    EOR $6E,X        ; Exclusive OR with memory location $6E indexed by X
+$BFD7: 87       .byte $87        ; Data byte - possibly part of initialization data
+
+; ===============================================================================
+; SYSTEM INITIALIZATION AND RESET VECTORS ($BFD8-$BFFF)
+; **SYSTEM STARTUP CODE** - Reset vector handling and initialization
+; This section contains the system reset and initialization code
+; ===============================================================================
+$BFD8: A0 BB    LDY #$BB         ; Load Y register with immediate value $BB
+$BFDA: 30 66    BMI $C042        ; Branch if minus (negative flag set) to $C042
+$BFDC: A6 C9    LDX $C9          ; Load X register from memory location $C9
+$BFDE: 0E D0 06 ASL $06D0        ; Arithmetic shift left on memory location $06D0
+
+; **SYSTEM RESET INITIALIZATION** - Main system startup sequence
+$BFE1: A2 FF    LDX #$FF         ; Load X register with $FF (initialize stack pointer)
+$BFE3: 9A       TXS              ; Transfer X to stack pointer (set stack to $01FF)
+$BFE4: 4C C8 A2 JMP $A2C8        ; Jump to main initialization routine at $A2C8
+
+; **INPUT HANDLING** - Check for specific input conditions
+$BFE7: C9 0C    CMP #$0C         ; Compare accumulator with $0C
+$BFE9: D0 03    BNE $BFEE        ; Branch if not equal to $BFEE
+$BFEB: 4C 2B A3 JMP $A32B        ; Jump to routine at $A32B if equal to $0C
+
+$BFEE: C9 0D    CMP #$0D         ; Compare accumulator with $0D  
+$BFF0: D0 05    BNE $BFF7        ; Branch if not equal to $BFF7
+$BFF2: AD 10 C0 LDA $C010        ; **TRIGGER INPUT** - Read trigger register (0=pressed, 1=released)
+$BFF5: D0 FB    BNE $BFF2        ; Wait for trigger release (wait for 0) - TITLE SCREEN WAIT
+$BFF7: 4C B2 FC JMP $FCB2        ; Jump to routine at $FCB2
+
+; **RESET VECTOR DATA** - System reset vector table
+$BFFA: 00       .byte $00        ; Reset vector low byte (part of 6502 reset vector)
+$BFFB: 00       .byte $00        ; Reset vector continuation
+$BFFC: 00       .byte $00        ; Reset vector continuation  
+$BFFD: FF       .byte $FF        ; Reset vector high byte
+$BFFE: C8       .byte $C8        ; **NMI VECTOR LOW** - Non-maskable interrupt vector low byte
+$BFFF: A2       .byte $A2        ; **NMI VECTOR HIGH** - Non-maskable interrupt vector high byte (points to $A2C8)
