@@ -1822,6 +1822,75 @@ $A386: E6 D5    INC $D5         ; INCREMENT LEVEL COUNTER - triggers new sector
 $A388: 20 B6 A9 JSR $A9B6       ; Game initialization for new level (includes arena generation)
 $A38B: 20 81 A5 JSR $A581       ; Level setup (includes "ENTER SECTOR X" display)
 $A38E: 4C 2B A3 JMP $A32B       ; Jump to main game setup
+
+; ===============================================================================
+; COMPLETE LEVEL END DETECTION SYSTEM - SUMMARY
+; ===============================================================================
+; K-Razy Shoot-Out has TWO ways a level can end:
+;
+; 1. **TIME RUNS OUT** ($A37C-$A380):
+;    - Time counter $D9 decrements from 77 to 2
+;    - When $D9 = 2, automatic level advance to $A382
+;
+; 2. **PLAYER ESCAPES** ($A351-$A353):
+;    - Enemy AI ($B2B3) calls boundary check ($BD47) each frame
+;    - Boundary check: if player position ($69 + $0E) >= $C0, set $97 = 1
+;    - Display update ($B4BF) checks $97, calls escape processing ($B75E)
+;    - Escape processing increments $DA counter (0→1→2→3)
+;    - When $DA = 3, level advance to $A382
+;
+; **LEVEL ADVANCEMENT FLOW** ($A382):
+;    - Increment level counter $D5 (0=Sector 1, 1=Sector 2, etc.)
+;    - Call arena generation ($A9B6) - creates new randomized arena
+;    - Call level setup ($A581) - displays "ENTER SECTOR X"
+;    - Reset all game state for new sector
+;
+; **ESCAPE SEQUENCE DETAILS** ($B75E):
+; The escape processing creates a dramatic multi-stage audiovisual effect:
+; 1. **Initialization**: Clear hardware registers, set up sprite effects
+; 2. **Counter Increment**: $DA increases (0→1→2→3), each escape more dramatic
+; 3. **Effect Loop**: Multiple animation frames with timed delays
+;    - Stage effects in $06xx memory areas
+;    - Copy to screen memory $2Exx to make visible
+;    - Use hardware registers $E800-$E808 for sprite control
+;    - Create precise timing with nested delay loops
+; 4. **Progressive Enhancement**: Each escape ($DA=1,2,3) has different effects
+; 5. **DRAMATIC SCREEN CLEAR**: Three-phase top-to-bottom screen wipe:
+;    - Phase 1: Clear rows $14-$59 (20-89) with timed delays
+;    - Phase 2: Clear rows $59-$9B (89-155) continuing the sweep
+;    - Phase 3: Clear rows $4F-$3F (79-63) with countdown effect
+;    - Each row cleared individually with visible timing delays
+;    - Creates classic "screen wipe" effect from top to bottom
+; 6. **Sound Effects**: Audio feedback during the clearing sequence
+; 7. **ENEMY KILL COUNT DISPLAY**: After screen clear, shows scoring summary:
+;    - Displays enemies killed by point value (100, 50, 10 points)
+;    - Each enemy type shown individually with sound effects
+;    - Uses hit counters $D2 and $D3 to track kills
+;    - Routine $AC26 displays enemy sprites to screen memory
+;    - Different screen locations for each point value:
+;      * 100-point enemies: Y=$64, displayed at $2C12, $2C26, $2C3A
+;      * 50-point enemies: Y=$32, displayed at $2C62  
+;      * 10-point enemies: Y=$0A, displayed at $2C9E
+;    - Each enemy appears one by one with timing delays ($AC0C)
+;    - Creates classic arcade "bonus tally" screen effect
+; 8. **BONUS POINTS DISPLAY**: Final climactic screen after enemy count:
+;    - Displays "BONUS POINTS" text stored at $ACA1-$ACAC with flashing effect
+;    - Text loaded by routine at $AB78 (LDA $ACA1)
+;    - **TIME-BASED BONUS CALCULATION**:
+;      * Time remaining >= 53: 10 bonus points (fast completion)
+;      * Time remaining >= 27: 3 bonus points (moderate completion)  
+;      * Time remaining < 27: No bonus points (slow completion)
+;    - Each bonus point flashes the text and plays sound via $BD66
+;    - Sound routine $BD66 actually adds points to score at $060B
+;    - Rewards players for efficient level completion
+; 9. **Final Trigger**: When $DA=3, main loop detects and advances level
+;
+; The escape sequence provides satisfying audiovisual feedback for successfully
+; completing the level objective (defeat enemies + escape through gaps).
+; The screen clear effect is a classic 1980s arcade game technique that provides
+; dramatic visual closure to the level completion.
+; ===============================================================================
+
         .byte $20        ; $A391 - ' '
         .byte $20        ; $A392 - ' '
         .byte $20        ; $A393 - ' '
@@ -3137,52 +3206,64 @@ $AB43: CA       DEX
 $AB44: B5 C5    LDA #$C5
 $AB46: C9 02    CMP #$02
 $AB48: B0 15    BCS $AB5F ; Branch if carry set
-$AB4A: A5 D9    LDA #$D9
-$AB4C: C9 35    CMP #$35
-$AB4E: 90 0B    BCC $AB5B ; Branch if carry clear
-$AB50: A9 C6    LDA #$C6
-$AB52: 85 A5    STA $A5
-$AB54: A9 0A    LDA #$0A
-$AB56: 85 92    STA $92
-$AB58: 4C 6A AB JMP $AB6A
-$AB5B: C9 1B    CMP #$1B
-$AB5D: B0 03    BCS $AB62 ; Branch if carry set
-$AB5F: 4C B1 AB JMP $ABB1
-$AB62: A9 1A    LDA #$1A
-$AB64: 85 A5    STA $A5
-$AB66: A9 03    LDA #$03
-$AB68: 85 92    STA $92
-$AB6A: 20 C1 AC JSR $ACC1
-$AB6D: A9 A2    LDA #$A2
-$AB6F: 85 06    STA $06
-$AB71: A9 58    LDA #$58
-$AB73: 85 05    STA $05
-$AB75: A2 0E    LDX #$0E
-$AB77: CA       DEX
-$AB78: BD A1 AC LDA $ACA1
+$AB4A: A5 D9    LDA $D9         ; **LOAD TIME REMAINING** for bonus calculation
+$AB4C: C9 35    CMP #$35        ; Check if time >= 53 (good time remaining)
+$AB4E: 90 0B    BCC $AB5B       ; Branch if time < 53 (lower bonus)
+$AB50: A9 C6    LDA #$C6        ; Set bonus display parameter
+$AB52: 85 A5    STA $A5         ; Store display parameter
+$AB54: A9 0A    LDA #$0A        ; **HIGH BONUS**: 10 points for fast completion
+$AB56: 85 92    STA $92         ; Store bonus amount in counter
+$AB58: 4C 6A AB JMP $AB6A       ; Jump to bonus display routine
+$AB5B: C9 1B    CMP #$1B        ; Check if time >= 27 (moderate time remaining)
+$AB5D: B0 03    BCS $AB62       ; Branch if time >= 27 (small bonus)
+$AB5F: 4C B1 AB JMP $ABB1       ; **NO BONUS**: Jump to level setup (time < 27)
+$AB62: A9 1A    LDA #$1A        ; Set bonus display parameter
+$AB64: 85 A5    STA $A5         ; Store display parameter  
+$AB66: A9 03    LDA #$03        ; **LOW BONUS**: 3 points for moderate completion
+$AB68: 85 92    STA $92         ; Store bonus amount in counter
+; ===============================================================================
+; BONUS_POINTS_DISPLAY ($AB75)
+; **COMPLETE BONUS POINTS SYSTEM** - Flashing display with time-based scoring
+; This routine displays "BONUS POINTS" text with flashing effects and awards
+; bonus points based on time remaining when player escapes through wall gaps
+; ===============================================================================
+
+; **BONUS CALCULATION LOGIC** ($AB4A-$AB68):
+; - If time remaining >= 53 ($35): Award 10 bonus points ($92 = $0A)
+; - If time remaining >= 27 ($1B): Award 3 bonus points ($92 = $03)  
+; - If time remaining < 27: No bonus points awarded
+; This rewards players for completing levels quickly and efficiently
+
+$AB75: A2 0E    LDX #$0E        ; Set up text display (14 characters)
+$AB77: CA       DEX             ; Decrement counter
+$AB78: BD A1 AC LDA $ACA1,X     ; **LOAD "BONUS POINTS" TEXT** from $ACA1
 $AB7B: 18       CLC
-$AB7C: 69 20    ADC #$20
-$AB7E: 9D 67 24 STA $2467
-$AB81: CA       DEX
-$AB82: D0 F4    BNE $AB78 ; Loop back if not zero
-$AB84: 20 33 B0 JSR $B033
-$AB87: A9 01    LDA #$01
-$AB89: 8D 08 E8 STA $E808
+$AB7C: 69 20    ADC #$20        ; Convert to screen code
+$AB7E: 9D 67 24 STA $2467,X     ; Store to screen memory at $2467
+$AB81: CA       DEX             ; Decrement character counter
+$AB82: D0 F4    BNE $AB78       ; Loop until all characters displayed
+$AB84: 20 33 B0 JSR $B033       ; Display setup routine
+$AB87: A9 01    LDA #$01        ; Configure display registers
+$AB89: 8D 08 E8 STA $E808       ; Set display control
 $AB8C: A9 08    LDA #$08
-$AB8E: 8D 00 E8 STA $E800
-$AB91: A9 05    LDA #$05
-$AB93: 85 BA    STA $BA
-$AB95: 85 BB    STA $BB
-$AB97: A9 FF    LDA #$FF
-$AB99: 85 BC    STA $BC
-$AB9B: A9 01    LDA #$01
-$AB9D: 85 AC    STA $AC
-$AB9F: 20 66 BD JSR $BD66 ; Fire sound effect
-$ABA2: 20 17 B1 JSR $B117
-$ABA5: C6 92    DEC $92
-$ABA7: D0 F6    BNE $AB9F ; Loop back if not zero
-$ABA9: 20 0C AC JSR $AC0C
-$ABAC: E6 55    INC $55
+$AB8E: 8D 00 E8 STA $E800       ; Set display mode
+$AB91: A9 05    LDA #$05        ; Set flashing parameters
+$AB93: 85 BA    STA $BA         ; Store flash counter 1
+$AB95: 85 BB    STA $BB         ; Store flash counter 2  
+$AB97: A9 FF    LDA #$FF        ; Set flash control
+$AB99: 85 BC    STA $BC         ; Store flash control value
+$AB9B: A9 01    LDA #$01        ; Set sound effect parameter
+$AB9D: 85 AC    STA $AC         ; Store sound parameter
+
+; **FLASHING BONUS POINTS LOOP** ($AB9F-$ABA7):
+; Each iteration flashes the text, plays sound, and adds points to score
+$AB9F: 20 66 BD JSR $BD66       ; **FIRE SOUND + ADD POINTS TO SCORE**
+$ABA2: 20 17 B1 JSR $B117       ; **FLASHING EFFECT** - toggles text visibility
+$ABA5: C6 92    DEC $92         ; **DECREMENT BONUS COUNTER** (10 or 3 times)
+$ABA7: D0 F6    BNE $AB9F       ; **LOOP** until all bonus points awarded
+
+$ABA9: 20 0C AC JSR $AC0C       ; Final timing delay
+$ABAC: E6 55    INC $55         ; Increment display counter
 $ABAE: 20 93 AC JSR $AC93
 $ABB1: 20 C1 AC JSR $ACC1
 ; ===============================================================================
@@ -3250,86 +3331,92 @@ $AC07: A9 01    LDA #$01
 $AC09: 8D 08 E8 STA $E808
 ; ===============================================================================
 ; DISPLAY_MANAGEMENT ($AC0C)
-; Display list and screen management
+; **TIMING DELAYS** for enemy kill count display sequence
+; Creates timed delays between each enemy sprite appearance during bonus tally
 ; This routine:
-; - Manages display modes
-; - Updates screen memory
-; - Controls color registers
-; - Handles display synchronization
-; - Manages display interrupts
+; - Provides timing delays for visual pacing
+; - Creates the "one by one" enemy appearance effect
+; - Synchronizes with sound effects during kill count display
 ; ===============================================================================
 
-$AC0C: A9 00    LDA #$00
-$AC0E: 85 A6    STA $A6
-$AC10: A2 FF    LDX #$FF
-$AC12: A0 FF    LDY #$FF
-$AC14: CA       DEX
-$AC15: D0 FD    BNE $AC14 ; Loop back if not zero
-$AC17: 88       DEY ; Set enemy score value
-$AC18: D0 FA    BNE $AC14 ; Loop back if not zero
-$AC1A: A5 A6    LDA #$A6
+$AC0C: A9 00    LDA #$00        ; Initialize delay counter
+$AC0E: 85 A6    STA $A6         ; Store counter
+$AC10: A2 FF    LDX #$FF        ; Set inner delay loop
+$AC12: A0 FF    LDY #$FF        ; Set outer delay loop
+$AC14: CA       DEX             ; Countdown inner loop
+$AC15: D0 FD    BNE $AC14       ; Loop until X = 0
+$AC17: 88       DEY             ; Countdown outer loop
+$AC18: D0 FA    BNE $AC14       ; Loop until Y = 0 (creates visible delay)
+$AC1A: A5 A6    LDA $A6         ; Load delay counter
 $AC1C: 18       CLC
-$AC1D: 69 01    ADC #$01 ; Return from spawn routine
-$AC1F: 85 A6    STA $A6
-$AC21: C9 01    CMP #$01
-$AC23: D0 EB    BNE $AC10 ; Loop back if not zero
-$AC25: 60       RTS
-$AC26: 85 92    STA $92
-$AC28: C9 00    CMP #$00
-$AC2A: F0 66    BEQ $AC92 ; Branch if equal/zero
-$AC2C: C0 64    CPY #$64
-$AC2E: D0 35    BNE $AC65 ; Loop back if not zero
-$AC30: AA       TAX
-$AC31: A9 1C    LDA #$1C
-$AC33: A0 08    LDY #$08
-$AC35: 99 12 2C STA $2C12
-$AC38: 20 D6 AA JSR $AAD6
-$AC3B: CA       DEX
-$AC3C: F0 54    BEQ $AC92 ; Branch if equal/zero
-$AC3E: C8       INY
-$AC3F: C0 15    CPY #$15
-$AC41: D0 F2    BNE $AC35 ; Loop back if not zero
-$AC43: A0 08    LDY #$08
-$AC45: 99 26 2C STA $2C26
-$AC48: 20 D6 AA JSR $AAD6
-$AC4B: CA       DEX
-$AC4C: F0 44    BEQ $AC92 ; Branch if equal/zero
-$AC4E: C8       INY
-$AC4F: C0 15    CPY #$15
-$AC51: D0 F2    BNE $AC45 ; Loop back if not zero
-$AC53: A0 08    LDY #$08
-$AC55: 99 3A 2C STA $2C3A
-$AC58: 20 D6 AA JSR $AAD6
-$AC5B: CA       DEX
-$AC5C: F0 34    BEQ $AC92 ; Branch if equal/zero
-$AC5E: C8       INY
-$AC5F: C0 15    CPY #$15
-$AC61: D0 F2    BNE $AC55 ; Loop back if not zero
-$AC63: F0 2D    BEQ $AC92 ; Branch if equal/zero
-$AC65: C0 32    CPY #$32
-$AC67: D0 16    BNE $AC7F ; Loop back if not zero
-$AC69: A6 92    LDX #$92
-$AC6B: A9 1C    LDA #$1C
-$AC6D: A0 08    LDY #$08
-$AC6F: 99 62 2C STA $2C62
-$AC72: 20 D6 AA JSR $AAD6
-$AC75: CA       DEX
-$AC76: F0 1A    BEQ $AC92 ; Branch if equal/zero
-$AC78: C8       INY
-$AC79: C0 15    CPY #$15
-$AC7B: D0 F2    BNE $AC6F ; Loop back if not zero
-$AC7D: F0 13    BEQ $AC92 ; Branch if equal/zero
-$AC7F: AA       TAX
-$AC80: A9 1C    LDA #$1C
-$AC82: A0 08    LDY #$08
-$AC84: 99 9E 2C STA $2C9E
-$AC87: 20 D6 AA JSR $AAD6
-$AC8A: CA       DEX
-$AC8B: F0 05    BEQ $AC92 ; Branch if equal/zero
-$AC8D: C8       INY
-$AC8E: C0 15    CPY #$15
-$AC90: D0 F2    BNE $AC84 ; Loop back if not zero
-$AC92: 60       RTS
+$AC1D: 69 01    ADC #$01        ; Increment delay counter
+$AC1F: 85 A6    STA $A6         ; Store updated counter
+$AC21: C9 01    CMP #$01        ; Check if delay complete
+$AC23: D0 EB    BNE $AC10       ; Loop back for more delay
+$AC25: 60       RTS             ; Delay complete
+
+; ===============================================================================
+; ENEMY_KILL_DISPLAY ($AC26)
+; **ENEMY KILL COUNT DISPLAY** - Shows defeated enemies by point value
+; This is the "bonus tally" screen that appears after level completion
+; Input: A = kill count, Y = point value ($64=100pts, $32=50pts, $0A=10pts)
+; ===============================================================================
+$AC26: 85 92    STA $92         ; Store kill count
+$AC28: C9 00    CMP #$00        ; Check if any enemies killed
+$AC2A: F0 66    BEQ $AC92       ; Exit if no kills to display
+$AC2C: C0 64    CPY #$64        ; Check if 100-point enemies (Y=$64)
+$AC2E: D0 35    BNE $AC65       ; Branch if not 100-point enemies
+$AC30: AA       TAX             ; Use kill count as loop counter
+$AC31: A9 1C    LDA #$1C        ; Load enemy sprite character
+$AC33: A0 08    LDY #$08        ; Set screen position
+$AC35: 99 12 2C STA $2C12,Y     ; **DISPLAY ENEMY SPRITE** at screen location
+$AC38: 20 D6 AA JSR $AAD6       ; Sprite positioning update
+$AC3B: CA       DEX             ; Decrement enemy counter
+$AC3C: F0 54    BEQ $AC92       ; Exit if all enemies displayed
+$AC3E: C8       INY             ; Move to next screen position
+$AC3F: C0 15    CPY #$15        ; Check position limit
+$AC41: D0 F2    BNE $AC35       ; Continue displaying enemies
+$AC43: A0 08    LDY #$08        ; Reset position for next row
+$AC45: 99 26 2C STA $2C26,Y     ; **DISPLAY ENEMY SPRITE** at next row
+$AC48: 20 D6 AA JSR $AAD6       ; Sprite positioning update
+$AC4B: CA       DEX             ; Decrement enemy counter
+$AC4C: F0 44    BEQ $AC92       ; Exit if all enemies displayed
+$AC4E: C8       INY             ; Move to next position
+$AC4F: C0 15    CPY #$15        ; Check position limit
+$AC51: D0 F2    BNE $AC45       ; Continue displaying enemies
+$AC53: A0 08    LDY #$08        ; Reset position for third row
+$AC55: 99 3A 2C STA $2C3A,Y     ; **DISPLAY ENEMY SPRITE** at third row
+$AC58: 20 D6 AA JSR $AAD6       ; Sprite positioning update
+$AC5B: CA       DEX             ; Decrement enemy counter
+$AC5C: F0 34    BEQ $AC92       ; Exit if all enemies displayed
+$AC5E: C8       INY             ; Move to next position
+$AC5F: C0 15    CPY #$15        ; Check position limit
+$AC61: D0 F2    BNE $AC55       ; Continue displaying enemies
+$AC63: F0 2D    BEQ $AC92       ; All 100-point enemies displayed
+$AC65: C0 32    CPY #$32        ; Check if 50-point enemies (Y=$32)
+$AC67: D0 16    BNE $AC7F       ; Branch if not 50-point enemies
+$AC69: A6 92    LDX $92         ; Load kill count
+$AC6B: A9 1C    LDA #$1C        ; Load enemy sprite character
+$AC6D: A0 08    LDY #$08        ; Set screen position
+$AC6F: 99 62 2C STA $2C62,Y     ; **DISPLAY 50-POINT ENEMY SPRITE**
+$AC72: 20 D6 AA JSR $AAD6       ; Sprite positioning update
+$AC75: CA       DEX             ; Decrement enemy counter
+$AC76: F0 1A    BEQ $AC92       ; Exit if all enemies displayed
+$AC78: C8       INY             ; Move to next position
+$AC79: C0 15    CPY #$15        ; Check position limit
+$AC7B: D0 F2    BNE $AC6F       ; Continue displaying enemies
+$AC7D: F0 13    BEQ $AC92       ; All 50-point enemies displayed
+$AC7F: AA       TAX             ; 10-point enemies (default case)
+$AC80: A9 1C    LDA #$1C        ; Load enemy sprite character
+$AC82: A0 08    LDY #$08        ; Set screen position
+$AC84: 99 9E 2C STA $2C9E,Y     ; **DISPLAY 10-POINT ENEMY SPRITE**
+$AC87: 20 D6 AA JSR $AAD6       ; Sprite positioning update
+$AC8A: CA       DEX             ; Decrement enemy counter
+$AC8B: F0 05    BEQ $AC92       ; Exit if all enemies displayed
+$AC8D: C8       INY             ; Move to next position
+$AC8E: C0 15    CPY #$15        ; Check position limit
+$AC90: D0 F2    BNE $AC84       ; Continue displaying enemies
+$AC92: 60       RTS             ; Enemy kill display complete
 $AC93: 60       RTS
 ; ===============================================================================
 ; "ENTER SECTOR" TEXT DATA ($AC94)
@@ -3349,6 +3436,24 @@ $AC9D: 54       .byte $54        ; 'T'
 $AC9E: 4F       .byte $4F        ; 'O'
 $AC9F: 52       .byte $52        ; 'R'
 $ACA0: 20       .byte $20        ; ' ' (space)
+
+; ===============================================================================
+; "BONUS POINTS" TEXT DATA ($ACA1)
+; **FOUND!** Text string displayed during bonus points screen after escape
+; Used by bonus points display routine (flashing text with sound effects)
+; ===============================================================================
+$ACA1: 42       .byte $42        ; 'B' - start of "BONUS"
+$ACA2: 4F       .byte $4F        ; 'O'
+$ACA3: 4E       .byte $4E        ; 'N'  
+$ACA4: 55       .byte $55        ; 'U'
+$ACA5: 53       .byte $53        ; 'S'
+$ACA6: 20       .byte $20        ; ' ' (space)
+$ACA7: 50       .byte $50        ; 'P' - start of "POINTS"
+$ACA8: 4F       .byte $4F        ; 'O'
+$ACA9: 49       .byte $49        ; 'I'
+$ACAA: 4E       .byte $4E        ; 'N'
+$ACAB: 54       .byte $54        ; 'T'
+$ACAC: 53       .byte $53        ; 'S'
 $ACA3: 4F       .byte $4F        ; Data byte
 $ACA4: 4E 55 53 LSR $5355
 $ACA7: 20 50 4F JSR $4F50
@@ -4114,13 +4219,44 @@ $B2B0: 85 10    STA $10
 $B2B2: 60       RTS
 ; ===============================================================================
 ; ENEMY_AI ($B2B3)
-; Enemy movement and AI system
+; Enemy movement and AI system with COMPLETE FIRING BEHAVIOR ANALYSIS
 ; This routine:
 ; - Updates enemy positions
-; - Processes AI logic
-; - Handles movement patterns
-; - Manages enemy states
-; - Controls enemy attacks
+; - Processes AI logic and movement patterns
+; - Manages enemy states and spawning
+; - **CONTROLS ENEMY FIRING BEHAVIOR**
+; 
+; **FIRING SYSTEM OVERVIEW**:
+; 1. **Frequency Control**: $A7 counter vs $D7 limit (loaded from $BBE4 table)
+; 2. **Permission Check**: Enemies can only fire when $A7 = 0
+; 3. **Decision Logic**: 4-bit targeting system based on player-enemy positioning
+; 4. **Pattern Selection**: 8 different firing patterns (horizontal, diagonal, etc.)
+; 5. **Level Scaling**: Firing rate increases from 0.6 to 15.0 shots/sec
+; 
+; **LEVEL-BASED FIRING RATES**:
+; - Level 0: NO FIRING (D7=$00) - Tutorial mode
+; - Level 1: 0.6 shots/sec (D7=$60=96) - Beginner
+; - Level 2: 0.9 shots/sec (D7=$40=64) - Easy
+; - Level 3: 1.2 shots/sec (D7=$30=48) - Moderate  
+; - Level 4: 1.6 shots/sec (D7=$25=37) - Hard
+; - Level 5: 3.2 shots/sec (D7=$13=19) - Very Hard
+; - Level 6: 10.0 shots/sec (D7=$06=6) - Extreme
+; - Level 7: 15.0 shots/sec (D7=$04=4) - Maximum
+; 
+; ENEMY FIRING MECHANICS (when $A7 = 0):
+; 1. **Position Calculation**: Compares player position ($80/$84) vs enemy position ($92/$77)
+; 2. **Distance Analysis**: Calculates X/Y distance differences ($9E/$9F)
+; 3. **Firing Decision**: Creates 4-bit targeting value from position comparison:
+;    - Bit 0-1 ($9C/$9D): Movement direction flags
+;    - Bit 2 ($A2): Set if Y-distance > threshold (vertical alignment)
+;    - Bit 3 ($A3): Set if X-distance > threshold (horizontal alignment)
+; 4. **Firing Patterns**: Different values trigger different firing behaviors:
+;    - $04/$06: Horizontal firing (values 4,6)
+;    - $05/$07: Diagonal firing (values 5,7)  
+;    - $08/$09: Vertical firing (values 8,9)
+;    - $0A/$0B: Advanced targeting (values 10,11)
+;    - $0C-$0F: Close-range rapid fire (values 12-15)
+; 5. **Missile Setup**: Sets enemy missile positions ($E2/$DE) and enables firing
 ; ===============================================================================
 
 $B2B3: A9 13    LDA #$13
@@ -4151,13 +4287,13 @@ $B2E4: 95 93    STA $93
 $B2E6: 4C FC B2 JMP $B2FC
 $B2E9: A5 9B    LDA #$9B
 $B2EB: D0 0F    BNE $B2FC ; Loop back if not zero
-$B2ED: B5 93    LDA #$93
-$B2EF: 85 69    STA $69
-$B2F1: B4 84    LDY #$84
-$B2F3: 20 47 BD JSR $BD47
-$B2F6: A6 67    LDX #$67
-$B2F8: A5 69    LDA #$69
-$B2FA: 95 93    STA $93
+$B2ED: B5 93    LDA $93,X       ; Load player position from slot
+$B2EF: 85 69    STA $69         ; Store in position variable
+$B2F1: B4 84    LDY $84,X       ; Load Y coordinate
+$B2F3: 20 47 BD JSR $BD47       ; **CHECK BOUNDARY** - sets $97 if escaped
+$B2F6: A6 67    LDX $67         ; Restore index
+$B2F8: A5 69    LDA $69         ; Load updated position
+$B2FA: 95 93    STA $93,X       ; Store back to position slot
 $B2FC: A5 67    LDA #$67
 $B2FE: 18       CLC
 $B2FF: 69 01    ADC #$01
@@ -4174,12 +4310,17 @@ $B313: 30 04    BMI $B319
 $B315: A9 00    LDA #$00
 $B317: 85 9B    STA $9B
 $B319: 60       RTS
-$B31A: A5 D5    LDA #$D5
-$B31C: D0 03    BNE $B321 ; Loop back if not zero
-$B31E: 4C BE B4 JMP $B4BE
-$B321: A5 A7    LDA #$A7
-$B323: F0 03    BEQ $B328 ; Branch if equal/zero
-$B325: 4C B3 B4 JMP $B4B3
+; ===============================================================================
+; LEVEL-BASED FIRING CONTROL ($B31A)
+; **FIRING FREQUENCY PERMISSION CHECK**
+; This routine checks if enemies are allowed to fire based on frame counter
+; ===============================================================================
+$B31A: A5 D5    LDA $D5         ; Load level counter (for debugging/state tracking)
+$B31C: D0 03    BNE $B321       ; Branch if level > 0 (continue processing)
+$B31E: 4C BE B4 JMP $B4BE       ; If level = 0, skip to frequency update
+$B321: A5 A7    LDA $A7         ; **FIRING FREQUENCY CHECK** - Load frame counter
+$B323: F0 03    BEQ $B328       ; Branch if counter = 0 (FIRING ALLOWED!)
+$B325: 4C B3 B4 JMP $B4B3       ; If counter ≠ 0, skip to frequency update (NO FIRING)
 $B328: AD 0A E8 LDA $E80A
 $B32B: 29 03    AND #$03
 $B32D: F0 F9    BEQ $B328 ; Branch if equal/zero
@@ -4245,158 +4386,197 @@ $B3A3: A6 67    LDX #$67
 $B3A5: A5 6C    LDA #$6C
 $B3A7: 85 A1    STA $A1
 $B3A9: A9 00    LDA #$00
-$B3AB: 85 A2    STA $A2
-$B3AD: 85 A3    STA $A3
-$B3AF: A5 9F    LDA #$9F
-$B3B1: C5 A0    CMP #$A0
-$B3B3: 90 04    BCC $B3B9 ; Branch if carry clear
-$B3B5: A9 08    LDA #$08
-$B3B7: 85 A3    STA $A3
-$B3B9: A5 9E    LDA #$9E
-$B3BB: C5 A1    CMP #$A1
-$B3BD: 90 04    BCC $B3C3 ; Branch if carry clear
-$B3BF: A9 04    LDA #$04
-$B3C1: 85 A2    STA $A2
-$B3C3: A5 A2    LDA #$A2
-$B3C5: 05 A3    ORA #$A3
-$B3C7: 05 9C    ORA #$9C
-$B3C9: 05 9D    ORA #$9D
-$B3CB: C9 04    CMP #$04
-$B3CD: F0 10    BEQ $B3DF ; Branch if equal/zero
-$B3CF: C9 09    CMP #$09
-$B3D1: F0 30    BEQ $B403 ; Branch if equal/zero
-$B3D3: C9 0A    CMP #$0A
-$B3D5: F0 3C    BEQ $B413 ; Branch if equal/zero
-$B3D7: C9 05    CMP #$05
-$B3D9: F0 16    BEQ $B3F1 ; Branch if equal/zero
-$B3DB: C9 06    CMP #$06
-$B3DD: D0 0E    BNE $B3ED ; Loop back if not zero
-$B3DF: A9 02    LDA #$02
-$B3E1: 95 88    STA $88
-$B3E3: A9 0C    LDA #$0C
-$B3E5: 85 6B    STA $6B
-$B3E7: A9 00    LDA #$00
-$B3E9: 85 6C    STA $6C
-$B3EB: F0 30    BEQ $B41D ; Branch if equal/zero
-$B3ED: C9 07    CMP #$07
-$B3EF: D0 0E    BNE $B3FF ; Loop back if not zero
-$B3F1: A9 05    LDA #$05
-$B3F3: 95 88    STA $88
-$B3F5: A9 0C    LDA #$0C
-$B3F7: 85 6B    STA $6B
-$B3F9: A9 00    LDA #$00
-$B3FB: 85 6C    STA $6C
-$B3FD: F0 1E    BEQ $B41D ; Branch if equal/zero
-$B3FF: C9 08    CMP #$08
-$B401: D0 0C    BNE $B40F ; Loop back if not zero
-$B403: A9 07    LDA #$07
-$B405: 95 88    STA $88
-$B407: A9 04    LDA #$04
-$B409: 85 6B    STA $6B
-$B40B: 85 6C    STA $6C
-$B40D: D0 0E    BNE $B41D ; Loop back if not zero
-$B40F: C9 0B    CMP #$0B
-$B411: D0 0D    BNE $B420 ; Loop back if not zero
-$B413: A9 09    LDA #$09
-$B415: 95 88    STA $88
-$B417: A9 04    LDA #$04
-$B419: 85 6B    STA $6B
-$B41B: 85 6C    STA $6C
-$B41D: 4C 6B B4 JMP $B46B
-$B420: C9 0C    CMP #$0C
-$B422: D0 0E    BNE $B432 ; Loop back if not zero
-$B424: A9 01    LDA #$01
-$B426: 95 88    STA $88
-$B428: A9 08    LDA #$08
-$B42A: 85 6B    STA $6B
-$B42C: A9 04    LDA #$04
-$B42E: 85 6C    STA $6C
-$B430: D0 39    BNE $B46B ; Loop back if not zero
-$B432: C9 0D    CMP #$0D
-$B434: D0 0E    BNE $B444 ; Loop back if not zero
-$B436: A9 04    LDA #$04
-$B438: 95 88    STA $88
-$B43A: A9 04    LDA #$04
-$B43C: 85 6B    STA $6B
-$B43E: A9 08    LDA #$08
-$B440: 85 6C    STA $6C
-$B442: D0 27    BNE $B46B ; Loop back if not zero
-$B444: C9 0E    CMP #$0E
-$B446: D0 0E    BNE $B456 ; Loop back if not zero
-$B448: A9 03    LDA #$03
-$B44A: 95 88    STA $88
-$B44C: A9 04    LDA #$04
-$B44E: 85 6B    STA $6B
-$B450: A9 08    LDA #$08
-$B452: 85 6C    STA $6C
-$B454: D0 15    BNE $B46B ; Loop back if not zero
-$B456: C9 0F    CMP #$0F
-$B458: D0 0E    BNE $B468 ; Loop back if not zero
-$B45A: A9 06    LDA #$06
-$B45C: 95 88    STA $88
-$B45E: A9 08    LDA #$08
-$B460: 85 6B    STA $6B
-$B462: A9 04    LDA #$04
-$B464: 85 6C    STA $6C
-$B466: D0 03    BNE $B46B ; Loop back if not zero
-$B468: 4C B3 B4 JMP $B4B3
-$B46B: B5 84    LDA #$84
+$B3AB: 85 A2    STA $A2         ; Clear Y-alignment flag
+$B3AD: 85 A3    STA $A3         ; Clear X-alignment flag
+$B3AF: A5 9F    LDA $9F         ; Load Y-distance difference
+$B3B1: C5 A0    CMP $A0         ; Compare with threshold
+$B3B3: 90 04    BCC $B3B9       ; Branch if Y-distance < threshold
+$B3B5: A9 08    LDA #$08        ; Set bit 3 (horizontal alignment detected)
+$B3B7: 85 A3    STA $A3         ; Store X-alignment flag
+$B3B9: A5 9E    LDA $9E         ; Load X-distance difference  
+$B3BB: C5 A1    CMP $A1         ; Compare with threshold
+$B3BD: 90 04    BCC $B3C3       ; Branch if X-distance < threshold
+$B3BF: A9 04    LDA #$04        ; Set bit 2 (vertical alignment detected)
+$B3C1: 85 A2    STA $A2         ; Store Y-alignment flag
+$B3C3: A5 A2    LDA $A2         ; Load Y-alignment flag
+$B3C5: 05 A3    ORA $A3         ; Combine with X-alignment flag
+$B3C7: 05 9C    ORA $9C         ; Combine with movement direction flags
+$B3C9: 05 9D    ORA $9D         ; Create final targeting value (0-15)
+$B3CB: C9 04    CMP #$04        ; **FIRING DECISION TREE**
+$B3CD: F0 10    BEQ $B3DF       ; Fire horizontally if value = 4
+$B3CF: C9 09    CMP #$09        ; Check for vertical firing
+$B3D1: F0 30    BEQ $B403       ; Fire vertically if value = 9
+$B3D3: C9 0A    CMP #$0A        ; Check for advanced targeting
+$B3D5: F0 3C    BEQ $B413       ; Advanced fire pattern if value = 10
+$B3D7: C9 05    CMP #$05        ; Check for diagonal firing
+$B3D9: F0 16    BEQ $B3F1       ; Fire diagonally if value = 5
+$B3DB: C9 06    CMP #$06        ; Check for horizontal variant
+$B3DD: D0 0E    BNE $B3ED       ; Branch if not 6
+$B3DF: A9 02    LDA #$02        ; **HORIZONTAL FIRING PATTERN**
+$B3E1: 95 88    STA $88,X       ; Set enemy sprite type
+$B3E3: A9 0C    LDA #$0C        ; Set missile pattern data
+$B3E5: 85 6B    STA $6B         ; Store firing pattern
+$B3E7: A9 00    LDA #$00        ; Set firing direction
+$B3E9: 85 6C    STA $6C         ; Store direction data
+$B3EB: F0 30    BEQ $B41D       ; Jump to missile setup
+$B3ED: C9 07    CMP #$07        ; Check for diagonal variant
+$B3EF: D0 0E    BNE $B3FF       ; Branch if not 7
+$B3F1: A9 05    LDA #$05        ; **DIAGONAL FIRING PATTERN**
+$B3F3: 95 88    STA $88,X       ; Set enemy sprite type
+$B3F5: A9 0C    LDA #$0C        ; Set missile pattern data
+$B3F7: 85 6B    STA $6B         ; Store firing pattern
+$B3F9: A9 00    LDA #$00        ; Set firing direction
+$B3FB: 85 6C    STA $6C         ; Store direction data
+$B3FD: F0 1E    BEQ $B41D       ; Jump to missile setup
+$B3FF: C9 08    CMP #$08        ; Check for vertical firing
+$B401: D0 0C    BNE $B40F       ; Branch if not 8
+$B403: A9 07    LDA #$07        ; **VERTICAL FIRING PATTERN**
+$B405: 95 88    STA $88,X       ; Set enemy sprite type
+$B407: A9 04    LDA #$04        ; Set missile pattern data
+$B409: 85 6B    STA $6B         ; Store firing pattern
+$B40B: 85 6C    STA $6C         ; Store direction data (same as pattern)
+$B40D: D0 0E    BNE $B41D       ; Jump to missile setup
+$B40F: C9 0B    CMP #$0B        ; Check for advanced targeting
+$B411: D0 0D    BNE $B420       ; Branch if not 11
+$B413: A9 09    LDA #$09        ; **ADVANCED TARGETING PATTERN**
+$B415: 95 88    STA $88,X       ; Set enemy sprite type
+$B417: A9 04    LDA #$04        ; Set missile pattern data
+$B419: 85 6B    STA $6B         ; Store firing pattern
+$B41B: 85 6C    STA $6C         ; Store direction data
+$B41D: 4C 6B B4 JMP $B46B       ; **EXECUTE MISSILE FIRING**
+$B420: C9 0C    CMP #$0C        ; Check for close-range firing
+$B422: D0 0E    BNE $B432       ; Branch if not 12
+$B424: A9 01    LDA #$01        ; **CLOSE-RANGE RAPID FIRE**
+$B426: 95 88    STA $88,X       ; Set enemy sprite type
+$B428: A9 08    LDA #$08        ; Set rapid fire pattern
+$B42A: 85 6B    STA $6B         ; Store firing pattern
+$B42C: A9 04    LDA #$04        ; Set firing direction
+$B42E: 85 6C    STA $6C         ; Store direction data
+$B430: D0 39    BNE $B46B       ; Jump to missile setup
+$B432: C9 0D    CMP #$0D        ; Check for close-range variant
+$B434: D0 0E    BNE $B444       ; Branch if not 13
+$B436: A9 04    LDA #$04        ; **CLOSE-RANGE PATTERN 2**
+$B438: 95 88    STA $88,X       ; Set enemy sprite type
+$B43A: A9 04    LDA #$04        ; Set firing pattern
+$B43C: 85 6B    STA $6B         ; Store firing pattern
+$B43E: A9 08    LDA #$08        ; Set firing direction
+$B440: 85 6C    STA $6C         ; Store direction data
+$B442: D0 27    BNE $B46B       ; Jump to missile setup
+$B444: C9 0E    CMP #$0E        ; Check for close-range variant
+$B446: D0 0E    BNE $B456       ; Branch if not 14
+$B448: A9 03    LDA #$03        ; **CLOSE-RANGE PATTERN 3**
+$B44A: 95 88    STA $88,X       ; Set enemy sprite type
+$B44C: A9 04    LDA #$04        ; Set firing pattern
+$B44E: 85 6B    STA $6B         ; Store firing pattern
+$B450: A9 08    LDA #$08        ; Set firing direction
+$B452: 85 6C    STA $6C         ; Store direction data
+$B454: D0 15    BNE $B46B       ; Jump to missile setup
+$B456: C9 0F    CMP #$0F        ; Check for maximum aggression
+$B458: D0 0E    BNE $B468       ; Branch if not 15
+$B45A: A9 06    LDA #$06        ; **MAXIMUM AGGRESSION FIRING**
+$B45C: 95 88    STA $88,X       ; Set enemy sprite type
+$B45E: A9 08    LDA #$08        ; Set aggressive pattern
+$B460: 85 6B    STA $6B         ; Store firing pattern
+$B462: A9 04    LDA #$04        ; Set firing direction
+$B464: 85 6C    STA $6C         ; Store direction data
+$B466: D0 03    BNE $B46B       ; Jump to missile setup
+$B468: 4C B3 B4 JMP $B4B3       ; No firing - continue AI processing
+; ===============================================================================
+; ENEMY MISSILE FIRING SYSTEM ($B46B)
+; Executes enemy firing after AI decision
+; This routine:
+; - Sets up enemy missile positions based on enemy location
+; - Configures missile graphics and collision detection
+; - Enables missile display in screen memory
+; - Triggers sound effects for enemy firing
+; 
+; MISSILE POSITIONING LOGIC:
+; - $E2 = Enemy Y position + 5 (missile spawn point)
+; - $DE = Enemy X position + 3 (missile spawn point)  
+; - $C004 = Hardware missile position register
+; - Screen memory ($1300) updated with missile graphics
+; ===============================================================================
+
+$B46B: B5 84    LDA $84,X       ; Load enemy Y position
 $B46D: 18       CLC
-$B46E: 69 05    ADC #$05
-$B470: 95 E2    STA $E2
-$B472: A8       TAY
-$B473: B5 80    LDA #$80
+$B46E: 69 05    ADC #$05        ; Add 5 pixels offset for missile spawn
+$B470: 95 E2    STA $E2,X       ; Store missile Y position
+$B472: A8       TAY             ; Transfer to Y register for screen addressing
+$B473: B5 80    LDA $80,X       ; Load enemy X position
 $B475: 18       CLC
-$B476: 69 03    ADC #$03
-$B478: 95 DE    STA $DE
-$B47A: 9D 04 C0 STA $C004
-$B47D: E0 01    CPX #$01
-$B47F: F0 16    BEQ $B497 ; Branch if equal/zero
-$B481: 18       CLC
-$B482: 26 6B    ROL $6B
-$B484: 26 6B    ROL $6B
-$B486: 26 6C    ROL $6C
-$B488: 26 6C    ROL $6C
-$B48A: E0 02    CPX #$02
-$B48C: F0 09    BEQ $B497 ; Branch if equal/zero
-$B48E: 18       CLC
-$B48F: 26 6B    ROL $6B
-$B491: 26 6B    ROL $6B
-$B493: 26 6C    ROL $6C
-$B495: 26 6C    ROL $6C
-$B497: B9 00 13 LDA $1300
-$B49A: 05 6B    ORA #$6B
-$B49C: 99 00 13 STA $1300
-$B49F: C8       INY
-$B4A0: B9 00 13 LDA $1300
-$B4A3: 05 6C    ORA #$6C
-$B4A5: 99 00 13 STA $1300
-$B4A8: A9 AC    LDA #$AC
-$B4AA: 85 B7    STA $B7
-$B4AC: 8D 03 E8 STA $E803
-$B4AF: A9 04    LDA #$04
-$B4B1: 85 B6    STA $B6
-$B4B3: A6 A7    LDX #$A7
-$B4B5: E8       INX
-$B4B6: E4 D7    CPX #$D7
-$B4B8: D0 02    BNE $B4BC ; Loop back if not zero
-$B4BA: A2 00    LDX #$00
-$B4BC: 86 A7    STX $A7
+$B476: 69 03    ADC #$03        ; Add 3 pixels offset for missile spawn
+$B478: 95 DE    STA $DE,X       ; Store missile X position
+$B47A: 9D 04 C0 STA $C004,X     ; Set hardware missile position register
+$B47D: E0 01    CPX #$01        ; Check enemy index
+$B47F: F0 16    BEQ $B497       ; Branch if enemy 1 (skip rotation)
+$B481: 18       CLC             ; **MISSILE GRAPHICS ROTATION**
+$B482: 26 6B    ROL $6B         ; Rotate missile pattern bits
+$B484: 26 6B    ROL $6B         ; (creates different missile appearances)
+$B486: 26 6C    ROL $6C         ; Rotate direction bits
+$B488: 26 6C    ROL $6C         ; (varies missile trajectory)
+$B48A: E0 02    CPX #$02        ; Check if enemy 2
+$B48C: F0 09    BEQ $B497       ; Branch if enemy 2 (single rotation)
+$B48E: 18       CLC             ; **DOUBLE ROTATION FOR ENEMY 3**
+$B48F: 26 6B    ROL $6B         ; Additional rotation for enemy 3
+$B491: 26 6B    ROL $6B         ; (creates unique firing pattern)
+$B493: 26 6C    ROL $6C         ; Additional direction rotation
+$B495: 26 6C    ROL $6C         ; (different trajectory angle)
+$B497: B9 00 13 LDA $1300,Y     ; Load screen memory at missile position
+$B49A: 05 6B    ORA $6B         ; Combine with missile pattern
+$B49C: 99 00 13 STA $1300,Y     ; Store missile graphics to screen
+$B49F: C8       INY             ; Move to next screen position
+$B4A0: B9 00 13 LDA $1300,Y     ; Load next screen memory location
+$B4A3: 05 6C    ORA $6C         ; Combine with direction pattern
+$B4A5: 99 00 13 STA $1300,Y     ; Store missile graphics to screen
+$B4A8: A9 AC    LDA #$AC        ; Load sound effect parameter
+$B4AA: 85 B7    STA $B7         ; Store for sound routine
+$B4AC: 8D 03 E8 STA $E803       ; Trigger POKEY sound register
+$B4AF: A9 04    LDA #$04        ; Load sound duration
+$B4B1: 85 B6    STA $B6         ; Store sound timer
+; ===============================================================================
+; ENEMY FIRING FREQUENCY CONTROL ($B4B3-$B4BC)
+; **COMPLETE FIRING FREQUENCY MECHANISM**
+; Controls how often enemies can fire using frame-based counter system
+; 
+; MECHANISM:
+; 1. $A7 = Frame counter (increments every game frame)
+; 2. $D7 = Frequency limit (loaded from level-based table at $BBE5)
+; 3. Enemies can only fire when $A7 = 0
+; 4. Firing rate = 60/$D7 shots per second (at 60 FPS)
+; 
+; EXAMPLES:
+; - $D7 = 60: Fire once per second (1 Hz)
+; - $D7 = 30: Fire twice per second (2 Hz)  
+; - $D7 = 15: Fire 4 times per second (4 Hz)
+; ===============================================================================
+$B4B3: A6 A7    LDX $A7         ; Load current firing frequency counter
+$B4B5: E8       INX             ; Increment counter each frame (0→1→2→...→$D7)
+$B4B6: E4 D7    CPX $D7         ; Compare with firing frequency limit (level-based)
+$B4B8: D0 02    BNE $B4BC       ; Branch if counter < limit (continue counting)
+$B4BA: A2 00    LDX #$00        ; Reset counter to 0 when limit reached (ENABLE FIRING)
+$B4BC: 86 A7    STX $A7         ; Store updated counter
+; 
+; **FIRING FREQUENCY FORMULA**: Rate = 60 / $D7 shots per second
+; - Each enemy has individual $A7 counter but shares same $D7 limit
+; - Creates staggered firing pattern across 3 enemies
+; - Higher $D7 = slower firing (beginner levels)
+; - Lower $D7 = faster firing (advanced levels)
 $B4BE: 60       RTS
 ; ===============================================================================
 ; DISPLAY_UPDATE ($B4BF)
-; Screen and graphics updates
+; Screen and graphics updates with ESCAPE DETECTION
 ; This routine:
 ; - Updates score display
 ; - Refreshes screen areas
 ; - Handles screen transitions
 ; - Updates text displays
 ; - Processes screen effects
+; - **CRITICAL**: Detects player escape through wall gaps!
 ; ===============================================================================
 
-$B4BF: A5 97    LDA #$97
-$B4C1: F0 08    BEQ $B4CB ; Branch if equal/zero
-$B4C3: 20 5E B7 JSR $B75E
+$B4BF: A5 97    LDA $97         ; Check escape detection flag
+$B4C1: F0 08    BEQ $B4CB       ; Branch if no escape detected
+$B4C3: 20 5E B7 JSR $B75E       ; **ESCAPE DETECTED!** Process player escape
 $B4C6: A9 01    LDA #$01
 $B4C8: 85 A9    STA $A9
 $B4CA: 60       RTS
@@ -4742,70 +4922,91 @@ $B757: 9D 36 2E STA $2E36
 $B75A: CA       DEX
 $B75B: 10 F4    BPL $B751
 $B75D: 60       RTS
-$B75E: A2 40    LDX #$40
-$B760: 20 BD BD JSR $BDBD
-$B763: A0 FF    LDY #$FF
-$B765: 20 97 B0 JSR $B097
-$B768: E6 DA    INC $DA
-$B76A: A5 DA    LDA #$DA
-$B76C: 48       PHA
-$B76D: 49 03    EOR #$03
-$B76F: AA       TAX
-$B770: A9 00    LDA #$00
-$B772: 9D 16 06 STA $0616
-$B775: 9D 2A 06 STA $062A
-$B778: A9 02    LDA #$02
-$B77A: E0 01    CPX #$01
-$B77C: D0 02    BNE $B780 ; Loop back if not zero
-$B77E: A9 04    LDA #$04
-$B780: 9D 17 06 STA $0617
-$B783: 09 01    ORA #$01
-$B785: 9D 2B 06 STA $062B
-$B788: A0 FF    LDY #$FF
-$B78A: 20 2F B8 JSR $B82F
-$B78D: 20 89 B8 JSR $B889
-$B790: 68       PLA
-$B791: 38       SEC
-$B792: E9 01    SBC #$01
-$B794: 10 D6    BPL $B76C
-$B796: A9 00    LDA #$00
-$B798: 8D 19 06 STA $0619
+; ===============================================================================
+; ESCAPE_PROCESSING ($B75E) - COMPLETE ANALYSIS
+; Player escape through wall gaps - Level completion trigger
+; 
+; This routine creates a complex visual and audio escape sequence when the player
+; successfully exits through wall gaps. It's a multi-stage animation that provides
+; dramatic feedback for level completion.
+;
+; ESCAPE SEQUENCE BREAKDOWN:
+; 1. Initialize escape effects ($B760-$B765)
+; 2. Increment escape counter $DA (0→1→2→3)
+; 3. Multi-stage visual effects loop ($B76C-$B794)
+; 4. Final escape effects and cleanup ($B796-$B82E)
+;
+; TECHNICAL DETAILS:
+; - Uses $06xx memory as staging area for screen effects
+; - Copies staged data to screen memory $2Exx via $B889 routine
+; - Controls hardware registers $E800-$E808 for sprite/display effects
+; - Creates timed delays via $B82F routine (nested countdown loops)
+; - Processes multiple animation frames with different effect patterns
+; ===============================================================================
+$B75E: A2 40    LDX #$40        ; Initialize escape effects
+$B760: 20 BD BD JSR $BDBD       ; Clear hardware registers $E800-$E807
+$B763: A0 FF    LDY #$FF        ; Set maximum delay counter
+$B765: 20 97 B0 JSR $B097       ; Complex sprite/display effect routine
+$B768: E6 DA    INC $DA         ; **INCREMENT ESCAPE COUNTER** (0→1→2→3)
+$B76A: A5 DA    LDA $DA         ; Load escape counter
+$B76C: 48       PHA             ; Save escape counter on stack
+$B76D: 49 03    EOR #$03        ; XOR with 3 (when $DA=3, result=0 → level ends)
+$B76F: AA       TAX             ; Use result as index for effect variation
+$B770: A9 00    LDA #$00        ; Clear effect staging areas
+$B772: 9D 16 06 STA $0616,X     ; Clear primary effect buffer
+$B775: 9D 2A 06 STA $062A,X     ; Clear secondary effect buffer
+$B778: A9 02    LDA #$02        ; Load base effect value
+$B77A: E0 01    CPX #$01        ; Check if escape counter = 2
+$B77C: D0 02    BNE $B780       ; Branch if not escape #2
+$B77E: A9 04    LDA #$04        ; Use enhanced effect for escape #2
+$B780: 9D 17 06 STA $0617,X     ; Store effect pattern to staging area
+$B783: 09 01    ORA #$01        ; Add effect modifier
+$B785: 9D 2B 06 STA $062B,X     ; Store modified effect pattern
+$B788: A0 FF    LDY #$FF        ; Set delay counter
+$B78A: 20 2F B8 JSR $B82F       ; **TIMED DELAY** - creates visual timing
+$B78D: 20 89 B8 JSR $B889       ; **COPY EFFECTS TO SCREEN** - $06xx → $2Exx
+$B790: 68       PLA             ; Restore escape counter from stack
+$B791: 38       SEC             ; Set carry for subtraction
+$B792: E9 01    SBC #$01        ; Decrement loop counter
+$B794: 10 D6    BPL $B76C       ; Loop back for multiple effect frames
+$B796: A9 00    LDA #$00        ; **FINAL ESCAPE EFFECTS PHASE**
+$B798: 8D 19 06 STA $0619       ; Clear effect staging areas
 $B79B: 8D 2D 06 STA $062D
-$B79E: A9 04    LDA #$04
+$B79E: A9 04    LDA #$04        ; Set up final effect pattern
 $B7A0: 8D 1A 06 STA $061A
 $B7A3: A9 05    LDA #$05
 $B7A5: 8D 2E 06 STA $062E
-$B7A8: A0 FF    LDY #$FF
-$B7AA: 20 2F B8 JSR $B82F
-$B7AD: 20 89 B8 JSR $B889
-$B7B0: A9 00    LDA #$00
+$B7A8: A0 FF    LDY #$FF        ; Maximum delay for dramatic timing
+$B7AA: 20 2F B8 JSR $B82F       ; Timed delay
+$B7AD: 20 89 B8 JSR $B889       ; Copy effects to screen
+$B7B0: A9 00    LDA #$00        ; Clear final staging areas
 $B7B2: 8D 1A 06 STA $061A
 $B7B5: 8D 2E 06 STA $062E
-$B7B8: A9 20    LDA #$20
+$B7B8: A9 20    LDA #$20        ; Set up next effect phase
 $B7BA: 8D 1B 06 STA $061B
 $B7BD: A9 1E    LDA #$1E
 $B7BF: 8D 2F 06 STA $062F
-$B7C2: A0 FF    LDY #$FF
+$B7C2: A0 FF    LDY #$FF        ; Timed delay
 $B7C4: 20 2F B8 JSR $B82F
-$B7C7: 20 89 B8 JSR $B889
-$B7CA: 20 3A B8 JSR $B83A
-$B7CD: A9 00    LDA #$00
+$B7C7: 20 89 B8 JSR $B889       ; Copy to screen
+$B7CA: 20 3A B8 JSR $B83A       ; **SCREEN CLEAR PHASE 1** (rows $14-$59)
+$B7CD: A9 00    LDA #$00        ; Clear staging
 $B7CF: 8D 1B 06 STA $061B
-$B7D2: A9 06    LDA #$06
+$B7D2: A9 06    LDA #$06        ; Next effect pattern
 $B7D4: 8D 1C 06 STA $061C
 $B7D7: A9 07    LDA #$07
 $B7D9: 8D 2F 06 STA $062F
-$B7DC: 20 89 B8 JSR $B889
-$B7DF: 20 5A B8 JSR $B85A
-$B7E2: A9 00    LDA #$00
+$B7DC: 20 89 B8 JSR $B889       ; Copy to screen
+$B7DF: 20 5A B8 JSR $B85A       ; **SCREEN CLEAR PHASE 2** (rows $59-$9B)
+$B7E2: A9 00    LDA #$00        ; Clear staging
 $B7E4: 8D 1C 06 STA $061C
-$B7E7: A9 08    LDA #$08
+$B7E7: A9 08    LDA #$08        ; Final effect pattern
 $B7E9: 8D 2F 06 STA $062F
 $B7EC: A9 09    LDA #$09
 $B7EE: 8D 30 06 STA $0630
-$B7F1: 20 89 B8 JSR $B889
-$B7F4: 20 70 B8 JSR $B870
-$B7F7: A9 00    LDA #$00
+$B7F1: 20 89 B8 JSR $B889       ; Copy to screen
+$B7F4: 20 70 B8 JSR $B870       ; **SCREEN CLEAR PHASE 3** (rows $4F-$3F countdown)
+$B7F7: A9 00    LDA #$00        ; Clear all effect staging
 $B7F9: 8D 2F 06 STA $062F
 $B7FC: 8D 30 06 STA $0630
 $B7FF: A5 DA    LDA #$DA
@@ -4828,58 +5029,91 @@ $B826: A0 FF    LDY #$FF
 $B828: 20 89 B8 JSR $B889
 $B82B: 20 BD BD JSR $BDBD
 $B82E: 60       RTS
-$B82F: A2 FF    LDX #$FF
-$B831: CA       DEX
-$B832: D0 FD    BNE $B831 ; Loop back if not zero
-$B834: 88       DEY
-$B835: D0 FA    BNE $B831 ; Loop back if not zero
-$B837: A2 40    LDX #$40
+; ===============================================================================
+; TIMED_DELAY ($B82F)
+; Creates precise timing delays for escape visual effects
+; Uses nested countdown loops: X counts down from $FF, Y counts down from input
+; This creates the dramatic pacing of the escape sequence
+; ===============================================================================
+$B82F: A2 FF    LDX #$FF        ; Set inner loop counter to maximum
+$B831: CA       DEX             ; Decrement inner counter
+$B832: D0 FD    BNE $B831       ; Loop until X = 0 (255 iterations)
+$B834: 88       DEY             ; Decrement outer counter (Y = input value)
+$B835: D0 FA    BNE $B831       ; Loop until Y = 0 (Y * 255 total iterations)
+$B837: A2 40    LDX #$40        ; Restore X register
 $B839: 60       RTS
-$B83A: A9 00    LDA #$00
-$B83C: 8D 08 E8 STA $E808
-$B83F: A9 AC    LDA #$AC
-$B841: 8D 01 E8 STA $E801
-$B844: A9 14    LDA #$14
-$B846: 85 92    STA $92
-$B848: A0 0A    LDY #$0A
-$B84A: 20 2F B8 JSR $B82F
-$B84D: A4 92    LDY #$92
-$B84F: C8       INY
-$B850: 8C 00 E8 STY $E800
-$B853: 84 92    STY $92
-$B855: C0 59    CPY #$59
-$B857: D0 EF    BNE $B848 ; Loop back if not zero
-$B859: 60       RTS
-$B85A: A9 59    LDA #$59
-$B85C: 85 92    STA $92
-$B85E: A0 0A    LDY #$0A
-$B860: 20 2F B8 JSR $B82F
-$B863: A4 92    LDY #$92
-$B865: C8       INY
-$B866: 8C 00 E8 STY $E800
-$B869: 84 92    STY $92
-$B86B: C0 9B    CPY #$9B
-$B86D: D0 EF    BNE $B85E ; Loop back if not zero
-$B86F: 60       RTS
-$B870: A9 4F    LDA #$4F
-$B872: 85 92    STA $92
-$B874: 8D 01 E8 STA $E801
-$B877: A0 1C    LDY #$1C
-$B879: 20 2F B8 JSR $B82F
-$B87C: A4 92    LDY #$92
-$B87E: 88       DEY
-$B87F: 8C 01 E8 STY $E801
-$B882: 84 92    STY $92
-$B884: C0 3F    CPY #$3F
-$B886: D0 EF    BNE $B877 ; Loop back if not zero
-$B888: 60       RTS
-$B889: A2 07    LDX #$07
-$B88B: BD 29 06 LDA $0629
-$B88E: 9D 29 2E STA $2E29
-$B891: BD 15 06 LDA $0615
-$B894: 9D 15 2E STA $2E15
-$B897: CA       DEX
-$B898: D0 F1    BNE $B88B ; Loop back if not zero
+
+; ===============================================================================
+; SCREEN_EFFECTS_COPY ($B889)
+; Copies escape effect data from staging area ($06xx) to screen memory ($2Exx)
+; This is what makes the visual effects appear on screen during escape
+; ===============================================================================
+; SCREEN_CLEAR_PHASE_1 ($B83A)
+; **TOP-TO-BOTTOM SCREEN CLEAR** - First phase (rows $14-$59)
+; Creates the dramatic "screen wipe" effect during escape sequence
+; ===============================================================================
+$B83A: A9 00    LDA #$00        ; Clear hardware register
+$B83C: 8D 08 E8 STA $E808       ; Reset sprite/display control
+$B83F: A9 AC    LDA #$AC        ; Set display mode/pattern
+$B841: 8D 01 E8 STA $E801       ; Configure display register
+$B844: A9 14    LDA #$14        ; **START ROW** = $14 (20 decimal)
+$B846: 85 92    STA $92         ; Store current row counter
+$B848: A0 0A    LDY #$0A        ; Set delay counter for timing
+$B84A: 20 2F B8 JSR $B82F       ; **TIMED DELAY** - creates visible sweep effect
+$B84D: A4 92    LDY $92         ; Load current row
+$B84F: C8       INY             ; **INCREMENT ROW** (clear next row)
+$B850: 8C 00 E8 STY $E800       ; **CLEAR CURRENT ROW** via hardware register
+$B853: 84 92    STY $92         ; Save new row position
+$B855: C0 59    CPY #$59        ; Check if reached row $59 (89 decimal)
+$B857: D0 EF    BNE $B848       ; **LOOP** until all rows $14-$59 cleared
+$B859: 60       RTS             ; Phase 1 complete
+
+; ===============================================================================
+; SCREEN_CLEAR_PHASE_2 ($B85A)
+; **TOP-TO-BOTTOM SCREEN CLEAR** - Second phase (rows $59-$9B)
+; Continues the screen wipe effect from where phase 1 ended
+; ===============================================================================
+$B85A: A9 59    LDA #$59        ; **START ROW** = $59 (89 decimal)
+$B85C: 85 92    STA $92         ; Store current row counter
+$B85E: A0 0A    LDY #$0A        ; Set delay counter for timing
+$B860: 20 2F B8 JSR $B82F       ; **TIMED DELAY** - maintains sweep timing
+$B863: A4 92    LDY $92         ; Load current row
+$B865: C8       INY             ; **INCREMENT ROW** (clear next row)
+$B866: 8C 00 E8 STY $E800       ; **CLEAR CURRENT ROW** via hardware register
+$B869: 84 92    STY $92         ; Save new row position
+$B86B: C0 9B    CPY #$9B        ; Check if reached row $9B (155 decimal)
+$B86D: D0 EF    BNE $B85E       ; **LOOP** until all rows $59-$9B cleared
+$B86F: 60       RTS             ; Phase 2 complete
+
+; ===============================================================================
+; SCREEN_CLEAR_PHASE_3 ($B870)
+; **TOP-TO-BOTTOM SCREEN CLEAR** - Final phase (rows $4F-$3F countdown)
+; Completes the screen wipe effect with a countdown sequence
+; ===============================================================================
+$B870: A9 4F    LDA #$4F        ; **START ROW** = $4F (79 decimal)
+$B872: 85 92    STA $92         ; Store current row counter
+$B874: 8D 01 E8 STA $E801       ; Configure display register
+$B877: A0 1C    LDY #$1C        ; Set delay counter (longer delay for final effect)
+$B879: 20 2F B8 JSR $B82F       ; **TIMED DELAY** - dramatic final timing
+$B87C: A4 92    LDY $92         ; Load current row
+$B87E: 88       DEY             ; **DECREMENT ROW** (countdown effect)
+$B87F: 8C 01 E8 STY $E801       ; **CLEAR CURRENT ROW** via hardware register
+$B882: 84 92    STY $92         ; Save new row position
+$B884: C0 3F    CPY #$3F        ; Check if reached row $3F (63 decimal)
+$B886: D0 EF    BNE $B877       ; **LOOP** until countdown to row $3F complete
+$B888: 60       RTS             ; Screen clear complete!
+; ===============================================================================
+; SCREEN_EFFECTS_COPY ($B889)
+; Copies escape effect data from staging area ($06xx) to screen memory ($2Exx)
+; This is what makes the visual effects appear on screen during escape
+; ===============================================================================
+$B889: A2 07    LDX #$07        ; Copy 8 bytes of effect data
+$B88B: BD 29 06 LDA $0629,X     ; Load from effect staging area
+$B88E: 9D 29 2E STA $2E29,X     ; Store to screen memory (makes effects visible)
+$B891: BD 15 06 LDA $0615,X     ; Load from secondary staging area
+$B894: 9D 15 2E STA $2E15,X     ; Store to secondary screen area
+$B897: CA       DEX             ; Decrement copy counter
+$B898: D0 F1    BNE $B88B       ; Loop until all 8 bytes copied
 $B89A: 60       RTS
 $B89B: A9 00    LDA #$00
 $B89D: A2 00    LDX #$00
@@ -5301,53 +5535,94 @@ $BBC0: 85 AF    STA $AF
 $BBC2: 60       RTS
 ; ===============================================================================
 ; MAIN_UPDATE ($BBC3)
-; Primary game logic update
+; Primary game logic update with LEVEL-BASED FIRING FREQUENCY SETUP
 ; This routine:
 ; - Updates game timers
-; - Processes game events
+; - Processes game events  
+; - Loads level-specific parameters including enemy firing frequency
 ; - Checks win/lose conditions
 ; - Manages game flow
-; - Updates difficulty settings
+; - **CRITICAL**: Sets $D7 firing frequency from level-based table
 ; ===============================================================================
 
-$BBC3: A5 D5    LDA #$D5
-$BBC5: AA       TAX ; Check game state flags
-$BBC6: A9 30    LDA #$30
-$BBC8: 85 7F    STA $7F
-$BBCA: A5 D5    LDA #$D5
-$BBCC: 0A       ASL
-$BBCD: 0A       ASL ; Check win/lose conditions
-$BBCE: AA       TAX
-$BBCF: BD E4 BB LDA $BBE4
-$BBD2: 85 D1    STA $D1
-$BBD4: BD E5 BB LDA $BBE5
-$BBD7: 85 D7    STA $D7
-$BBD9: BD E7 BB LDA $BBE7
-$BBDC: 85 D8    STA $D8
-$BBDE: BD E6 BB LDA $BBE6
-$BBE1: 85 D6    STA $D6
+$BBC3: A5 D5    LDA $D5         ; Load current level counter
+$BBC5: AA       TAX             ; Transfer to X for state checking
+$BBC6: A9 30    LDA #$30        ; Load base value
+$BBC8: 85 7F    STA $7F         ; Store base parameter
+$BBCA: A5 D5    LDA $D5         ; Load level counter again
+$BBCC: 0A       ASL             ; Multiply by 4 (level * 4)
+$BBCD: 0A       ASL             ; for 4-byte table lookup
+$BBCE: AA       TAX             ; Use as table index
+$BBCF: BD E4 BB LDA $BBE4,X     ; Load parameter 1 from level table
+$BBD2: 85 D1    STA $D1         ; Store accuracy/difficulty parameter
+$BBD4: BD E5 BB LDA $BBE5,X     ; **LOAD FIRING FREQUENCY** from level table
+$BBD7: 85 D7    STA $D7         ; Store in firing frequency variable ($D7)
+$BBD9: BD E7 BB LDA $BBE7,X     ; Load parameter 3 from level table  
+$BBDC: 85 D8    STA $D8         ; Store timing parameter
+$BBDE: BD E6 BB LDA $BBE6,X     ; Load parameter 2 from level table
+$BBE1: 85 D6    STA $D6         ; Store game speed parameter
 $BBE3: 60       RTS
-$BBE4: 0E 00 02 ASL $0200
-$BBE7: 15 14    ORA #$14
-$BBE9: 60       RTS
-$BBEA: 02       .byte $02        ; Data byte
-$BBEB: 12       .byte $12        ; Data byte
-$BBEC: 1A       .byte $1A        ; Data byte
-$BBED: 40       RTI
-$BBEE: 03       .byte $03        ; Data byte
-$BBEF: 08       PHP
-$BBF0: 1D 30 04 ORA $0430
-$BBF3: 06 20    ASL $20
-$BBF5: 25 0A    AND #$0A
-$BBF7: 04       .byte $04        ; Data byte
-$BBF8: 24 13    BIT $13
-$BBFA: 50 03    BVC $BBFF
-$BBFC: 36 06    ROL $06
-$BBFE: FF       .byte $FF        ; Data byte
-$BBFF: 01 75    ORA #$75
-$BC01: 04       .byte $04        ; Data byte
-$BC02: FF       .byte $FF        ; Data byte
-$BC03: 01 FF    ORA #$FF
+; ===============================================================================
+; LEVEL-BASED PARAMETER TABLES ($BBE4-$BC03)
+; **ENEMY FIRING FREQUENCY AND DIFFICULTY DATA**
+; Format: 4 bytes per level (D1, D7, D6, D8)
+; - D1 = Accuracy/difficulty parameter  
+; - D7 = FIRING FREQUENCY (frames between shots)
+; - D6 = Game speed parameter
+; - D8 = Timing parameter
+; 
+; FIRING FREQUENCY ANALYSIS:
+; Level 0: D7=$00 (0)   = NO FIRING (tutorial level)
+; Level 1: D7=$60 (96)  = 0.6 shots/sec (very slow)
+; Level 2: D7=$40 (64)  = 0.9 shots/sec (slow)  
+; Level 3: D7=$30 (48)  = 1.2 shots/sec (moderate)
+; Level 4: D7=$25 (37)  = 1.6 shots/sec (fast)
+; Level 5: D7=$13 (19)  = 3.2 shots/sec (very fast)
+; Level 6: D7=$06 (6)   = 10.0 shots/sec (extreme)
+; Level 7: D7=$04 (4)   = 15.0 shots/sec (maximum)
+; ===============================================================================
+$BBE4: .byte $0E, $00, $02, $15    ; Level 0: No firing (D7=$00)
+$BBE8: .byte $14, $60, $02, $12    ; Level 1: 0.6 shots/sec (D7=$60=96)
+$BBEC: .byte $1A, $40, $03, $08    ; Level 2: 0.9 shots/sec (D7=$40=64)
+$BBF0: .byte $1D, $30, $04, $06    ; Level 3: 1.2 shots/sec (D7=$30=48)
+$BBF4: .byte $20, $25, $0A, $04    ; Level 4: 1.6 shots/sec (D7=$25=37)
+$BBF8: .byte $24, $13, $50, $03    ; Level 5: 3.2 shots/sec (D7=$13=19)
+$BBFC: .byte $36, $06, $FF, $01    ; Level 6: 10.0 shots/sec (D7=$06=6)
+$BC00: .byte $75, $04, $FF, $01    ; Level 7: 15.0 shots/sec (D7=$04=4)
+
+; ===============================================================================
+; COMPLETE ENEMY FIRING SYSTEM SUMMARY
+; ===============================================================================
+; K-Razy Shoot-Out implements a sophisticated 3-layer enemy firing system:
+;
+; **LAYER 1: FREQUENCY CONTROL (Frame-based timing)**
+; - $A7 = Frame counter (increments each game frame)
+; - $D7 = Frequency limit (loaded from level table at $BBE4)
+; - Enemies can only attempt to fire when $A7 = 0
+; - Creates level-based difficulty scaling from 0.6 to 15.0 shots/sec
+;
+; **LAYER 2: TARGETING DECISION (Position-based AI)**
+; - Calculates player-enemy distance in X/Y directions
+; - Creates 4-bit targeting value based on alignment thresholds
+; - Selects from 8 different firing patterns based on positioning
+; - Ensures intelligent targeting rather than random firing
+;
+; **LAYER 3: MISSILE EXECUTION (Graphics and sound)**
+; - Sets missile positions with spawn offsets (+5Y, +3X from enemy)
+; - Applies rotation effects for visual variety per enemy
+; - Triggers POKEY sound effects for audio feedback
+; - Updates screen memory with missile graphics
+;
+; **DIFFICULTY PROGRESSION:**
+; Level 0: Tutorial (no firing) - Learn movement and escape mechanics
+; Level 1-2: Beginner (0.6-0.9 shots/sec) - Introduction to combat
+; Level 3-4: Intermediate (1.2-1.6 shots/sec) - Standard challenge
+; Level 5: Advanced (3.2 shots/sec) - High skill required
+; Level 6-7: Expert (10-15 shots/sec) - Maximum challenge
+;
+; This system demonstrates sophisticated game design for 1981, combining
+; mathematical precision with intuitive gameplay progression.
+; ===============================================================================
 $BC05: 01 FF    ORA #$FF
 $BC07: 01 3C    ORA #$3C
 $BC09: 3A       .byte $3A        ; Data byte
@@ -5526,17 +5801,25 @@ $BD41: C8       INY
 $BD42: E4 72    CPX #$72
 $BD44: D0 F5    BNE $BD3B ; Loop back if not zero
 $BD46: 60       RTS
-$BD47: A5 69    LDA #$69
-$BD49: AA       TAX
+; ===============================================================================
+; BOUNDARY_CHECK ($BD47)
+; Player position boundary detection for escape through wall gaps
+; This routine:
+; - Checks if player position ($69 + $0E) exceeds boundary ($C0)
+; - Sets escape detection flag $97 when boundary exceeded
+; - Triggers escape processing in display update routine
+; ===============================================================================
+$BD47: A5 69    LDA $69         ; Load player position variable
+$BD49: AA       TAX             ; Save original position
 $BD4A: 18       CLC
-$BD4B: 69 0E    ADC #$0E
-$BD4D: 85 69    STA $69
-$BD4F: C9 C0    CMP #$C0
-$BD51: 90 07    BCC $BD5A ; Branch if carry clear
-$BD53: A6 67    LDX #$67
+$BD4B: 69 0E    ADC #$0E        ; Add offset (14 pixels)
+$BD4D: 85 69    STA $69         ; Store adjusted position
+$BD4F: C9 C0    CMP #$C0        ; Check if position >= $C0 (boundary exceeded)
+$BD51: 90 07    BCC $BD5A       ; Branch if still within boundary
+$BD53: A6 67    LDX $67         ; **BOUNDARY EXCEEDED!** Load index
 $BD55: A9 01    LDA #$01
-$BD57: 95 97    STA $97
-$BD59: 60       RTS
+$BD57: 95 97    STA $97,X       ; Set escape detection flag $97 = 1
+$BD59: 60       RTS             ; Return - escape will be processed next frame
 $BD5A: BD C4 BE LDA $BEC4
 $BD5D: 91 79    STA $79
 $BD5F: E8       INX

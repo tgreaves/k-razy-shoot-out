@@ -201,6 +201,40 @@ The arena generation in $A9B6 is triggered when:
 - **Enemy Progress**: $A6 tracks remaining enemy waves
 - **Level End**: Time runs out OR player escapes (whichever first)
 
-## Current Status: ENEMY SYSTEM COMPLETE - ESCAPE DETECTION & ARENA RANDOMIZATION NEEDED
+## Current Status: LEVEL END DETECTION COMPLETE!
 
-The complete enemy tracking and spawning system is now documented. We understand how 24 enemies are managed in waves of 3, with state tracking for each active enemy. Still need to find: (1) how the game detects player escape through wall gaps, and (2) the randomization logic within the arena generation system.
+### COMPLETE BREAKTHROUGH: Player Escape Detection Found!
+
+**Escape Detection System - FULLY DOCUMENTED**
+- **Position Tracking**: Variable $93 (indexed by enemy slot) tracks player position
+- **Boundary Check**: Routine $BD47 checks if player position ($69 + $0E) reaches $C0 or higher
+- **Escape Trigger**: When boundary exceeded, $97 is set to 1 (escape detection flag)
+- **Escape Processing**: Display routine $B4BF checks $97 and calls $B75E when set
+- **Escape Counter**: $B75E increments $DA counter (0→1→2→3)
+- **Level Completion**: When $DA reaches 3, level advances at $A382
+
+**Complete Level End Flow - IDENTIFIED**
+1. **Enemy AI** ($B2B3): Calls boundary check ($BD47) each frame during player movement
+2. **Boundary Check** ($BD47): If player position >= $C0, sets escape flag $97 = 1
+3. **Display Update** ($B4BF): Checks $97 flag, calls escape processing if set
+4. **Escape Processing** ($B75E): Increments escape counter $DA
+5. **Main Loop** ($A351): Checks if $DA = 3, branches to level advance
+6. **Level Advance** ($A382): Increments level counter, generates new arena
+
+**Two Level End Conditions - COMPLETE**
+1. **Time Runs Out**: $D9 countdown reaches 2 → automatic advance at $A37C-$A380
+2. **Player Escapes**: Position boundary exceeded → escape counter $DA reaches 3 → advance at $A351-$A353
+
+**Integration with Enemy System - UNDERSTOOD**
+- Player can only escape when all enemy slots empty ($94=$95=$96=0)
+- Exits become active between enemy waves
+- Creates strategic timing: defeat wave, then escape before next wave spawns
+- Time pressure from $D9 countdown prevents indefinite hiding
+
+### Arena Generation Randomization - STILL INVESTIGATING
+
+The arena generation system in $A9B6 has been identified, but the randomization logic within it remains unknown. The system places wall blocks ($AA character) in a pattern, but the mechanism that creates random wall placement and ensures two exits is not yet found.
+
+## FINAL STATUS: ESCAPE DETECTION COMPLETE - ARENA RANDOMIZATION PENDING
+
+The complete level end detection system is now fully documented and understood. The game uses a sophisticated dual-condition system where players must either escape through wall gaps (when no enemies remain) or survive until time runs out. The only remaining mystery is the randomization logic within the arena generation system.
