@@ -10,7 +10,7 @@ import struct
 
 def extract_character_data():
     """Extract all 89 characters from the ROM"""
-    with open("K-Razy Shoot-Out (USA).a52", "rb") as f:
+    with open("../K-Razy Shoot-Out (USA).a52", "rb") as f:
         rom = f.read()
     
     characters = []
@@ -28,11 +28,24 @@ def get_character_mapping():
     # Space character
     mapping[0] = ' '
     
+    # Punctuation characters (newly identified)
+    mapping[0x0A] = '*'  # Asterisk
+    mapping[0x0B] = '+'  # Plus
+    mapping[0x0C] = ','  # Comma
+    mapping[0x0D] = '-'  # Hyphen
+    mapping[0x0E] = '.'  # Period
+    mapping[0x0F] = '/'  # Forward slash
+    
     # Numbers 0-9 (characters 0x10-0x19)
     for i in range(10):
         char_idx = 0x10 + i
         if char_idx < 89:
             mapping[char_idx] = str(i)
+    
+    # Additional punctuation characters
+    mapping[0x1A] = ':'  # Colon
+    mapping[0x1B] = ';'  # Semicolon
+    mapping[0x1F] = '?'  # Question mark
     
     # Letters A-Z (characters 0x21-0x3A)
     for i in range(26):
@@ -142,6 +155,24 @@ def create_character_samples():
             char_name = char_mapping[char_idx]
             if char_name == ' ':
                 char_name = 'space'
+            elif char_name == '*':
+                char_name = 'asterisk'
+            elif char_name == '+':
+                char_name = 'plus'
+            elif char_name == ',':
+                char_name = 'comma'
+            elif char_name == '-':
+                char_name = 'hyphen'
+            elif char_name == '.':
+                char_name = 'period'
+            elif char_name == '/':
+                char_name = 'slash'
+            elif char_name == ':':
+                char_name = 'colon'
+            elif char_name == ';':
+                char_name = 'semicolon'
+            elif char_name == '?':
+                char_name = 'question'
             elif char_name.isalnum():
                 pass  # Keep as is
             else:
@@ -205,20 +236,28 @@ def create_usage_guide():
     guide_text.append("")
     
     # Show available characters
+    punctuation_chars = [0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F, 0x1A, 0x1B, 0x1F]
+    punctuation = "".join(char_mapping[i] for i in punctuation_chars if i in char_mapping)
     numbers = "".join(char_mapping[0x10 + i] for i in range(10) if 0x10 + i in char_mapping)
     letters = "".join(char_mapping[0x21 + i] for i in range(26) if 0x21 + i in char_mapping)
     
     guide_text.append("Available Characters:")
+    guide_text.append(f"  Punctuation: {punctuation}")
     guide_text.append(f"  Numbers: {numbers}")
     guide_text.append(f"  Letters: {letters}")
     guide_text.append(f"  Space: (available)")
     guide_text.append("")
     
     guide_text.append("Sample Text:")
-    guide_text.append("  KRAZY SHOOTOUT")
-    guide_text.append("  SCORE 12345")
-    guide_text.append("  GAME OVER")
-    guide_text.append("  HIGH SCORE")
+    guide_text.append("  KRAZY SHOOT-OUT")
+    guide_text.append("  SCORE: 12,345")
+    guide_text.append("  TIME: 05:30")
+    guide_text.append("  GAME OVER.")
+    guide_text.append("  HIGH SCORE + BONUS")
+    guide_text.append("  LEVEL 1/10")
+    guide_text.append("  PLAYER * 3")
+    guide_text.append("  READY; SET; GO")
+    guide_text.append("  CONTINUE?")
     guide_text.append("")
     
     guide_text.append("Files Created:")
@@ -238,8 +277,9 @@ def create_usage_guide():
     guide_text.append("Technical Details:")
     guide_text.append("  - Original size: 8x8 pixels per character")
     guide_text.append("  - Format: 1-bit monochrome bitmap")
-    guide_text.append("  - Total characters: 89 (37 mapped to ASCII)")
+    guide_text.append("  - Total characters: 89 (46 mapped to ASCII)")
     guide_text.append("  - Source: K-Razy Shoot-Out ROM data")
+    guide_text.append("  - Includes: letters, numbers, punctuation (* + , - . / : ; ?)")
     
     return "\n".join(guide_text)
 

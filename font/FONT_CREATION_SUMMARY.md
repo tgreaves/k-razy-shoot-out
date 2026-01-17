@@ -14,7 +14,7 @@ Successfully created a complete font package based on the original 8x8 pixel cha
 - **Usage**: Can be used as a sprite sheet or reference for font creation
 
 ### 2. Individual Character Images (`character_samples/`)
-- **Count**: 37 individual PNG files
+- **Count**: 43 individual PNG files
 - **Size**: 128x128 pixels each (8x8 original scaled 16x)
 - **Format**: RGB PNG images
 - **Naming**: `char_XX_Y.png` (XX = hex index, Y = character)
@@ -33,8 +33,9 @@ Successfully created a complete font package based on the original 8x8 pixel cha
 
 ## Character Set Details
 
-### Available Characters (37 total)
+### Available Characters (43 total)
 - **Space**: 1 character (index 0x00)
+- **Punctuation**: 6 characters (* + , - . /, indices 0x0A-0x0F)
 - **Numbers**: 10 characters (0-9, indices 0x10-0x19)
 - **Letters**: 26 characters (A-Z, indices 0x21-0x3A)
 
@@ -42,15 +43,23 @@ Successfully created a complete font package based on the original 8x8 pixel cha
 ```
 ROM Index → Character → Unicode
 0x00      → ' '       → U+0020 (Space)
+0x0A      → '*'       → U+002A (Asterisk)
+0x0B      → '+'       → U+002B (Plus)
+0x0C      → ','       → U+002C (Comma)
+0x0D      → '-'       → U+002D (Hyphen)
+0x0E      → '.'       → U+002E (Period)
+0x0F      → '/'       → U+002F (Forward Slash)
 0x10-0x19 → '0'-'9'   → U+0030-U+0039 (Digits)
 0x21-0x3A → 'A'-'Z'   → U+0041-U+005A (Letters)
 ```
 
 ### Sample Text Examples
-- `KRAZY SHOOTOUT`
-- `SCORE 12345`
-- `GAME OVER`
-- `HIGH SCORE`
+- `KRAZY SHOOT-OUT`
+- `SCORE: 12,345`
+- `GAME OVER.`
+- `HIGH SCORE + BONUS`
+- `LEVEL 1/10`
+- `PLAYER * 3`
 
 ## Technical Specifications
 
@@ -94,6 +103,12 @@ ROM Index → Character → Unicode
 krazy_font_bitmap.png          # Complete font bitmap (1024×1024)
 character_samples/             # Individual character images
 ├── char_00_space.png         # Space character (128×128)
+├── char_0A_asterisk.png      # Asterisk '*' (128×128)
+├── char_0B_plus.png          # Plus '+' (128×128)
+├── char_0C_comma.png         # Comma ',' (128×128)
+├── char_0D_hyphen.png        # Hyphen '-' (128×128)
+├── char_0E_period.png        # Period '.' (128×128)
+├── char_0F_slash.png         # Forward slash '/' (128×128)
 ├── char_10_0.png             # Number '0' (128×128)
 ├── char_11_1.png             # Number '1' (128×128)
 ├── ...                       # Numbers 2-9
