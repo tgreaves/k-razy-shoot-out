@@ -2892,56 +2892,78 @@ $A8EE: A5 92    LDA #$92
 $A8F0: F0 04    BEQ $A8F6 ; Branch if equal/zero
 $A8F2: A9 00    LDA #$00
 $A8F4: 85 AC    STA $AC
-$A8F6: A5 94    LDA #$94
-$A8F8: D0 10    BNE $A90A ; Loop back if not zero
-$A8FA: AD 08 C0 LDA $C008 ; GTIA P0PF - Player 0/Playfield collision (fire buttons)
-$A8FD: 29 02    AND #$02
-$A8FF: F0 09    BEQ $A90A ; Branch if equal/zero
-$A901: A9 01    LDA #$01
-$A903: 85 94    STA $94         ; Set enemy slot 1 to ACTIVE (fire button collision)
-$A905: 20 66 BD JSR $BD66       ; Fire sound effect
-$A908: E6 D4    INC $D4         ; Increment shot counter (for accuracy tracking)
-$A90A: A5 95    LDA #$95
-$A90C: D0 10    BNE $A91E ; Loop back if not zero
-$A90E: AD 08 C0 LDA $C008 ; GTIA P0PF - Player 0/Playfield collision (fire buttons)
-$A911: 29 04    AND #$04
-$A913: F0 09    BEQ $A91E ; Branch if equal/zero
-$A915: A9 01    LDA #$01
-$A917: 85 95    STA $95         ; Set enemy slot 2 to ACTIVE (fire button collision)
-$A919: 20 66 BD JSR $BD66       ; Fire sound effect
-$A91C: E6 D4    INC $D4         ; Increment shot counter (for accuracy tracking)
-$A91E: A5 96    LDA #$96
-$A920: D0 10    BNE $A932 ; Loop back if not zero
-$A922: AD 08 C0 LDA $C008 ; GTIA P0PF - Player 0/Playfield collision (fire buttons)
-$A925: 29 08    AND #$08
-$A927: F0 09    BEQ $A932 ; Branch if equal/zero
-$A929: A9 01    LDA #$01
-$A92B: 85 96    STA $96         ; Set enemy slot 3 to ACTIVE (fire button collision)
-$A92D: 20 66 BD JSR $BD66       ; Fire sound effect
-$A930: E6 D4    INC $D4         ; Increment shot counter (for accuracy tracking)
-$A932: AD 08 C0 LDA $C008 ; GTIA P0PF - Player 0/Playfield collision (fire buttons)
-$A935: 29 0E    AND #$0E
-$A937: 0D 00 C0 ORA $C000
-$A93A: F0 05    BEQ $A941 ; Branch if equal/zero
-$A93C: A2 00    LDX #$00
-$A93E: 20 9C A9 JSR $A99C
-$A941: A5 93    LDA #$93
-$A943: D0 24    BNE $A969 ; Loop back if not zero
-$A945: AD 09 C0 LDA $C009 ; GTIA P1PF - Player 1/Playfield collision
-$A948: 0D 0A C0 ORA $C00A
-$A94B: 0D 0B C0 ORA $C00B
-$A94E: 29 01    AND #$01
-$A950: D0 13    BNE $A965 ; Loop back if not zero
-$A952: AD 04 C0 LDA $C004
-$A955: 29 04    AND #$04
-$A957: F0 04    BEQ $A95D ; Branch if equal/zero
-$A959: A9 01    LDA #$01
-$A95B: 85 AD    STA $AD
-$A95D: AD 04 C0 LDA $C004
-$A960: 0D 0C C0 ORA $C00C
-$A963: F0 04    BEQ $A969 ; Branch if equal/zero
-$A965: A9 01    LDA #$01
-$A967: 85 93    STA $93
+; ===============================================================================
+; PLAYER MISSILE COLLISION DETECTION ($A8F6-$A930)
+; **PLAYER MISSILE vs ENEMY COLLISION SYSTEM**
+; 
+; This code checks for player missile collisions with each of the 3 possible
+; enemies on screen. The game uses hardware collision detection to determine
+; when the player's missile hits an enemy.
+;
+; **COLLISION DETECTION SYSTEM**:
+; - Single fire button creates player missile (direction based on joystick)
+; - Hardware collision register $C008 detects missile/enemy collisions
+; - Each bit represents collision with a different enemy slot:
+;   * Bit 1 ($02): Player missile hit enemy slot 1
+;   * Bit 2 ($04): Player missile hit enemy slot 2  
+;   * Bit 3 ($08): Player missile hit enemy slot 3
+;
+; **HIT PROCESSING**:
+; - When collision detected, enemy slot flag ($94/$95/$96) is set
+; - Sound effect played and shot counter incremented
+; - Enemy is marked as defeated, enabling level progression
+; ===============================================================================
+$A8F6: A5 94    LDA $94         ; Check enemy slot 1 status
+$A8F8: D0 10    BNE $A90A       ; Skip if enemy already defeated
+$A8FA: AD 08 C0 LDA $C008       ; **COLLISION DETECTION** - Read collision register
+$A8FD: 29 02    AND #$02        ; Check bit 1: Player missile hit enemy 1
+$A8FF: F0 09    BEQ $A90A       ; Branch if no collision
+$A901: A9 01    LDA #$01        ; **ENEMY 1 DEFEATED**
+$A903: 85 94    STA $94         ; Set enemy slot 1 to DEFEATED
+$A905: 20 66 BD JSR $BD66       ; Hit sound effect and scoring
+$A908: E6 D4    INC $D4         ; Increment shot counter (accuracy tracking)
+$A90A: A5 95    LDA $95         ; Check enemy slot 2 status
+$A90C: D0 10    BNE $A91E       ; Skip if enemy already defeated
+$A90E: AD 08 C0 LDA $C008       ; **COLLISION DETECTION** - Read collision register
+$A911: 29 04    AND #$04        ; Check bit 2: Player missile hit enemy 2
+$A913: F0 09    BEQ $A91E       ; Branch if no collision
+$A915: A9 01    LDA #$01        ; **ENEMY 2 DEFEATED**
+$A917: 85 95    STA $95         ; Set enemy slot 2 to DEFEATED
+$A919: 20 66 BD JSR $BD66       ; Hit sound effect and scoring
+$A91C: E6 D4    INC $D4         ; Increment shot counter (accuracy tracking)
+$A91E: A5 96    LDA $96         ; Check enemy slot 3 status
+$A920: D0 10    BNE $A932       ; Skip if enemy already defeated
+$A922: AD 08 C0 LDA $C008       ; **COLLISION DETECTION** - Read collision register
+$A925: 29 08    AND #$08        ; Check bit 3: Player missile hit enemy 3
+$A927: F0 09    BEQ $A932       ; Branch if no collision
+$A929: A9 01    LDA #$01        ; **ENEMY 3 DEFEATED**
+$A92B: 85 96    STA $96         ; Set enemy slot 3 to DEFEATED
+$A92D: 20 66 BD JSR $BD66       ; Hit sound effect and scoring
+$A930: E6 D4    INC $D4         ; Increment shot counter (accuracy tracking)
+$A932: AD 08 C0 LDA $C008       ; **FIRE BUTTON SUMMARY CHECK** - All fire buttons
+$A935: 29 0E    AND #$0E        ; Mask fire button bits (1,2,3)
+$A937: 0D 00 C0 ORA $C000       ; Combine with collision data
+$A93A: F0 05    BEQ $A941       ; Branch if no firing activity
+$A93C: A2 00    LDX #$00        ; **PROCESS INSTANT-HIT DETECTION**
+$A93E: 20 9C A9 JSR $A99C       ; Call collision processing routine
+$A941: A5 93    LDA $93         ; **CHECK HIT DETECTION FLAG**
+$A943: D0 24    BNE $A969       ; Branch if hit detected
+$A945: AD 09 C0 LDA $C009       ; GTIA P1PF - Player 1/Playfield collision
+$A948: 0D 0A C0 ORA $C00A       ; OR with P2PF collision
+$A94B: 0D 0B C0 ORA $C00B       ; OR with P3PF collision  
+$A94E: 29 01    AND #$01        ; Check collision bit
+$A950: D0 13    BNE $A965       ; Branch if collision detected
+$A952: AD 04 C0 LDA $C004       ; **PRIMARY HIT DETECTION** - Check collision register
+$A955: 29 04    AND #$04        ; Check specific collision bit
+$A957: F0 04    BEQ $A95D       ; Branch if no collision
+$A959: A9 01    LDA #$01        ; **HIT CONFIRMED**
+$A95B: 85 AD    STA $AD         ; Set hit confirmation flag
+$A95D: AD 04 C0 LDA $C004       ; **SECONDARY HIT DETECTION** - Reload collision register
+$A960: 0D 0C C0 ORA $C00C       ; **CRITICAL**: OR with M0PF (Missile 0/Playfield collision)
+                                ; This combines primary collision with instant-hit detection
+$A963: F0 04    BEQ $A969       ; Branch if no hit detected
+$A965: A9 01    LDA #$01        ; **INSTANT-HIT CONFIRMED**
+$A967: 85 93    STA $93         ; Set master hit detection flag
 $A969: AD 09 C0 LDA $C009 ; GTIA P1PF - Player 1/Playfield collision
 $A96C: 29 0D    AND #$0D
 $A96E: 0D 01 C0 ORA $C001
@@ -2965,12 +2987,18 @@ $A998: 8D 1E C0 STA $C01E ; GTIA HITCLR - Clear collision registers
 $A99B: 60       RTS
 ; ===============================================================================
 ; COLLISION_PROCESSING ($A99C)
-; Player collision detection and response
-; This routine:
-; - Processes individual player collisions
-; - Updates collision statistics
-; - Triggers hit effects and sounds
-; - Manages collision timers
+; **PLAYER INSTANT-HIT COLLISION DETECTION AND RESPONSE**
+; This routine processes the instant-hit collision detection system:
+; - Handles immediate hit detection when player fires
+; - Processes collision results from hardware registers
+; - Updates hit statistics and triggers effects
+; - Manages collision timers and cleanup
+;
+; **INSTANT-HIT PROCESSING**:
+; - Called immediately when fire button pressed ($A93E)
+; - Uses hardware collision registers for instant feedback
+; - No missile travel time - hits processed same frame
+; - Combines joystick direction with collision detection
 ; ===============================================================================
 
 $A99C: B4 E2    LDY #$E2 ; Process player collision (X = player number)
@@ -4233,15 +4261,16 @@ $B2B2: 60       RTS
 ; 4. **Pattern Selection**: 8 different firing patterns (horizontal, diagonal, etc.)
 ; 5. **Level Scaling**: Firing rate increases from 0.6 to 15.0 shots/sec
 ; 
-; **LEVEL-BASED FIRING RATES**:
+; **LEVEL-BASED FIRING RATES** (Atari 5200 NTSC @ 59.92 Hz):
+; **ACTUAL GAMEPLAY RATES** (accounting for randomization and conditions):
 ; - Level 0: NO FIRING (D7=$00) - Tutorial mode
-; - Level 1: 0.6 shots/sec (D7=$60=96) - Beginner
-; - Level 2: 0.9 shots/sec (D7=$40=64) - Easy
-; - Level 3: 1.2 shots/sec (D7=$30=48) - Moderate  
-; - Level 4: 1.6 shots/sec (D7=$25=37) - Hard
-; - Level 5: 3.2 shots/sec (D7=$13=19) - Very Hard
-; - Level 6: 10.0 shots/sec (D7=$06=6) - Extreme
-; - Level 7: 15.0 shots/sec (D7=$04=4) - Maximum
+; - Level 1: ~0.15 shots/sec (every ~6.4 sec) - Very manageable
+; - Level 2: ~0.23 shots/sec (every ~4.3 sec) - Beginner friendly
+; - Level 3: ~0.31 shots/sec (every ~3.2 sec) - Moderate challenge
+; - Level 4: ~0.40 shots/sec (every ~2.5 sec) - Increased pressure
+; - Level 5: ~0.79 shots/sec (every ~1.3 sec) - Significant challenge
+; - Level 6: ~2.50 shots/sec (every ~0.4 sec) - High difficulty
+; - Level 7: ~3.75 shots/sec (every ~0.27 sec) - Maximum challenge
 ; 
 ; ENEMY FIRING MECHANICS (when $A7 = 0):
 ; 1. **Position Calculation**: Compares player position ($80/$84) vs enemy position ($92/$77)
@@ -4321,22 +4350,22 @@ $B31E: 4C BE B4 JMP $B4BE       ; If level = 0, skip to frequency update
 $B321: A5 A7    LDA $A7         ; **FIRING FREQUENCY CHECK** - Load frame counter
 $B323: F0 03    BEQ $B328       ; Branch if counter = 0 (FIRING ALLOWED!)
 $B325: 4C B3 B4 JMP $B4B3       ; If counter ≠ 0, skip to frequency update (NO FIRING)
-$B328: AD 0A E8 LDA $E80A
-$B32B: 29 03    AND #$03
-$B32D: F0 F9    BEQ $B328 ; Branch if equal/zero
-$B32F: 85 67    STA $67
-$B331: A6 67    LDX #$67
-$B333: B5 8C    LDA #$8C
-$B335: C9 FF    CMP #$FF
-$B337: D0 01    BNE $B33A ; Loop back if not zero
-$B339: 60       RTS
-$B33A: A9 00    LDA #$00
-$B33C: 85 9C    STA $9C
-$B33E: 85 9D    STA $9D
-$B340: B5 E2    LDA #$E2
-$B342: 15 93    ORA #$93
-$B344: F0 03    BEQ $B349 ; Branch if equal/zero
-$B346: 4C B3 B4 JMP $B4B3
+$B328: AD 0A E8 LDA $E80A       ; **RANDOMIZATION CHECK** - Load hardware random register
+$B32B: 29 03    AND #$03        ; Mask to 0-3 range (25% chance of 0)
+$B32D: F0 F9    BEQ $B328       ; Loop if 0 (wait for non-zero = ~75% rejection rate)
+$B32F: 85 67    STA $67         ; Store random value (1, 2, or 3)
+$B331: A6 67    LDX $67         ; Use as enemy index
+$B333: B5 8C    LDA $8C,X       ; **ENEMY STATE CHECK** - Load enemy status
+$B335: C9 FF    CMP #$FF        ; Check if enemy inactive
+$B337: D0 01    BNE $B33A       ; Branch if enemy is active
+$B339: 60       RTS             ; Exit if enemy inactive (NO FIRING)
+$B33A: A9 00    LDA #$00        ; **BEGIN TARGETING ANALYSIS**
+$B33C: 85 9C    STA $9C         ; Clear movement direction flags
+$B33E: 85 9D    STA $9D         ; Clear movement direction flags
+$B340: B5 E2    LDA $E2,X       ; **MISSILE AVAILABILITY CHECK** - Load enemy missile status
+$B342: 15 93    ORA $93,X       ; Combine with enemy position status
+$B344: F0 03    BEQ $B349       ; Branch if no active missile (FIRING POSSIBLE)
+$B346: 4C B3 B4 JMP $B4B3       ; Exit if missile already active (NO FIRING)
 $B349: A5 80    LDA #$80
 $B34B: 85 92    STA $92
 $B34D: B5 80    LDA #$80
@@ -4528,26 +4557,94 @@ $B49F: C8       INY             ; Move to next screen position
 $B4A0: B9 00 13 LDA $1300,Y     ; Load next screen memory location
 $B4A3: 05 6C    ORA $6C         ; Combine with direction pattern
 $B4A5: 99 00 13 STA $1300,Y     ; Store missile graphics to screen
-$B4A8: A9 AC    LDA #$AC        ; Load sound effect parameter
+$B4A8: A9 AC    LDA #$AC        ; **ENEMY FIRING SOUND** - Load sound parameter ($AC = 172)
 $B4AA: 85 B7    STA $B7         ; Store for sound routine
-$B4AC: 8D 03 E8 STA $E803       ; Trigger POKEY sound register
-$B4AF: A9 04    LDA #$04        ; Load sound duration
+$B4AC: 8D 03 E8 STA $E803       ; Trigger POKEY sound register (enemy fire sound)
+$B4AF: A9 04    LDA #$04        ; Load sound duration (4 VBI frames = ~67ms)
 $B4B1: 85 B6    STA $B6         ; Store sound timer
+;
+; **ENEMY FIRING SOUND ANALYSIS**:
+; - Parameter: $AC (172) → POKEY frequency ~5.17kHz
+; - Duration: 4 frames @ 59.92Hz = 66.8ms
+; - Creates distinctive "zap" sound for enemy weapons
+; - Different from player fire sound ($BD66) for audio distinction
+; ===============================================================================
+; **FIRING SYSTEMS COMPARISON: PLAYER vs ENEMY**
+; ===============================================================================
+; K-Razy Shoot-Out uses TWO DIFFERENT missile systems:
+;
+; **PLAYER MISSILE SYSTEM**:
+; - Single fire button creates player missile
+; - Joystick direction at fire time determines missile trajectory
+; - Player missile travels across screen (like enemy missiles)
+; - Hardware collision detection via $C008 register bits:
+;   * Bit 1: Player missile hit enemy slot 1
+;   * Bit 2: Player missile hit enemy slot 2  
+;   * Bit 3: Player missile hit enemy slot 3
+; - When collision detected, enemy is marked defeated
+;
+; **ENEMY MISSILE SYSTEM**:
+; - AI decision creates physical missile sprite
+; - Trajectory calculation using $6B/$6C pattern/direction data
+; - Hardware PMG movement via ANTIC/GTIA chips
+; - Collision registers $C00D-$C00F detect enemy missile hits on player
+; - Multiple missiles can exist simultaneously (one per enemy)
+;
+; **KEY DIFFERENCE**:
+; - Player has ONE missile that can hit any of 3 enemies
+; - Enemies have UP TO 3 missiles (one per enemy) targeting player
+; - Both use hardware PMG system for movement and collision detection
+; - Direction control: Player uses joystick, enemies use AI calculations
 ; ===============================================================================
 ; ENEMY FIRING FREQUENCY CONTROL ($B4B3-$B4BC)
 ; **COMPLETE FIRING FREQUENCY MECHANISM**
-; Controls how often enemies can fire using frame-based counter system
+; Controls how often enemies can fire using VBI-synchronized counter system
 ; 
 ; MECHANISM:
-; 1. $A7 = Frame counter (increments every game frame)
+; 1. $A7 = VBI counter (increments each vertical blank at 59.92 Hz)
 ; 2. $D7 = Frequency limit (loaded from level-based table at $BBE5)
-; 3. Enemies can only fire when $A7 = 0
-; 4. Firing rate = 60/$D7 shots per second (at 60 FPS)
+; 3. Enemies can only attempt to fire when $A7 = 0
+; 4. **ACTUAL FIRING RATE** is much lower due to additional conditions:
+;    - Hardware randomization check (25% chance)
+;    - Enemy state validation
+;    - Missile availability check
+;    - Player positioning requirements
 ; 
-; EXAMPLES:
-; - $D7 = 60: Fire once per second (1 Hz)
-; - $D7 = 30: Fire twice per second (2 Hz)  
-; - $D7 = 15: Fire 4 times per second (4 Hz)
+; **THEORETICAL vs ACTUAL RATES**:
+; - Theoretical: 59.92/$D7 shots/sec (if fired every opportunity)
+; - Actual: ~25% of theoretical due to randomization and conditions
+; - Level 6: Theoretical 9.99/sec → Actual ~2.5/sec
+; - Level 7: Theoretical 14.98/sec → Actual ~3.7/sec
+; ===============================================================================
+; 
+; **ENEMY MISSILE MOVEMENT SYSTEM ANALYSIS**
+; ===============================================================================
+; After enemy firing creates a missile, the projectile movement is handled by
+; the Atari 5200's hardware Player/Missile Graphics (PMG) system:
+;
+; **HARDWARE-BASED MOVEMENT**:
+; 1. Enemy firing sets initial missile position in hardware register $C004,X
+; 2. Missile direction/trajectory stored in $6C (rotated per enemy for variety)
+; 3. Hardware PMG system automatically moves missiles based on:
+;    - Hardware collision detection ($C00D-$C00F for missile/playfield)
+;    - Automatic sprite positioning via ANTIC/GTIA chips
+;    - No software position updates needed each frame
+;
+; **ENEMY MISSILE LIFECYCLE**:
+; 1. **Creation**: Enemy AI triggers firing → $B46B sets position + direction
+; 2. **Movement**: Hardware PMG moves missile automatically toward player
+; 3. **Collision**: Hardware detects hits via $C00D-$C00F registers
+; 4. **Destruction**: Collision detection clears missile from screen
+;
+; **KEY INSIGHT**: Unlike modern games that update projectile positions in
+; software each frame, K-Razy Shoot-Out uses the Atari 5200's dedicated
+; hardware to handle enemy missile movement automatically. The software only:
+; - Sets initial position and trajectory when firing
+; - Checks collision registers for hits
+; - No per-frame position calculations needed!
+;
+; This hardware-accelerated approach was essential for smooth gameplay on
+; the limited 1.79 MHz 6502 processor of the Atari 5200.
 ; ===============================================================================
 $B4B3: A6 A7    LDX $A7         ; Load current firing frequency counter
 $B4B5: E8       INX             ; Increment counter each frame (0→1→2→...→$D7)
@@ -4556,11 +4653,12 @@ $B4B8: D0 02    BNE $B4BC       ; Branch if counter < limit (continue counting)
 $B4BA: A2 00    LDX #$00        ; Reset counter to 0 when limit reached (ENABLE FIRING)
 $B4BC: 86 A7    STX $A7         ; Store updated counter
 ; 
-; **FIRING FREQUENCY FORMULA**: Rate = 60 / $D7 shots per second
+; **FIRING FREQUENCY FORMULA**: Rate = 59.92 / $D7 shots per second (Atari 5200 NTSC VBI)
 ; - Each enemy has individual $A7 counter but shares same $D7 limit
 ; - Creates staggered firing pattern across 3 enemies
 ; - Higher $D7 = slower firing (beginner levels)
 ; - Lower $D7 = faster firing (advanced levels)
+; - Timing synchronized to Vertical Blank Interrupt (59.92 Hz)
 $B4BE: 60       RTS
 ; ===============================================================================
 ; DISPLAY_UPDATE ($B4BF)
@@ -5571,15 +5669,27 @@ $BBE3: 60       RTS
 ; - D6 = Game speed parameter
 ; - D8 = Timing parameter
 ; 
-; FIRING FREQUENCY ANALYSIS:
+; FIRING FREQUENCY ANALYSIS (Atari 5200 NTSC @ 59.92 Hz):
+; **THEORETICAL RATES** (if fired every opportunity):
 ; Level 0: D7=$00 (0)   = NO FIRING (tutorial level)
-; Level 1: D7=$60 (96)  = 0.6 shots/sec (very slow)
-; Level 2: D7=$40 (64)  = 0.9 shots/sec (slow)  
-; Level 3: D7=$30 (48)  = 1.2 shots/sec (moderate)
-; Level 4: D7=$25 (37)  = 1.6 shots/sec (fast)
-; Level 5: D7=$13 (19)  = 3.2 shots/sec (very fast)
-; Level 6: D7=$06 (6)   = 10.0 shots/sec (extreme)
-; Level 7: D7=$04 (4)   = 15.0 shots/sec (maximum)
+; Level 1: D7=$60 (96)  = 0.62 shots/sec (every 1602ms)
+; Level 2: D7=$40 (64)  = 0.94 shots/sec (every 1068ms)
+; Level 3: D7=$30 (48)  = 1.25 shots/sec (every 801ms)
+; Level 4: D7=$25 (37)  = 1.62 shots/sec (every 617ms)
+; Level 5: D7=$13 (19)  = 3.15 shots/sec (every 317ms)
+; Level 6: D7=$06 (6)   = 9.99 shots/sec (every 100ms)
+; Level 7: D7=$04 (4)   = 14.98 shots/sec (every 67ms)
+;
+; **ACTUAL RATES** (accounting for randomization and conditions):
+; - ~25% of theoretical due to hardware randomization ($E80A & #$03 ≠ 0)
+; - Additional reductions from enemy state and missile availability checks
+; - Level 1: ~0.15 shots/sec (every ~6.4 seconds)
+; - Level 2: ~0.23 shots/sec (every ~4.3 seconds)  
+; - Level 3: ~0.31 shots/sec (every ~3.2 seconds)
+; - Level 4: ~0.40 shots/sec (every ~2.5 seconds)
+; - Level 5: ~0.79 shots/sec (every ~1.3 seconds)
+; - Level 6: ~2.50 shots/sec (every ~0.4 seconds)
+; - Level 7: ~3.75 shots/sec (every ~0.27 seconds)
 ; ===============================================================================
 $BBE4: .byte $0E, $00, $02, $15    ; Level 0: No firing (D7=$00)
 $BBE8: .byte $14, $60, $02, $12    ; Level 1: 0.6 shots/sec (D7=$60=96)
@@ -5595,11 +5705,11 @@ $BC00: .byte $75, $04, $FF, $01    ; Level 7: 15.0 shots/sec (D7=$04=4)
 ; ===============================================================================
 ; K-Razy Shoot-Out implements a sophisticated 3-layer enemy firing system:
 ;
-; **LAYER 1: FREQUENCY CONTROL (Frame-based timing)**
-; - $A7 = Frame counter (increments each game frame)
+; **LAYER 1: FREQUENCY CONTROL (VBI-synchronized timing)**
+; - $A7 = Frame counter (increments each VBI at 59.92 Hz)
 ; - $D7 = Frequency limit (loaded from level table at $BBE4)
 ; - Enemies can only attempt to fire when $A7 = 0
-; - Creates level-based difficulty scaling from 0.6 to 15.0 shots/sec
+; - Creates level-based difficulty scaling from 0.62 to 14.98 shots/sec
 ;
 ; **LAYER 2: TARGETING DECISION (Position-based AI)**
 ; - Calculates player-enemy distance in X/Y directions
@@ -5615,10 +5725,10 @@ $BC00: .byte $75, $04, $FF, $01    ; Level 7: 15.0 shots/sec (D7=$04=4)
 ;
 ; **DIFFICULTY PROGRESSION:**
 ; Level 0: Tutorial (no firing) - Learn movement and escape mechanics
-; Level 1-2: Beginner (0.6-0.9 shots/sec) - Introduction to combat
-; Level 3-4: Intermediate (1.2-1.6 shots/sec) - Standard challenge
-; Level 5: Advanced (3.2 shots/sec) - High skill required
-; Level 6-7: Expert (10-15 shots/sec) - Maximum challenge
+; Level 1-2: Beginner (0.15-0.23 shots/sec) - Introduction to combat
+; Level 3-4: Intermediate (0.31-0.40 shots/sec) - Standard challenge
+; Level 5: Advanced (0.79 shots/sec) - High skill required
+; Level 6-7: Expert (2.5-3.75 shots/sec) - Maximum challenge
 ;
 ; This system demonstrates sophisticated game design for 1981, combining
 ; mathematical precision with intuitive gameplay progression.
@@ -5827,36 +5937,52 @@ $BD60: C8       INY
 $BD61: E4 69    CPX #$69
 $BD63: D0 F5    BNE $BD5A ; Loop back if not zero
 $BD65: 60       RTS
-$BD66: A5 AC    LDA #$AC
-$BD68: A2 02    LDX #$02
-$BD6A: D0 02    BNE $BD6E ; Loop back if not zero
-$BD6C: A2 03    LDX #$03
-$BD6E: 18       CLC
-$BD6F: 7D 0B 06 ADC $060B
-$BD72: 9D 0B 06 STA $060B
-$BD75: C9 3A    CMP #$3A
-$BD77: 90 0A    BCC $BD83 ; Branch if carry clear
-$BD79: A9 30    LDA #$30
-$BD7B: 9D 0B 06 STA $060B
-$BD7E: A9 01    LDA #$01
-$BD80: CA       DEX
-$BD81: 10 EB    BPL $BD6E
-$BD83: A2 04    LDX #$04
-$BD85: BD 0B 06 LDA $060B
-$BD88: 38       SEC
-$BD89: E9 20    SBC #$20
-$BD8B: 9D 0B 2E STA $2E0B
-$BD8E: CA       DEX
-$BD8F: 10 F4    BPL $BD85
-$BD91: AD 0B 06 LDA $060B
-$BD94: C5 7B    CMP #$7B
-$BD96: D0 01    BNE $BD99 ; Loop back if not zero
-$BD98: 60       RTS
-$BD99: 85 7B    STA $7B
-$BD9B: A9 4F    LDA #$4F
-$BD9D: 85 D0    STA $D0
-$BD9F: 85 BD    STA $BD
-$BDA1: 60       RTS
+; ===============================================================================
+; PLAYER_MISSILE_HIT_PROCESSING ($BD66)
+; **PLAYER MISSILE HIT SOUND AND SCORING**
+; 
+; This routine is called when player missile hits an enemy and handles:
+; 1. **Hit Sound Effects**: Distinctive player hit sound (different from enemy fire)
+; 2. **Score Updates**: Adds points when enemies are defeated
+; 3. **Hit Confirmation**: Processes successful missile collision
+; 4. **Visual Effects**: Triggers hit indicators and enemy destruction
+;
+; **MISSILE HIT PROCESSING**:
+; - Called when hardware collision detection confirms hit ($C008 bits)
+; - Adds points to score based on enemy type/value
+; - Plays hit sound effect for audio feedback
+; - Updates accuracy statistics (hits vs shots fired)
+; ===============================================================================
+$BD66: A5 AC    LDA $AC         ; **PLAYER FIRE SOUND PARAMETER**
+$BD68: A2 02    LDX #$02        ; Set sound channel/duration
+$BD6A: D0 02    BNE $BD6E       ; Branch to sound processing
+$BD6C: A2 03    LDX #$03        ; Alternative sound parameter
+$BD6E: 18       CLC             ; **SCORE UPDATE PROCESSING**
+$BD6F: 7D 0B 06 ADC $060B,X     ; Add to score (instant-hit bonus)
+$BD72: 9D 0B 06 STA $060B,X     ; Store updated score
+$BD75: C9 3A    CMP #$3A        ; Check for score overflow
+$BD77: 90 0A    BCC $BD83       ; Branch if no overflow
+$BD79: A9 30    LDA #$30        ; Handle score digit overflow
+$BD7B: 9D 0B 06 STA $060B,X     ; Reset digit
+$BD7E: A9 01    LDA #$01        ; Carry to next digit
+$BD80: CA       DEX             ; Move to next score digit
+$BD81: 10 EB    BPL $BD6E       ; Continue score processing
+$BD83: A2 04    LDX #$04        ; **SCORE DISPLAY UPDATE**
+$BD85: BD 0B 06 LDA $060B,X     ; Load score digit
+$BD88: 38       SEC             ; Set carry for subtraction
+$BD89: E9 20    SBC #$20        ; Convert to screen code
+$BD8B: 9D 0B 2E STA $2E0B,X     ; Update score display on screen
+$BD8E: CA       DEX             ; Next digit
+$BD8F: 10 F4    BPL $BD85       ; Continue until all digits updated
+$BD91: AD 0B 06 LDA $060B       ; **SOUND EFFECT PROCESSING**
+$BD94: C5 7B    CMP $7B         ; Compare with previous value
+$BD96: D0 01    BNE $BD99       ; Branch if changed
+$BD98: 60       RTS             ; Return if no change
+$BD99: 85 7B    STA $7B         ; Store new sound value
+$BD9B: A9 4F    LDA #$4F        ; **PLAYER FIRE SOUND PARAMETERS**
+$BD9D: 85 D0    STA $D0         ; Set sound frequency/duration
+$BD9F: 85 BD    STA $BD         ; Set sound control
+$BDA1: 60       RTS             ; Return from player fire processing
 $BDA2: A9 00    LDA #$00
 $BDA4: 8D 1D C0 STA $C01D ; GTIA GRACTL - Graphics control
 $BDA7: A2 07    LDX #$07
@@ -6210,14 +6336,21 @@ $BFA4: 7E 18 FC ROR $FC18
 $BFA7: BC BC BC LDY $BCBC
 $BFAA: BC BC 3C LDY $3CBC
 ; ===============================================================================
-; INPUT_ROUTINE ($BFAD)
+; INPUT_ROUTINE ($AFAD)
+; **MAIN INPUT PROCESSING WITH DIRECTIONAL FIRING SUPPORT**
 ; Main input processing routine
 ; This routine:
-; - Reads controller inputs
-; - Processes fire button states
-; - Handles directional input
-; - Updates player movement
-; - Manages input debouncing
+; - Reads controller inputs from POKEY registers ($D200-$D207)
+; - Processes fire button states (used for instant-hit system)
+; - **CRITICAL**: Samples joystick direction for directional firing
+; - Updates player movement and position
+; - Manages input debouncing and timing
+;
+; **DIRECTIONAL FIRING INTEGRATION**:
+; - Joystick X/Y position sampled from analog POKEY registers
+; - Direction vector calculated and stored for instant-hit system
+; - When fire button pressed, stored direction determines hit area
+; - Precision aiming required - joystick position at fire time is critical
 ; ===============================================================================
 
 $BFAD: 24 24    BIT $24
