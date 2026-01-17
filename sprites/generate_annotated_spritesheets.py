@@ -10,6 +10,48 @@ import os
 def extract_sprite_data_from_annotations():
     """Extract sprite data based on the annotations in the disassembly"""
     
+    # First, let's get the character data for the HUD sprites
+    # These are 8-byte character definitions from the actual ROM
+    character_data = {
+        # Character $02 - Player Head (Sideways)
+        0x02: [0x00, 0x00, 0x00, 0x00, 0x10, 0x28, 0x28, 0x10],
+        # Character $03 - Player Body (Horizontal) Frame 1
+        0x03: [0x3A, 0x54, 0x90, 0x50, 0x18, 0x24, 0xE4, 0x86],
+        # Character $04 - Player Head (Vertical)
+        0x04: [0x00, 0x00, 0x00, 0x00, 0x08, 0x14, 0x14, 0x08],
+        # Character $05 - Player Body (Horizontal) Frame 2
+        0x05: [0x18, 0x18, 0x1E, 0x08, 0x08, 0x18, 0x28, 0x1C],
+        # Character $06 - Death animation frame 1
+        0x06: [0x00, 0x00, 0x8C, 0x94, 0x58, 0x20, 0x50, 0x8C],
+        # Character $07 - Death animation frame 2
+        0x07: [0x07, 0x09, 0x11, 0xA2, 0x44, 0x08, 0x10, 0x08],
+        # Character $08 - Dead state frame 1
+        0x08: [0x00, 0x00, 0x00, 0x00, 0x01, 0xC3, 0xC7, 0xFF],
+        # Character $09 - Dead state frame 2
+        0x09: [0x00, 0x00, 0x00, 0x80, 0xC7, 0xE5, 0xFD, 0xF7],
+        # Character $1E - Player Body (Stationary)
+        0x1E: [0x1C, 0x2A, 0x2A, 0x08, 0x14, 0x14, 0x14, 0x36],
+    }
+    
+    # Function to combine two characters vertically for HUD sprites
+    def combine_characters_vertical(char1_id, char2_id):
+        """Combine two 8x8 characters vertically to make a 8x16 sprite"""
+        char1 = character_data.get(char1_id, [0] * 8)
+        char2 = character_data.get(char2_id, [0] * 8)
+        return char1 + char2  # 16 bytes total
+    
+    # Function to combine two characters horizontally for dead sprite
+    def combine_characters_horizontal(char1_id, char2_id):
+        """Combine two 8x8 characters horizontally to make a 16x8 sprite"""
+        char1 = character_data.get(char1_id, [0] * 8)
+        char2 = character_data.get(char2_id, [0] * 8)
+        # For horizontal combination, we need to interleave the bytes
+        combined = []
+        for i in range(8):
+            combined.append(char1[i])  # Left half
+            combined.append(char2[i])  # Right half
+        return combined  # 16 bytes total
+    
     # Sprite data extracted from the annotated disassembly at $BE20
     sprites = {
         # Player sprites (12 bytes each - 3 rows of 4 bytes for composite sprites)
@@ -105,6 +147,13 @@ def extract_sprite_data_from_annotations():
             0x0A, 0x04, 0x0C, 0x14,
             0x6C, 0x54, 0x0F, 0x19
         ],
+        
+        # HUD Player sprites (using character combinations)
+        'hud_player_stationary': combine_characters_vertical(0x04, 0x1E),  # $04 + $1E
+        'hud_player_walking_1': combine_characters_vertical(0x02, 0x03),   # $02 + $03
+        'hud_player_walking_2': combine_characters_vertical(0x02, 0x05),   # $02 + $05
+        'hud_player_dying': combine_characters_vertical(0x06, 0x07),       # $06 + $07
+        'hud_player_dead': combine_characters_horizontal(0x08, 0x09),      # $08 + $09 (side by side)
         
         # Enemy sprites (12 bytes each - 7 different enemy sprites)
         'enemy_stationary': [
@@ -237,96 +286,146 @@ def extract_sprite_data_from_annotations():
     
     return sprites
 
-def create_sprite_image(sprite_data, scale=8):
-    """Create a PIL Image from sprite data - 8 pixels wide, 12 rows tall"""
-    width = 8  # Always 8 pixels wide
-    height = len(sprite_data)  # Number of rows (should be 12 for player sprites)
-    
-    img_width = width * scale
-    img_height = height * scale
-    
-    img = Image.new('RGB', (img_width, img_height), (0, 0, 0))  # Black background
-    
-    for row in range(height):
-        if row < len(sprite_data):
-            byte = sprite_data[row]
-            
-            # Draw each bit of the byte (8 pixels across)
-            for bit in range(8):
-                if byte & (0x80 >> bit):
-                    # Draw white pixel scaled
-                    pixel_x = bit * scale
-                    pixel_y = row * scale
-                    
-                    for y in range(pixel_y, pixel_y + scale):
-                        for x in range(pixel_x, pixel_x + scale):
-                            if x < img_width and y < img_height:
-                                img.putpixel((x, y), (255, 255, 255))
+def create_sprite_image(sprite_data, scale=8, is_horizontal=False):
+    """Create a PIL Image from sprite data
+    - Normal sprites: 8 pixels wide, variable height
+    - Horizontal sprites (dead): 16 pixels wide, 8 pixels tall
+    """
+    if is_horizontal:
+        # Horizontal sprite (like dead player): 16x8
+        width = 16
+        height = 8
+        img_width = width * scale
+        img_height = height * scale
+        
+        img = Image.new('RGB', (img_width, img_height), (0, 0, 0))
+        
+        # Process pairs of bytes (left and right halves)
+        for row in range(height):
+            if row * 2 + 1 < len(sprite_data):
+                left_byte = sprite_data[row * 2]
+                right_byte = sprite_data[row * 2 + 1]
+                
+                # Draw left half (8 pixels)
+                for bit in range(8):
+                    if left_byte & (0x80 >> bit):
+                        pixel_x = bit * scale
+                        pixel_y = row * scale
+                        
+                        for y in range(pixel_y, pixel_y + scale):
+                            for x in range(pixel_x, pixel_x + scale):
+                                if x < img_width and y < img_height:
+                                    img.putpixel((x, y), (255, 255, 255))
+                
+                # Draw right half (8 pixels)
+                for bit in range(8):
+                    if right_byte & (0x80 >> bit):
+                        pixel_x = (bit + 8) * scale
+                        pixel_y = row * scale
+                        
+                        for y in range(pixel_y, pixel_y + scale):
+                            for x in range(pixel_x, pixel_x + scale):
+                                if x < img_width and y < img_height:
+                                    img.putpixel((x, y), (255, 255, 255))
+    else:
+        # Normal sprite: 8 pixels wide, variable height
+        width = 8
+        height = len(sprite_data)
+        img_width = width * scale
+        img_height = height * scale
+        
+        img = Image.new('RGB', (img_width, img_height), (0, 0, 0))
+        
+        for row in range(height):
+            if row < len(sprite_data):
+                byte = sprite_data[row]
+                
+                # Draw each bit of the byte (8 pixels across)
+                for bit in range(8):
+                    if byte & (0x80 >> bit):
+                        # Draw white pixel scaled
+                        pixel_x = bit * scale
+                        pixel_y = row * scale
+                        
+                        for y in range(pixel_y, pixel_y + scale):
+                            for x in range(pixel_x, pixel_x + scale):
+                                if x < img_width and y < img_height:
+                                    img.putpixel((x, y), (255, 255, 255))
     
     return img
 
 def create_player_spritesheet():
-    """Create comprehensive player spritesheet"""
+    """Create comprehensive player spritesheet including HUD sprites"""
     print("Creating player spritesheet...")
     
     sprites = extract_sprite_data_from_annotations()
     
-    # Player sprite names and layout (ALL player sprites - movement + shooting)
+    # Player sprite names and layout (ALL player sprites - movement + shooting + HUD)
     player_sprites = [
-        ('player_stationary', 'Stationary'),
-        ('player_walking_left_1', 'Walking Left 1'),
-        ('player_walking_left_2', 'Walking Left 2'),
-        ('player_walking_right_1', 'Walking Right 1'),
-        ('player_walking_right_2', 'Walking Right 2'),
-        ('player_walking_up_down_1', 'Walking Up/Down 1'),
-        ('player_walking_up_down_2', 'Walking Up/Down 2'),
-        ('player_shooting_left', 'Shooting Left'),
-        ('player_shooting_top_left', 'Shooting Top Left'),
-        ('player_shooting_bottom_left', 'Shooting Bottom Left'),
-        ('player_shooting_right', 'Shooting Right'),
-        ('player_shooting_top_right', 'Shooting Top Right'),
-        ('player_shooting_bottom_right', 'Shooting Bottom Right'),
-        ('player_shooting_up', 'Shooting Up'),
-        ('player_shooting_down', 'Shooting Down')
+        ('player_stationary', 'Stationary', False),
+        ('player_walking_left_1', 'Walking Left 1', False),
+        ('player_walking_left_2', 'Walking Left 2', False),
+        ('player_walking_right_1', 'Walking Right 1', False),
+        ('player_walking_right_2', 'Walking Right 2', False),
+        ('player_walking_up_down_1', 'Walking Up/Down 1', False),
+        ('player_walking_up_down_2', 'Walking Up/Down 2', False),
+        ('player_shooting_left', 'Shooting Left', False),
+        ('player_shooting_top_left', 'Shooting Top Left', False),
+        ('player_shooting_bottom_left', 'Shooting Bottom Left', False),
+        ('player_shooting_right', 'Shooting Right', False),
+        ('player_shooting_top_right', 'Shooting Top Right', False),
+        ('player_shooting_bottom_right', 'Shooting Bottom Right', False),
+        ('player_shooting_up', 'Shooting Up', False),
+        ('player_shooting_down', 'Shooting Down', False),
+        ('hud_player_stationary', 'HUD Stationary', False),
+        ('hud_player_walking_1', 'HUD Walking 1', False),
+        ('hud_player_walking_2', 'HUD Walking 2', False),
+        ('hud_player_dying', 'HUD Dying', False),
+        ('hud_player_dead', 'HUD Dead', True),  # True = horizontal sprite
     ]
     
-    scale = 6  # Smaller scale to fit all 15 sprites clearly
-    sprite_width = 8 * scale   # 8 pixels wide
-    sprite_height = 12 * scale  # 12 rows tall
+    scale = 5  # Smaller scale to fit all 20 sprites
+    max_sprite_width = 16 * scale   # Dead sprite is 16 pixels wide
+    max_sprite_height = 16 * scale  # HUD sprites are 16 pixels tall
     
-    # Layout: 5 columns x 3 rows (15 sprites total)
+    # Layout: 5 columns x 4 rows (20 sprites total)
     cols = 5
-    rows = 3
-    sheet_width = cols * sprite_width + 60
-    sheet_height = rows * sprite_height + 140
+    rows = 4
+    sheet_width = cols * max_sprite_width + 80
+    sheet_height = rows * max_sprite_height + 160
     
     spritesheet = Image.new('RGB', (sheet_width, sheet_height), (32, 32, 64))
     draw = ImageDraw.Draw(spritesheet)
     
     # Add title
-    draw.text((10, 10), "K-RAZY SHOOT-OUT - ALL PLAYER SPRITES (8x12)", fill=(255, 255, 255))
-    draw.text((10, 25), "Movement + Shooting - 15 Total Sprites", fill=(200, 200, 200))
+    draw.text((10, 10), "K-RAZY SHOOT-OUT - ALL PLAYER SPRITES", fill=(255, 255, 255))
+    draw.text((10, 25), "Movement + Shooting + HUD - 20 Total Sprites", fill=(200, 200, 200))
     
-    for i, (sprite_key, label) in enumerate(player_sprites):
+    for i, (sprite_key, label, is_horizontal) in enumerate(player_sprites):
         if i >= cols * rows:
             break
             
         col = i % cols
         row = i // cols
         
-        x = col * sprite_width + 30
-        y = row * sprite_height + 60
+        x = col * max_sprite_width + 40
+        y = row * max_sprite_height + 60
         
         if sprite_key in sprites:
-            sprite_img = create_sprite_image(sprites[sprite_key], scale)
-            spritesheet.paste(sprite_img, (x, y))
+            sprite_img = create_sprite_image(sprites[sprite_key], scale, is_horizontal)
+            
+            # Center the sprite in its allocated space
+            sprite_x = x + (max_sprite_width - sprite_img.width) // 2
+            sprite_y = y + (max_sprite_height - sprite_img.height) // 2
+            
+            spritesheet.paste(sprite_img, (sprite_x, sprite_y))
             
             # Add label (abbreviated to fit smaller sprites)
             label_text = label.replace('Shooting ', 'S.').replace('Walking ', 'W.')
-            draw.text((x + 2, y + sprite_height + 2), label_text, fill=(255, 255, 0))
+            draw.text((x + 2, y + max_sprite_height - 15), label_text, fill=(255, 255, 0))
     
     spritesheet.save('sprites/player_spritesheet.png')
-    print("Complete player spritesheet (all 15 sprites) saved as 'sprites/player_spritesheet.png'")
+    print("Complete player spritesheet (all 20 sprites) saved as 'sprites/player_spritesheet.png'")
 
 def create_shooting_spritesheet():
     """Create dedicated shooting sprites spritesheet"""
@@ -426,7 +525,7 @@ def create_enemy_spritesheet():
         y = row * sprite_height + 50
         
         if sprite_key in sprites:
-            sprite_img = create_sprite_image(sprites[sprite_key], scale)
+            sprite_img = create_sprite_image(sprites[sprite_key], scale, False)
             spritesheet.paste(sprite_img, (x, y))
             
             # Add label
@@ -485,7 +584,7 @@ def create_explosion_spritesheet():
         y = row * sprite_height + 50
         
         if sprite_key in sprites:
-            sprite_img = create_sprite_image(sprites[sprite_key], scale)
+            sprite_img = create_sprite_image(sprites[sprite_key], scale, False)
             spritesheet.paste(sprite_img, (x, y))
             
             # Add label
@@ -505,14 +604,14 @@ def create_animation_guide():
         'Walking Left': ['player_walking_left_1', 'player_walking_left_2'],
         'Walking Right': ['player_walking_right_1', 'player_walking_right_2'],
         'Walking Up/Down': ['player_walking_up_down_1', 'player_walking_up_down_2'],
+        'HUD Walking': ['hud_player_walking_1', 'hud_player_walking_2'],
         'Explosion': ['explosion_1', 'explosion_2', 'explosion_3', 'explosion_4', 'explosion_5']
     }
     
     scale = 10
     max_frames = 5
     player_sprite_width = 8 * scale   # Player sprites are 8 pixels wide
-    player_sprite_height = 12 * scale  # Player sprites are 12 rows tall
-    explosion_sprite_height = 8 * scale  # Explosion sprites are 8 rows tall
+    player_sprite_height = 16 * scale  # HUD sprites are 16 rows tall
     
     sheet_width = max_frames * player_sprite_width + 100
     sheet_height = len(animations) * (player_sprite_height + 60) + 50
@@ -534,7 +633,7 @@ def create_animation_guide():
             y = y_offset + 30
             
             if sprite_key in sprites:
-                sprite_img = create_sprite_image(sprites[sprite_key], scale)
+                sprite_img = create_sprite_image(sprites[sprite_key], scale, False)
                 spritesheet.paste(sprite_img, (x, y))
                 
                 # Add frame number
@@ -562,7 +661,7 @@ def main():
         print("\n" + "=" * 60)
         print("All spritesheets generated successfully!")
         print("Files created:")
-        print("- sprites/player_spritesheet.png (ALL 15 player sprites)")
+        print("- sprites/player_spritesheet.png (ALL 20 player sprites including HUD)")
         print("- sprites/enemy_spritesheet.png")
         print("- sprites/explosion_spritesheet.png")
         print("- sprites/animation_guide.png")

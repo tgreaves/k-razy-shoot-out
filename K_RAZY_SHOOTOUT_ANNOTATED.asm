@@ -101,7 +101,7 @@
         .byte $18        ; $A00E - Row 6
         .byte $00        ; $A00F - Row 7
 
-; Character $02 - Player sprite: Head (Sideways)
+; Character $02 - HUD Player sprite: Head - Sideways
 ;   ........
 ;   ........
 ;   ........
@@ -120,7 +120,7 @@
         .byte $28        ; $A016 - Row 6
         .byte $10        ; $A017 - Row 7
 
-; Character $03 - Player sprite: Body (Horizontal) - Frame 1
+; Character $03 - HUD Player sprite: Walking 1
 ;   ..###.#.
 ;   .#.#.#..
 ;   #..#....
@@ -139,7 +139,7 @@
         .byte $E4        ; $A01E - Row 6
         .byte $86        ; $A01F - Row 7
 
-; Character $04 - Player sprite: Head (Vertical)
+; Character $04 - HUD Player sprite: Head - Stationary
 ;   ........
 ;   ........
 ;   ........
@@ -158,7 +158,7 @@
         .byte $14        ; $A026 - Row 6
         .byte $08        ; $A027 - Row 7
 
-; Character $05 - Player sprite: Body (Horizontal) - Frame 2
+; Character $05 - HUD Player sprite: Walking 2
 ;   ...##...
 ;   ...##...
 ;   ...####.
@@ -177,7 +177,7 @@
         .byte $28        ; $A02E - Row 6
         .byte $1C        ; $A02F - Row 7
 
-; Character $06 - Player death animation (Top)
+; Character $06 - HUD Player sprite: Dying Top
 ;   ........
 ;   ........
 ;   #...##..
@@ -196,7 +196,7 @@
         .byte $50        ; $A036 - Row 6
         .byte $8C        ; $A037 - Row 7
 
-; Character $07 - Player death animation (Bottom)
+; Character $07 - HUD Player sprite: Dying Bottom
 ;   .....###
 ;   ....#..#
 ;   ...#...#
@@ -215,7 +215,7 @@
         .byte $10        ; $A03E - Row 6
         .byte $08        ; $A03F - Row 7
 
-; Character $08 - Player dead (Left)
+; Character $08 - HUD Player sprite: Dead (Left)
 ;   ........
 ;   ........
 ;   ........
@@ -234,7 +234,7 @@
         .byte $C7        ; $A046 - Row 6
         .byte $FF        ; $A047 - Row 7
 
-; Character $09 - Player dead (Right)
+; Character $09 - HUD Player sprite: Dead (right)
 ;   ........
 ;   ........
 ;   ........
@@ -633,7 +633,7 @@
         .byte $00        ; $A0EE - Row 6
         .byte $00        ; $A0EF - Row 7
 
-; Character $1E - Player sprite: Stationary body
+; Character $1E - HUD Player sprite: Body - Stationary
 ;   ...###..
 ;   ..#.#.#.
 ;   ..#.#.#.
