@@ -2758,45 +2758,117 @@ $A786: AD 10 C0 LDA $C010 ; **TRIGGER INPUT** - Read trigger register (0=pressed
 $A789: D0 F9    BNE $A784 ; Wait for trigger release (wait for 0)
 $A78B: 60       RTS
 ; ===============================================================================
-; MAZE PATTERN DATA ($A78C-$A7D3)
-; Primary maze pattern table - 72 bytes of wall pattern data
-; Used by maze generation routine at $A6D0-$A78B
-; Each byte represents a character code for maze wall elements
+; TITLE SCREEN LOGO PATTERN DATA ($A78C-$A7D3)
+; Character-based logo pattern for title screen display - 71 bytes
+; Each byte represents a character code ($40-$4A) for block graphics
+; Pattern is 12 blocks wide by 6 rows (last row has 11 blocks)
+; Character $4A is background/space (used 27/71 times = 38%)
+; 
+; Logo Pattern (each character is 8x8 pixels) - Spells "CBS":
+;   .........###.###.###.............###.###.###.###.###.....................###.###.###............
+;   .........###.###.###.............###.###.###.###.###.....................###.###.###............
+;   .........###.###.###.............###.###.###.###.###.....................###.###.###............
+;   ................................................................................................
+;   .....###.###.###.###.###.........###.###.###.###.###.###.............###.###.###.###.###........
+;   .....###.###.###.###.###.........###.###.###.###.###.###.............###.###.###.###.###........
+;   .....###.###.###.###.###.........###.###.###.###.###.###.............###.###.###.###.###........
+;   ................................................................................................
+;   .###.###.###.###.###.....###.###.###.###.###.###.###.....###.###.###.###.###.###.###.....###.###
+;   .###.###.###.###.###.....###.###.###.###.###.###.###.....###.###.###.###.###.###.###.....###.###
+;   .###.###.###.###.###.....###.###.###.###.###.###.###.....###.###.###.###.###.###.###.....###.###
+;   ................................................................................................
+;   .###.....###.###.###.....###.###.###.....###.###.###.....###.###.###.....###.###.###.....###.###
+;   .###.....###.###.###.....###.###.###.....###.###.###.....###.###.###.....###.###.###.....###.###
+;   .###.....###.###.###.....###.###.###.....###.###.###.....###.###.###.....###.###.###.....###.###
+;   ................................................................................................
+;   .###.....###.###.###.....###.###.###.....###.###.###.....###.###.###.....................###.###
+;   .###.....###.###.###.....###.###.###.....###.###.###.....###.###.###.....................###.###
+;   .###.....###.###.###.....###.###.###.....###.###.###.....###.###.###.....................###.###
+;   ................................................................................................
+;   .###.....................###.###.###.###.###.###.........###.###.###.###.###.###.........###.###
+;   .###.....................###.###.###.###.###.###.........###.###.###.###.###.###.........###.###
+;   .###.....................###.###.###.###.###.###.........###.###.###.###.###.###.........###.###
+;   ................................................................................................
+;   .###.....................###.###.###.###.###.###.............###.###.###.###.###.###.....###.###
+;   .###.....................###.###.###.###.###.###.............###.###.###.###.###.###.....###.###
+;   .###.....................###.###.###.###.###.###.............###.###.###.###.###.###.....###.###
+;   ................................................................................................
+;   .###.....###.###.###.....###.###.###.....###.###.###.....................###.###.###.....###.###
+;   .###.....###.###.###.....###.###.###.....###.###.###.....................###.###.###.....###.###
+;   .###.....###.###.###.....###.###.###.....###.###.###.....................###.###.###.....###.###
+;   ................................................................................................
+;   .###.....###.###.###.....###.###.###.....###.###.###.....###.###.###.....###.###.###.........###
+;   .###.....###.###.###.....###.###.###.....###.###.###.....###.###.###.....###.###.###.........###
+;   .###.....###.###.###.....###.###.###.....###.###.###.....###.###.###.....###.###.###.........###
+;   ................................................................................................
+;   .###.###.###.###.###.....###.###.###.###.###.###.###.....###.###.###.###.###.###.###............
+;   .###.###.###.###.###.....###.###.###.###.###.###.###.....###.###.###.###.###.###.###............
+;   .###.###.###.###.###.....###.###.###.###.###.###.###.....###.###.###.###.###.###.###............
+;   ................................................................................................
+;   .###.###.###.###.........###.###.###.###.###.###.............###.###.###.###.###........
+;   .###.###.###.###.........###.###.###.###.###.###.............###.###.###.###.###........
+;   .###.###.###.###.........###.###.###.###.###.###.............###.###.###.###.###........
+;   ........................................................................................
+;   .###.###.###.............###.###.###.###.###.....................###.###.###............
+;   .###.###.###.............###.###.###.###.###.....................###.###.###............
+;   .###.###.###.............###.###.###.###.###.....................###.###.###............
+;   ........................................................................................
 ; ===============================================================================
-$A78C: .byte $47, $4A, $49, $40, $4A, $4A, $49, $40  ; Wall pattern row 1
-$A794: .byte $47, $4A, $49, $40, $46, $4A, $45, $4A  ; Wall pattern row 2
-$A79C: .byte $46, $4A, $45, $4A, $46, $4A, $45, $4A  ; Wall pattern row 3
-$A7A4: .byte $45, $43, $41, $4A, $49, $4A, $41, $4A  ; Wall pattern row 4
-$A7AC: .byte $49, $48, $40, $4A, $45, $48, $44, $4A  ; Wall pattern row 5
-$A7B4: .byte $46, $4A, $44, $42, $43, $4A, $45, $4A  ; Wall pattern row 6
-$A7BC: .byte $49, $4A, $45, $4A, $49, $4A, $45, $4A  ; Wall pattern row 7
-$A7C4: .byte $49, $4A, $45, $42, $4A, $46, $40, $4A  ; Wall pattern row 8
-$A7CC: .byte $4A, $46, $40, $42, $4A, $46, $40       ; Wall pattern row 9 (7 bytes)
+$A78C: .byte $47, $4A, $49, $40, $4A, $4A, $49, $40, $47, $4A, $49, $40  ; Logo row 1 (12 blocks)
+$A798: .byte $46, $4A, $45, $4A, $46, $4A, $45, $4A, $46, $4A, $45, $4A  ; Logo row 2 (12 blocks)
+$A7A4: .byte $45, $43, $41, $4A, $49, $4A, $41, $4A, $49, $48, $40, $4A  ; Logo row 3 (12 blocks)
+$A7B0: .byte $45, $48, $44, $4A, $46, $4A, $44, $42, $43, $4A, $45, $4A  ; Logo row 4 (12 blocks)
+$A7BC: .byte $49, $4A, $45, $4A, $49, $4A, $45, $4A, $49, $4A, $45, $42  ; Logo row 5 (12 blocks)
+$A7C8: .byte $4A, $46, $40, $4A, $4A, $46, $40, $42, $4A, $46, $40       ; Logo row 6 (11 blocks)
 ; ===============================================================================
-; SPECIAL PATTERN TABLES ($A7D4-$A834)
-; Additional pattern data used for specific maze elements and text
+; SPECIAL PATTERN TABLES ($A7D4-$A806)
+; Additional pattern data used for specific maze elements and embedded text
 ; ===============================================================================
 
-; Pattern Table 1 ($A7D4-$A7DE): "electronics" text pattern
-$A7D4: .byte $65, $6C, $65, $63, $74, $72, $6F, $6E, $69, $63, $73  ; "electronics"
+; ASCII Text String: "electronics" ($A7D4-$A7DE)
+$A7D4: .byte $65, $6C, $65, $63, $74, $72, $6F, $6E, $69, $63, $73  ; "electronics" (ASCII)
 
-; Pattern Table 2 ($A7DF-$A7EA): Numeric patterns  
-$A7DF: .byte $00, $00, $30, $32, $25, $33, $25, $2E, $34, $33, $00, $00
+; Character-coded text: "PRESENTS" ($A7DF-$A7EA)
+$A7DF: .byte $00, $00, $30, $32, $25, $33, $25, $2E, $34, $33, $00, $00  ; "PRESENTS" (P=30, R=32, E=25, S=33, E=25, N=2E, T=34, S=33)
 
-; Pattern Table 3 ($A7EB-$A806): Special maze elements
-$A7EB: .byte $00, $EB, $CD, $F2, $E1, $FA, $F9, $00, $F3, $E8, $EF, $EF
-$A7F7: .byte $F4, $EF, $F5, $F4, $00, $00, $00, $6B, $4D, $62, $79, $74
-$A7FF: .byte $65, $00, $00, $00
+; *** GAME TITLE: "K-RAZY SHOOTOUT" ($A7EB-$A7FA) ***
+; Encoded using XOR $A0 for high bytes (inverse ATASCII)
+$A7EB: .byte $00                    ; Space
+$A7EC: .byte $EB, $CD, $F2, $E1, $FA, $F9  ; "K-RAZY" (K=$EB^$A0=$4B, -=$CD^$A0=$6D≈'-', R=$F2^$A0=$52, A=$E1^$A0=$41, Z=$FA^$A0=$5A, Y=$F9^$A0=$59)
+$A7F2: .byte $00                    ; Space
+$A7F3: .byte $F3, $E8, $EF, $EF, $F4, $EF, $F5, $F4  ; "SHOOTOUT" (S=$F3^$A0=$53, H=$E8^$A0=$48, O=$EF^$A0=$4F, O=$EF^$A0=$4F, T=$F4^$A0=$54, O=$EF^$A0=$4F, U=$F5^$A0=$55, T=$F4^$A0=$54)
 
-; Pattern Table 4 ($A807-$A817): Additional numeric patterns
-$A807: .byte $00, $00, $30, $32, $25, $33, $33, $00, $34, $32, $29, $27
-$A813: .byte $27, $25, $32, $00, $00
+; ASCII Text String: "kMbyte" ($A7FB-$A803)
+$A7FB: .byte $00, $00, $00                    ; Padding
+$A7FE: .byte $6B, $4D, $62, $79, $74, $65    ; "kMbyte" (ASCII)
+$A804: .byte $00, $00, $00                    ; Padding
 
-; Pattern Table 5 ($A818-$A834): More maze elements
-$A818: .byte $23, $2F, $30, $39, $32, $29, $27, $28, $34, $00, $11, $19
-$A824: .byte $18, $12, $00, $2B, $21, $39, $00, $25, $2E, $34, $25, $32
-$A830: .byte $30, $32, $29, $33, $25, $33
-$A836: .byte $00, $23, $2F, $0E  ; Additional data bytes
+; ===============================================================================
+; GAME TEXT STRINGS ($A807-$A839)
+; Character-coded text strings used in the game
+; Character mapping: Space=$00, 0-9=$10-$19, A-Z=$21-$3A, punctuation=$0A-$0F
+; ===============================================================================
+
+; Text String 1: "PRESS TRIGGER" ($A809-$A817)
+$A807: .byte $00, $00           ; Padding/spacing
+$A809: .byte $30, $32, $25, $33, $33  ; "PRESS" (P=30, R=32, E=25, S=33, S=33)
+$A80E: .byte $00                ; Space
+$A80F: .byte $34, $32, $29, $27, $27, $25, $32  ; "TRIGGER" (T=34, R=32, I=29, G=27, G=27, E=25, R=32)
+$A816: .byte $00, $00           ; Padding/spacing
+
+; Text String 2: "COPYRIGHT 1982 KAY ENTERPRISES" ($A818-$A835)
+$A818: .byte $23, $2F, $30, $39, $32, $29, $27, $28, $34  ; "COPYRIGHT" (C=23, O=2F, P=30, Y=39, R=32, I=29, G=27, H=28, T=34)
+$A821: .byte $00                ; Space
+$A822: .byte $11, $19, $18, $12 ; "1982" (1=11, 9=19, 8=18, 2=12)
+$A826: .byte $00                ; Space
+$A827: .byte $2B, $21, $39      ; "KAY" (K=2B, A=21, Y=39)
+$A82A: .byte $00                ; Space
+$A82B: .byte $25, $2E, $34, $25, $32, $30, $32, $29, $33, $25, $33  ; "ENTERPRISES" (E=25, N=2E, T=34, E=25, R=32, P=30, R=32, I=29, S=33, E=25, S=33)
+
+; Text String 3: "CO." ($A836-$A839)
+$A836: .byte $00                ; Space
+$A837: .byte $23, $2F           ; "CO" (C=23, O=2F)
+$A839: .byte $0E                ; "." (period)
 
 ; ===============================================================================
 ; MISC_UPDATE ($A83A)
@@ -6273,6 +6345,7 @@ $BE1F: 60       RTS
 
 ; Player sprite animation data.
 
+; PLAYER - STATIONARY
 $BE20: 08       .byte $08        ; ....#... - Sprite data byte
 $BE21: 14       .byte $14        ; ...#.#.. - Sprite data byte
 $BE22: 14       .byte $14        ; ...#.#.. - Sprite data byte
@@ -6286,6 +6359,7 @@ $BE29: 14       .byte $14        ; ...#.#.. - Sprite data byte
 $BE2A: 14       .byte $14        ; ...#.#.. - Sprite data byte
 $BE2B: 36       .byte $36        ; ..##.##. - Sprite data byte
 
+; PLAYER - WALKING LEFT 1
 $BE2C: 08       .byte $08        ; ....#... - Sprite data byte
 $BE2D: 14       .byte $14        ; ...#.#.. - Sprite data byte
 $BE2E: 14       .byte $14        ; ...#.#.. - Sprite data byte
@@ -6299,6 +6373,7 @@ $BE35: 24       .byte $24        ; ..#..#.. - Sprite data byte
 $BE36: 27       .byte $27        ; ..#..### - Sprite data byte
 $BE37: 61       .byte $61        ; .##....# - Sprite data byte
 
+; PLAYER - WALKING LEFT 2
 $BE38: 08       .byte $08        ; ....#... - Sprite data byte
 $BE39: 14       .byte $14        ; ...#.#.. - Sprite data byte
 $BE3A: 14       .byte $14        ; ...#.#.. - Sprite data byte
@@ -6312,6 +6387,7 @@ $BE41: 0C       .byte $0C        ; ....##.. - Sprite data byte
 $BE42: 0A       .byte $0A        ; ....#.#. - Sprite data byte
 $BE43: 1C       .byte $1C        ; ...###.. - **ENEMY SPRITE CHARACTER** - Character $1C used for moving enemies
 
+; PLAYER - WALKING RIGHT 1
 $BE44: 10       .byte $10        ; ...#.... - Sprite data byte
 $BE45: 28       .byte $28        ; ..#.#... - Sprite data byte
 $BE46: 28       .byte $28        ; ..#.#... - Sprite data byte
@@ -6325,6 +6401,7 @@ $BE4D: 24       .byte $24        ; ..#..#.. - Sprite data byte
 $BE4E: E4       .byte $E4        ; ###..#.. - Sprite data byte
 $BE4F: 86       .byte $86        ; #....##. - Sprite data byte
 
+; PLAYER - WALKING RIGHT 2
 $BE50: 10       .byte $10        ; ...#.... - Sprite data byte
 $BE51: 28       .byte $28        ; ..#.#... - Sprite data byte
 $BE52: 28       .byte $28        ; ..#.#... - Sprite data byte
@@ -6338,6 +6415,7 @@ $BE59: 30       .byte $30        ; ..##.... - Sprite data byte
 $BE5A: 50       .byte $50        ; .#.#.... - Sprite data byte
 $BE5B: 38       .byte $38        ; ..###... - Sprite data byte
 
+; PLAYER - WALKING UP/DOWN 1
 $BE5C: 08       .byte $08        ; ....#... - Sprite data byte
 $BE5D: 14       .byte $14        ; ...#.#.. - Sprite data byte
 $BE5E: 34       .byte $34        ; ..##.#.. - Sprite data byte
@@ -6351,6 +6429,7 @@ $BE65: 16       .byte $16        ; ...#.##. - Sprite data byte
 $BE66: 10       .byte $10        ; ...#.... - Sprite data byte
 $BE67: 30       .byte $30        ; ..##.... - Sprite data byte
 
+; PLAYER - WALKING UP/DOWN 2
 $BE68: 08       .byte $08        ; ....#... - Sprite data byte
 $BE69: 14       .byte $14        ; ...#.#.. - Sprite data byte
 $BE6A: 16       .byte $16        ; ...#.##. - Sprite data byte
@@ -6364,6 +6443,7 @@ $BE71: 34       .byte $34        ; ..##.#.. - Sprite data byte
 $BE72: 04       .byte $04        ; .....#.. - Sprite data byte
 $BE73: 06       .byte $06        ; .....##. - Sprite data byte
 
+; PLAYER - SHOOTING LEFT
 $BE74: 00       .byte $00        ; ........ - Sprite data byte
 $BE75: 00       .byte $00        ; ........ - Sprite data byte
 $BE76: 04       .byte $04        ; .....#.. - Sprite data byte
@@ -6377,6 +6457,7 @@ $BE7D: 14       .byte $14        ; ...#.#.. - Sprite data byte
 $BE7E: 0F       .byte $0F        ; ....#### - Sprite data byte
 $BE7F: 19       .byte $19        ; ...##..# - Sprite data byte
 
+; PLAYER - SHOOTING TOP LEFT
 $BE80: 00       .byte $00        ; ........ - Sprite data byte
 $BE81: 40       .byte $40        ; .#...... - Sprite data byte
 $BE82: 24       .byte $24        ; ..#..#.. - Animation pattern data
@@ -6390,6 +6471,7 @@ $BE89: 14       .byte $14        ; ...#.#.. - Animation pattern data
 $BE8A: 0F       .byte $0F        ; ....#### - Animation pattern data
 $BE8B: 19       .byte $19        ; ...##..# - Animation pattern data
 
+; PLAYER - SHOOTING BOTTOM LEFT
 $BE8C: 00       .byte $00        ; ........ - Animation pattern data
 $BE8D: 00       .byte $00        ; ........ - Animation pattern data
 $BE8E: 04       .byte $04        ; .....#.. - **PLAYER HEAD (VERTICAL)** - Character $04
@@ -6403,6 +6485,7 @@ $BE95: 14       .byte $14        ; ...#.#.. - Animation pattern data
 $BE96: 0F       .byte $0F        ; ....#### - Animation pattern data
 $BE97: 19       .byte $19        ; ...##..# - Animation pattern data
 
+; PLAYER - SHOOTING RIGHT
 $BE98: 00       .byte $00        ; ........ - Animation pattern data
 $BE99: 00       .byte $00        ; ........ - Animation pattern data
 $BE9A: 20       .byte $20        ; ..#..... - Animation pattern data
@@ -6416,6 +6499,7 @@ $BEA1: 28       .byte $28        ; ..#.#... - Animation pattern data
 $BEA2: F0       .byte $F0        ; ####.... - Animation pattern data
 $BEA3: 98       .byte $98        ; #..##... - Animation pattern data
 
+; PLAYER - SHOOTING TOP RIGHT
 $BEA4: 00       .byte $00        ; ........ - Animation pattern data
 $BEA5: 02       .byte $02        ; ......#. - **PLAYER HEAD (SIDEWAYS)** - Character $02
 $BEA6: 24       .byte $24        ; ..#..#.. - Animation pattern data
@@ -6429,6 +6513,7 @@ $BEAD: 28       .byte $28        ; ..#.#... - Animation pattern data
 $BEAE: F0       .byte $F0        ; ####.... - Animation pattern data
 $BEAF: 98       .byte $98        ; #..##... - Animation pattern data
 
+; PLAYER - SHOOTING BOTTOM RIGHT
 $BEB0: 00       .byte $00        ; ........ - Animation pattern data
 $BEB1: 00       .byte $00        ; ........ - Animation pattern data
 $BEB2: 20       .byte $20        ; ..#..... - Animation pattern data
@@ -6442,6 +6527,7 @@ $BEB9: 28       .byte $28        ; ..#.#... - Animation pattern data
 $BEBA: F0       .byte $F0        ; ####.... - Animation pattern data
 $BEBB: 98       .byte $98        ; #..##... - Animation pattern data
 
+; PLAYER - SHOOTING UP
 $BEBC: 00       .byte $00        ; ........ - Animation pattern data
 $BEBD: 04       .byte $04        ; .....#.. - **PLAYER HEAD (VERTICAL)** - Character $04
 $BEBE: 24       .byte $24        ; ..#..#.. - Animation pattern data
@@ -6455,6 +6541,7 @@ $BEC5: 28       .byte $28        ; ..#.#... - Animation pattern data
 $BEC6: F0       .byte $F0        ; ####.... - Animation pattern data
 $BEC7: 98       .byte $98        ; #..##... - Animation pattern data
 
+; PLAYER - SHOOTING DOWN
 $BEC8: 00       .byte $00        ; ........ - Animation pattern data
 $BEC9: 00       .byte $00        ; ........ - Animation pattern data
 $BECA: 04       .byte $04        ; .....#.. - **PLAYER HEAD (VERTICAL)** - Character $04
@@ -6470,6 +6557,7 @@ $BED3: 19       .byte $19        ; ...##..# - Animation pattern data
 
 # Player / enemy explosion sprite animation.
 
+; EXPLOSION 1
 $BED4: 00       .byte $00        ; ........ - Padding/empty data
 $BED5: 00       .byte $00        ; ........ - Padding/empty data
 $BED6: 00       .byte $00        ; ........ - Padding/empty data
@@ -6483,6 +6571,7 @@ $BEDD: 00       .byte $00        ; ........ - Padding/empty data
 $BEDE: 00       .byte $00        ; ........ - Padding/empty data
 $BEDF: 00       .byte $00        ; ........ - Padding/empty data
 
+; EXPLOSION 2
 $BEE0: 00       .byte $00        ; ........ - Padding/empty data
 $BEE1: 00       .byte $00        ; ........ - Padding/empty data
 $BEE2: 00       .byte $00        ; ........ - Padding/empty data
@@ -6496,6 +6585,7 @@ $BEE9: 10       .byte $10        ; ...#.... - Sprite pattern data
 $BEEA: 00       .byte $00        ; ........ - Padding/empty data
 $BEEB: 00       .byte $00        ; ........ - Padding/empty data
 
+; EXPLOSION 3
 $BEEC: 00       .byte $00        ; ........ - Padding/empty data
 $BEED: 00       .byte $00        ; ........ - Padding/empty data
 $BEEE: 00       .byte $00        ; ........ - Padding/empty data
@@ -6509,7 +6599,7 @@ $BEF5: 14       .byte $14        ; ...#.#.. - Sprite pattern data
 $BEF6: 00       .byte $00        ; ........ - Padding/empty data
 $BEF7: 2C       .byte $2C        ; ..#.##.. - Sprite pattern data
 
-
+; EXPLOSION 4
 $BEF8: 00       .byte $00        ; ........ - Padding/empty data
 $BEF9: 14       .byte $14        ; ...#.#.. - Sprite pattern data
 $BEFA: 00       .byte $00        ; ........ - Padding/empty data
@@ -6523,6 +6613,7 @@ $BF01: 10       .byte $10        ; ...#.... - Table entry
 $BF02: 00       .byte $00        ; ........ - Table entry
 $BF03: 58       .byte $58        ; .#.##... - Table entry
 
+; EXPLOSION 5
 $BF04: 00       .byte $00        ; ........ - Table entry
 $BF05: 2C       .byte $2C        ; ..#.##.. - Table entry
 $BF06: 00       .byte $00        ; ........ - Table entry
@@ -6536,6 +6627,7 @@ $BF0D: 38       .byte $38        ; ..###... - Table entry
 $BF0E: 00       .byte $00        ; ........ - Table entry
 $BF0F: 92       .byte $92        ; #..#..#. - Table entry
 
+; EXPLOSION 6
 $BF10: 00       .byte $00        ; ........ - Table entry
 $BF11: 58       .byte $58        ; .#.##... - Table entry
 $BF12: 00       .byte $00        ; ........ - Table entry
@@ -6549,6 +6641,7 @@ $BF19: 00       .byte $00        ; ........ - Table entry
 $BF1A: 48       .byte $48        ; .#..#... - Table entry
 $BF1B: 10       .byte $10        ; ...#.... - Table entry
 
+; EXPLOSION 7
 $BF1C: 28       .byte $28        ; ..#.#... - Table entry
 $BF1D: 92       .byte $92        ; #..#..#. - Table entry
 $BF1E: 01       .byte $01        ; .......# - Table entry
@@ -6562,6 +6655,7 @@ $BF25: A0       .byte $A0        ; #.#..... - Table entry
 $BF26: 10       .byte $10        ; ...#.... - Table entry
 $BF27: 44       .byte $44        ; .#...#.. - Table entry
 
+; EXPLOSION 8
 $BF28: 52       .byte $52        ; .#.#..#. - Table entry
 $BF29: 24       .byte $24        ; ..#..#.. - Table entry
 $BF2A: 10       .byte $10        ; ...#.... - Table entry
@@ -6575,6 +6669,7 @@ $BF31: 00       .byte $00        ; ........ - Table entry
 $BF32: 55       .byte $55        ; .#.#.#.# - Table entry
 $BF33: 00       .byte $00        ; ........ - Table entry
 
+; EXPLOSION 9
 $BF34: 29       .byte $29        ; ..#.#..# - Table entry
 $BF35: 52       .byte $52        ; .#.#..#. - Table entry
 $BF36: 52       .byte $52        ; .#.#..#. - Table entry
@@ -6588,6 +6683,7 @@ $BF3D: 00       .byte $00        ; ........ - Table entry
 $BF3E: 80       .byte $80        ; #....... - Table entry
 $BF3F: 00       .byte $00        ; ........ - Table entry
 
+; EXPLOSION 10
 $BF40: 45       .byte $45        ; .#...#.# - Table entry
 $BF41: 00       .byte $00        ; ........ - Table entry
 $BF42: A8       .byte $A8        ; #.#.#... - Table entry
@@ -6601,6 +6697,7 @@ $BF49: 80       .byte $80        ; #....... - Table entry
 $BF4A: 01       .byte $01        ; .......# - Table entry
 $BF4B: 00       .byte $00        ; ........ - Table entry
 
+; EXPLOSION 11
 $BF4C: 00       .byte $00        ; ........ - Table entry
 $BF4D: 00       .byte $00        ; ........ - Table entry
 $BF4E: 01       .byte $01        ; .......# - Table entry
@@ -6614,6 +6711,7 @@ $BF55: 00       .byte $00        ; ........ - Table entry
 $BF56: 00       .byte $00        ; ........ - Table entry
 $BF57: 80       .byte $80        ; #....... - Table entry
 
+; EXPLOSION 12
 $BF58: 01       .byte $01        ; .......# - Table entry
 $BF59: 00       .byte $00        ; ........ - Table entry
 $BF5A: 80       .byte $80        ; #....... - Table entry
@@ -6627,6 +6725,7 @@ $BF61: 40       .byte $40        ; .#...... - Table entry
 $BF62: 00       .byte $00        ; ........ - Table entry
 $BF63: 02       .byte $02        ; ......#. - **PLAYER HEAD (SIDEWAYS)** - Character $02
 
+; EXPLOSION 13
 $BF64: 00       .byte $00        ; ........ - Table entry
 $BF65: 80       .byte $80        ; #....... - Table entry
 $BF66: 00       .byte $00        ; ........ - Table entry
@@ -6640,6 +6739,7 @@ $BF6D: 10       .byte $10        ; ...#.... - Table entry
 $BF6E: 00       .byte $00        ; ........ - Table entry
 $BF6F: 00       .byte $00        ; ........ - Table entry
 
+; EXPLOSION 14
 $BF70: 00       .byte $00        ; ........ - Table entry
 $BF71: 00       .byte $00        ; ........ - Table entry
 $BF72: 00       .byte $00        ; ........ - Table entry
@@ -6653,6 +6753,7 @@ $BF79: 00       .byte $00        ; ........ - Table entry
 $BF7A: 00       .byte $00        ; ........ - Table entry
 $BF7B: 00       .byte $00        ; ........ - Table entry
 
+; Unknown sprite?
 $BF7C: 03       .byte $03        ; ......## - **PLAYER BODY (FRAME 1)** - Character $03
 $BF7D: 0C       .byte $0C        ; ....##.. - Pattern data
 $BF7E: 30       .byte $30        ; ..##.... - Pattern data
@@ -6660,6 +6761,7 @@ $BF7F: C0       .byte $C0        ; ##...... - Pattern data
 
 # Enemy sprites and animations.
 
+; ENEMY - STATIONARY
 $BF80: 7E       .byte $7E        ; .######. - **DETAILED SPRITE** - Complex border pattern
 $BF81: 18       .byte $18        ; ...##... - **DETAILED SPRITE** - Center detail
 $BF82: FF       .byte $FF        ; ######## - **DETAILED SPRITE** - Full width line
@@ -6673,6 +6775,7 @@ $BF89: 24       .byte $24        ; ..#..#.. - **DETAILED SPRITE** - Complex patt
 $BF8A: 24       .byte $24        ; ..#..#.. - **DETAILED SPRITE** - Complex pattern
 $BF8B: 66       .byte $66        ; .##..##. - **DETAILED SPRITE** - Complex pattern
 
+; ENEMY - WALKING LEFT 1
 $BF8C: 7E       .byte $7E        ; .######. - **DETAILED SPRITE** - Complex pattern
 $BF8D: 18       .byte $18        ; ...##... - **DETAILED SPRITE** - Complex pattern
 $BF8E: 3F       .byte $3F        ; ..###### - **DETAILED SPRITE** - Complex pattern
@@ -6686,6 +6789,7 @@ $BF95: 24       .byte $24        ; ..#..#.. - **DETAILED SPRITE** - Complex patt
 $BF96: 24       .byte $24        ; ..#..#.. - **DETAILED SPRITE** - Complex pattern
 $BF97: 6C       .byte $6C        ; .##.##.. - **DETAILED SPRITE** - Complex pattern
 
+; ENEMY - WALKING LEFT 2
 $BF98: 7E       .byte $7E        ; .######. - **DETAILED SPRITE** - Complex pattern
 $BF99: 18       .byte $18        ; ...##... - **DETAILED SPRITE** - Complex pattern
 $BF9A: 3F       .byte $3F        ; ..###### - **DETAILED SPRITE** - Complex pattern
@@ -6699,6 +6803,7 @@ $BFA1: 08       .byte $08        ; ....#...  - **DETAILED SPRITE** - Complex pat
 $BFA2: 08       .byte $08        ; ....#...  - **DETAILED SPRITE** - Complex pattern
 $BFA3: 18       .byte $18        ; ...##...  - **DETAILED SPRITE** - Complex pattern
 
+; ENEMY - WALKING RIGHT 1
 $BFA4: 7E       .byte $7E        ; .######.  - **DETAILED SPRITE** - Complex pattern
 $BFA5: 18       .byte $18        ; ...##...  - **DETAILED SPRITE** - Complex pattern
 $BFA6: FC       .byte $FC        ; ######..  - **DETAILED SPRITE** - Complex pattern
@@ -6712,6 +6817,7 @@ $BFAD: 24       .byte $24        ; ..#..#..  - **DETAILED SPRITE** - Complex pat
 $BFAE: 24       .byte $24        ; ..#..#..  - **DETAILED SPRITE** - Complex pattern
 $BFAF: 36       .byte $36        ; ..##.##.  - **DETAILED SPRITE** - Complex pattern
 
+; ENEMY - WALKING RIGHT 2
 $BFB0: 7E       .byte $7E        ; .######.  - **DETAILED SPRITE** - Complex pattern
 $BFB1: 18       .byte $18        ; ...##...  - **DETAILED SPRITE** - Complex pattern
 $BFB2: FC       .byte $FC        ; ######..  - **DETAILED SPRITE** - Complex pattern
@@ -6725,6 +6831,7 @@ $BFB9: 10       .byte $10        ; ...#....  - **DETAILED SPRITE** - Complex pat
 $BFBA: 10       .byte $10        ; ...#....  - **DETAILED SPRITE** - Complex pattern
 $BFBB: 18       .byte $18        ; ...##...  - **DETAILED SPRITE** - Complex pattern
 
+; ENEMY - WALKING UP/DOWN 1
 $BFBC: 7E       .byte $7E        ; .######.  - **DETAILED SPRITE** - Complex pattern
 $BFBD: 18       .byte $18        ; ...##...  - **DETAILED SPRITE** - Complex pattern
 $BFBE: FF       .byte $FF        ; ########  - **DETAILED SPRITE** - Complex pattern
@@ -6738,11 +6845,7 @@ $BFC5: 26       .byte $26        ; ..#..##.  - **DETAILED SPRITE** - Complex pat
 $BFC6: 20       .byte $20        ; ..#.....  - **DETAILED SPRITE** - Complex pattern
 $BFC7: 60       .byte $60        ; .##.....  - **DETAILED SPRITE** - Complex pattern
 
-; ===============================================================================
-; SPRITE DATA CONTINUATION ($BFC8-$BFD2)
-; **DETAILED SPRITE PATTERNS** - More complex sprite graphics data
-; ===============================================================================
-
+; ENEMY - WALKING UP/DOWN 2
 $BFC8: 7E       .byte $7E        ; .######.  - **DETAILED SPRITE** - Complex pattern
 $BFC9: 18       .byte $18        ; ...##...  - **DETAILED SPRITE** - Complex pattern
 $BFCA: FF       .byte $FF        ; ########  - **DETAILED SPRITE** - Complex pattern
