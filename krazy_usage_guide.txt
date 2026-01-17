@@ -1,0 +1,34 @@
+K-Razy Shoot-Out Font Usage Guide
+========================================
+
+This font contains the original 8x8 pixel characters from
+the 1981 Atari 5200 game K-Razy Shoot-Out.
+
+Available Characters:
+  Numbers: 0123456789
+  Letters: ABCDEFGHIJKLMNOPQRSTUVWXYZ
+  Space: (available)
+
+Sample Text:
+  KRAZY SHOOTOUT
+  SCORE 12345
+  GAME OVER
+  HIGH SCORE
+
+Files Created:
+  - krazy_font_bitmap.png (complete font bitmap)
+  - character_samples/ (individual character images)
+  - krazy_character_map.txt (ASCII art map)
+  - krazy_usage_guide.txt (this file)
+
+Usage Ideas:
+  - Use character images in game development
+  - Create retro-style graphics and logos
+  - Reference for pixel art and font design
+  - Educational study of classic game graphics
+
+Technical Details:
+  - Original size: 8x8 pixels per character
+  - Format: 1-bit monochrome bitmap
+  - Total characters: 89 (37 mapped to ASCII)
+  - Source: K-Razy Shoot-Out ROM data
