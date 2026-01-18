@@ -17,7 +17,7 @@
 ; MAIN_GAME_LOOP              - Core game loop ($A332)
 ; TITLE_SCREEN_DATA           - CBS logo pattern ($A78C)
 ; TITLE_SCREEN_TEXT           - Title screen text ($A7D4)
-; GAME_INIT                   - Game initialization ($A9B6)
+; SECTOR_INIT                 - Sector initialization ($A9B6)
 ; INPUT_HANDLING_SYSTEM       - Player input processing ($AD05)
 ; COLLISION_DETECTION_SYSTEM  - Collision detection ($B14F)
 ; ENEMY_FIRING_SYSTEM         - Enemy firing logic ($B46B)
@@ -1738,8 +1738,9 @@ CHARACTER_DATA:
 GAME_CODE_START:
 
 ; ===============================================================================
-; INITIALIZATION ($A2C8)
+; CARTRIDGE / GAME INITIALIZATION ($A2C8)
 ; System startup and hardware setup
+; This is vectored to after system start.
 ; ===============================================================================
 
 $A2C8: E8       cartridge_init:
@@ -1788,10 +1789,10 @@ $A31F: A9 DD    LDA #$DD
 $A321: 8D 0A 02 STA $020A
 $A324: A9 22    LDA #$22
 $A326: 85 07    STA $07
-$A328: 20 D0 A6 JSR $A6D0 ; Setup routine
-$A32B: 20 18 A5 JSR $A518 ; Additional setup - Initialize game variables and text displays
+$A328: 20 D0 A6 JSR title_screen ; Display title screen and wait for trigger
+$A32B: 20 18 A5 JSR prepare_new_game ; Initialize game variables and text displays
 $A32E: 58       CLI
-$A32F: 20 B6 A9 JSR $A9B6 ; **PROCEDURAL ARENA GENERATION** - Generate initial maze layout
+$A32F: 20 B6 A9 JSR init_sector ; Initialize first sector and generate arena
 
 ; ===============================================================================
 ; MAIN_GAME_LOOP ($A332)
@@ -1810,11 +1811,13 @@ $A334: 85 94    STA $94         ; Clear enemy slot 1 (0=empty, 1=active/defeated
 $A336: 85 95    STA $95         ; Clear enemy slot 2 (0=empty, 1=active/defeated)
 $A338: 85 96    STA $96         ; Clear enemy slot 3 (0=empty, 1=active/defeated)
                                 ; When all 3 slots = 0, exits become active
-$A33A: 20 C3 BB JSR $BBC3 ; Main game logic update
+$A33A: 20 C3 BB JSR set_sector_difficulty ; Load difficulty parameters for current sector
 $A33D: 20 74 B9 JSR $B974 ; Graphics/sprite updates
 $A340: 20 AD AF JSR $AFAD ; Input handling routine
 $A343: 20 11 BC JSR $BC11 ; Sound/audio updates
-$A346: 20 4F B1 JSR $B14F ; Collision detection
+
+$A346: 20 4F B1 sector_game_loop:
+                JSR $B14F ; Collision detection
 $A349: 20 B3 B2 JSR $B2B3 ; Enemy AI/movement
 $A34C: 20 BF B4 JSR $B4BF ; Display updates
 $A34F: A5 DA    LDA #$DA
@@ -1837,12 +1840,12 @@ $A376: 20 26 B7 JSR $B726
 $A379: 20 77 BB JSR $BB77
 $A37C: A5 D9    LDA $D9         ; Load time remaining counter
 $A37E: C9 02    CMP #$02        ; Check if time almost up (2 time units left)
-$A380: D0 C4    BNE $A346       ; Loop back if time remaining > 2
+$A380: D0 C4    BNE sector_game_loop ; Loop back if time remaining > 2
                                 ; TIME UP! Level advances automatically
 $A382: A6 D5    LDX $D5         ; Load current level counter
 $A384: F6 C5    INC $C5,X       ; Increment level statistics
 $A386: E6 D5    INC $D5         ; INCREMENT LEVEL COUNTER - triggers new sector
-$A388: 20 B6 A9 JSR $A9B6       ; **PROCEDURAL ARENA GENERATION** - Generate new maze layout for next sector
+$A388: 20 B6 A9 JSR init_sector ; Initialize new sector and generate arena
 $A38B: 20 81 A5 JSR $A581       ; Level setup (includes "ENTER SECTOR X" display)
 $A38E: 4C 2B A3 JMP $A32B       ; Jump to main game setup
 
@@ -1864,7 +1867,7 @@ $A38E: 4C 2B A3 JMP $A32B       ; Jump to main game setup
 ;
 ; **LEVEL ADVANCEMENT FLOW** ($A382):
 ;    - Increment level counter $D5 (0=Sector 1, 1=Sector 2, etc.)
-;    - Call arena generation ($A9B6) - creates new randomized arena
+;    - Call init_sector ($A9B6) - Initialize new sector with randomized arena
 ;    - Call level setup ($A581) - displays "ENTER SECTOR X"
 ;    - Reset all game state for new sector
 ;
@@ -2297,7 +2300,7 @@ $A513: F0 02    BEQ $A517       ; Branch if zero
 $A515: C6 D5    DEC $D5         ; Decrement level progression counter
 $A517: 60       RTS             ; Return from enemy wave check
 ; ===============================================================================
-; ADDITIONAL_SETUP ($A518)
+; PREPARE NEW GAME ($A518)
 ; Game variable initialization and text display setup
 ; This routine:
 ; - Clears all game state variables
@@ -2308,13 +2311,14 @@ $A517: 60       RTS             ; Return from enemy wave check
 ; - Prepares display lists for game screens
 ; ===============================================================================
 
-$A518: A9 00    LDA #$00 ; Clear game state variables
+$A518: A9 00    prepare_new_game:
+                LDA #$00 ; Clear game state variables
 $A51A: 8D 01 E8 STA $E801 ; Clear RAM location $E801
 $A51D: 8D 08 E8 STA $E808 ; Clear RAM location $E808
 $A520: 85 04    STA $04 ; Clear zero page variable $04
 $A522: A9 02    LDA #$02 ; Set game mode flag to 2
 $A524: 8D 0F E8 STA $E80F ; Store game mode in RAM $E80F
-$A527: 20 A2 BD JSR $BDA2 ; Call display setup routine
+$A527: 20 A2 BD JSR clear_collision_registers ; Clear collision detection hardware
 $A52A: A2 08    LDX #$08 ; Initialize loop counter (8 iterations)
 $A52C: 95 C5    STA $C5 ; Clear score/statistics array
 $A52E: CA       DEX ; Decrement loop counter
@@ -2371,7 +2375,7 @@ $A580: 60       RTS ; Return from additional setup
 ; - Refreshes screen displays
 ; ===============================================================================
 
-$A581: 20 A2 BD JSR $BDA2 ; Game restart/new level setup
+$A581: 20 A2 BD JSR clear_collision_registers ; Clear collision detection for new level
 $A584: 20 B0 BD JSR $BDB0 ; Call text display setup routine
 $A587: AD 0A E8 LDA $E80A ; Load hardware configuration
 $A58A: 29 F0    AND #$F0 ; Mask upper 4 bits
@@ -2614,25 +2618,28 @@ $A6C7: B0 04    BCS $A6CD ; Branch if accuracy poor
 $A6C9: A9 C9    LDA #$C9 ; Load bonus value for good accuracy
 $A6CB: 85 08    STA $08 ; Store accuracy bonus
 $A6CD: 4C B2 FC JMP $FCB2 ; Jump to OS ROM routine (NMI handler)
+
 ; ===============================================================================
-; SETUP_ROUTINE ($A6D0)
-; Main display setup and initialization
+; TITLE SCREEN ROUTINE ($A6D0)
+; Displays the title screen with CBS logo and game title
 ; This routine:
 ; - Initializes display hardware
 ; - Sets up screen memory and graphics
-; - Configures display lists
-; - Clears screen areas
-; - Sets up playfield patterns
+; - Displays CBS logo pattern
+; - Shows "CBS electronics PRESENTS"
+; - Shows "K-RAZY SHOOTOUT" title
+; - Waits for trigger press to start game
 ; ===============================================================================
 
-$A6D0: 20 A2 BD JSR $BDA2 ; Main display setup routine
+$A6D0: 20 A2 BD title_screen:
+                JSR clear_collision_registers ; Clear collision detection hardware
 $A6D3: A9 00    LDA #$00 ; Clear setup variables
 $A6D5: 85 DC    STA $DC ; Clear difficulty counter
 $A6D7: A2 08    LDX #$08 ; Set up memory clear loop (8 bytes)
 $A6D9: 9D 00 E8 STA $E800 ; Clear RAM area $E800-$E807
 $A6DC: CA       DEX ; Decrement clear counter
 $A6DD: D0 FA    BNE $A6D9 ; Continue clearing memory
-$A6DF: 20 BD BD JSR $BDBD ; Call display initialization
+$A6DF: 20 BD BD JSR clear_game_state ; Clear game state variables ($E800-$E807)
 $A6E2: A2 A8    LDX #$A8 ; Set up large copy operation (168 bytes)
 $A6E4: BD E3 A3 LDA $A3E3 ; Load from text data table
 $A6E7: 9D 52 06 STA $0652 ; Store to screen memory area
@@ -3046,28 +3053,29 @@ $A9B1: 99 00 13 STA $1300
 $A9B4: C8       INY ; Return from missile processing
 $A9B5: 60       RTS
 ; ===============================================================================
-; GAME_INIT ($A9B6) - PROCEDURAL ARENA GENERATOR
+; SECTOR INITIALIZATION ($A9B6) - PROCEDURAL ARENA GENERATOR
 ; ===============================================================================
-GAME_INIT:
-; **MAJOR DISCOVERY**: This is NOT just game initialization!
-; This routine is the PROCEDURAL ARENA/MAZE GENERATOR that creates
-; new level layouts dynamically for each sector.
+; Initializes a new sector/level with procedurally generated arena
+;
+; This routine is called:
+; - At game start ($A32F) for the initial sector
+; - When advancing to new sectors ($A388) after completing a level
 ;
 ; PHASES:
-; 1. Display System Setup - Graphics mode and display list configuration
-; 2. Player Sprite Initialization - Sets Character $A0 as default player sprite
-; 3. **ARENA GENERATION LOOP** - Procedurally builds maze layout (39 elements)
-; 4. Score Display Setup - Configures multiple score/statistics areas
-; 5. Final System Configuration - Completes level setup
+; 1. Clear Game State - Reset sprite/sound variables
+; 2. Display System Setup - Configure graphics mode and display lists
+; 3. Difficulty Configuration - Load level-specific parameters
+; 4. Player Sprite Initialization - Set starting position and character
+; 5. **PROCEDURAL ARENA GENERATION** - Build randomized maze (39 elements)
+; 6. Score Display Setup - Configure HUD and statistics areas
+; 7. Final System Configuration - Complete level setup
 ;
-; This explains why GAME_INIT is called multiple times during gameplay:
-; - At game start for initial arena
-; - At $A388 when advancing to new sectors
-; - Each call generates a fresh arena layout for the new level
+; Each call generates a fresh arena layout for the new sector.
 ; ===============================================================================
 
-$A9B6: 20 BD BD JSR $BDBD       ; **PHASE 1: DISPLAY SYSTEM SETUP**
-$A9B9: 20 A2 BD JSR $BDA2       ; Display list setup routine - Configure graphics mode
+$A9B6: 20 BD BD init_sector:
+                JSR clear_game_state ; **PHASE 1: CLEAR GAME STATE** - Reset sprite/sound variables
+$A9B9: 20 A2 BD JSR clear_collision_registers ; **PHASE 2: CLEAR COLLISION DETECTION** - Reset hardware registers
 $A9BC: AD 3A 06 LDA $063A       ; **DIFFICULTY/SPEED CONFIGURATION**
 $A9BF: 0D 39 06 ORA $0639       ; Combine speed settings from multiple memory locations
 $A9C2: 0D 37 06 ORA $0637       ; Set initial game speed based on level
@@ -4140,7 +4148,7 @@ $B01F: 85 65    STA $65         ; Set player active flag
 $B021: A9 66    LDA #$66        ; **SET PLAYER Y POSITION** - Load Y coordinate
 $B023: 85 84    STA $84         ; Store player Y position
 $B025: 85 A7    STA $A7         ; Store enemy firing counter
-$B027: 20 BD BD JSR $BDBD       ; **INITIALIZE DISPLAY SYSTEM** - Setup screen
+$B027: 20 BD BD JSR clear_game_state ; **CLEAR GAME STATE** - Reset sprite/sound variables
 $B02A: A9 07    LDA #$07        ; **SET SOUND PARAMETERS** - Load sound value
 $B02C: A2 A6    LDX #$A6        ; Load sound parameter X
 $B02E: A0 3B    LDY #$3B        ; Load sound parameter Y
@@ -5412,7 +5420,7 @@ $B75D: 60       RTS
 ; - Processes multiple animation frames with different effect patterns
 ; ===============================================================================
 $B75E: A2 40    LDX #$40        ; Initialize escape effects
-$B760: 20 BD BD JSR $BDBD       ; Clear hardware registers $E800-$E807
+$B760: 20 BD BD JSR clear_game_state ; Clear game state variables ($E800-$E807)
 $B763: A0 FF    LDY #$FF        ; Set maximum delay counter
 $B765: 20 97 B0 JSR $B097       ; **PLAYER DEATH MUSIC** - Play death music sequence
 $B768: E6 DA    INC $DA         ; **INCREMENT ESCAPE COUNTER** (0→1→2→3)
@@ -5495,7 +5503,7 @@ $B821: A0 FF    LDY #$FF
 $B823: 20 2F B8 JSR $B82F
 $B826: A0 FF    LDY #$FF
 $B828: 20 89 B8 JSR $B889
-$B82B: 20 BD BD JSR $BDBD
+$B82B: 20 BD BD JSR clear_game_state
 $B82E: 60       RTS
 ; ===============================================================================
 ; TIMED_DELAY ($B82F)
@@ -6236,72 +6244,82 @@ $BBBE: A9 00    LDA #$00
 $BBC0: 85 AF    STA $AF
 $BBC2: 60       RTS
 ; ===============================================================================
-; MAIN_UPDATE ($BBC3)
-; Primary game logic update with LEVEL-BASED FIRING FREQUENCY SETUP
-; This routine:
-; - Updates game timers
-; - Processes game events  
-; - Loads level-specific parameters including enemy firing frequency
-; - Checks win/lose conditions
-; - Manages game flow
-; - **CRITICAL**: Sets $D7 firing frequency from level-based table
+; SET SECTOR DIFFICULTY ($BBC3)
+; ===============================================================================
+; Loads difficulty parameters based on current sector level
+; This routine configures enemy behavior, firing frequency, and game speed
+; for the current sector by loading 4 parameters from a level-based table.
+;
+; Called once per frame from main game loop ($A33A)
+;
+; Parameters loaded:
+; - $D1: Enemy accuracy/difficulty parameter
+; - $D7: Enemy firing frequency (frames between shots - lower = faster)
+; - $D6: Game speed parameter
+; - $D8: Timing parameter
+;
+; The level table at $BBE4 contains 4 bytes per sector (0-7+)
+; As sectors increase, firing frequency increases (D7 decreases)
 ; ===============================================================================
 
-$BBC3: A5 D5    LDA $D5         ; Load current level counter
+$BBC3: A5 D5    set_sector_difficulty:
+                LDA $D5         ; Load current sector/level counter
 $BBC5: AA       TAX             ; Transfer to X for state checking
 $BBC6: A9 30    LDA #$30        ; Load base value
 $BBC8: 85 7F    STA $7F         ; Store base parameter
-$BBCA: A5 D5    LDA $D5         ; Load level counter again
-$BBCC: 0A       ASL             ; Multiply by 4 (level * 4)
-$BBCD: 0A       ASL             ; for 4-byte table lookup
+$BBCA: A5 D5    LDA $D5         ; Load sector counter again
+$BBCC: 0A       ASL             ; Multiply by 4 (sector * 4)
+$BBCD: 0A       ASL             ; Each sector has 4 bytes of parameters
 $BBCE: AA       TAX             ; Use as table index
-$BBCF: BD E4 BB LDA $BBE4,X     ; Load parameter 1 from level table
-$BBD2: 85 D1    STA $D1         ; Store accuracy/difficulty parameter
-$BBD4: BD E5 BB LDA $BBE5,X     ; **LOAD FIRING FREQUENCY** from level table
+$BBCF: BD E4 BB LDA $BBE4,X     ; Load parameter 1 from sector table
+$BBD2: 85 D1    STA $D1         ; Store enemy accuracy/difficulty parameter
+$BBD4: BD E5 BB LDA $BBE5,X     ; **LOAD FIRING FREQUENCY** from sector table
 $BBD7: 85 D7    STA $D7         ; Store in firing frequency variable ($D7)
-$BBD9: BD E7 BB LDA $BBE7,X     ; Load parameter 3 from level table  
+                                ; Lower values = enemies fire more frequently
+$BBD9: BD E7 BB LDA $BBE7,X     ; Load parameter 3 from sector table  
 $BBDC: 85 D8    STA $D8         ; Store timing parameter
-$BBDE: BD E6 BB LDA $BBE6,X     ; Load parameter 2 from level table
+$BBDE: BD E6 BB LDA $BBE6,X     ; Load parameter 2 from sector table
 $BBE1: 85 D6    STA $D6         ; Store game speed parameter
-$BBE3: 60       RTS
+$BBE3: 60       RTS             ; Return
 ; ===============================================================================
-; LEVEL-BASED PARAMETER TABLES ($BBE4-$BC03)
+; SECTOR DIFFICULTY PARAMETER TABLES ($BBE4-$BC03)
+; ===============================================================================
 ; **ENEMY FIRING FREQUENCY AND DIFFICULTY DATA**
-; Format: 4 bytes per level (D1, D7, D6, D8)
-; - D1 = Accuracy/difficulty parameter  
-; - D7 = FIRING FREQUENCY (frames between shots)
+; Format: 4 bytes per sector (D1, D7, D6, D8)
+; - D1 = Enemy accuracy/difficulty parameter  
+; - D7 = FIRING FREQUENCY (frames between shots - lower = more frequent)
 ; - D6 = Game speed parameter
 ; - D8 = Timing parameter
 ; 
 ; FIRING FREQUENCY ANALYSIS (Atari 5200 NTSC @ 59.92 Hz):
 ; **THEORETICAL RATES** (if fired every opportunity):
-; Level 0: D7=$00 (0)   = NO FIRING (tutorial level)
-; Level 1: D7=$60 (96)  = 0.62 shots/sec (every 1602ms)
-; Level 2: D7=$40 (64)  = 0.94 shots/sec (every 1068ms)
-; Level 3: D7=$30 (48)  = 1.25 shots/sec (every 801ms)
-; Level 4: D7=$25 (37)  = 1.62 shots/sec (every 617ms)
-; Level 5: D7=$13 (19)  = 3.15 shots/sec (every 317ms)
-; Level 6: D7=$06 (6)   = 9.99 shots/sec (every 100ms)
-; Level 7: D7=$04 (4)   = 14.98 shots/sec (every 67ms)
+; Sector 0: D7=$00 (0)   = NO FIRING (tutorial sector)
+; Sector 1: D7=$60 (96)  = 0.62 shots/sec (every 1602ms)
+; Sector 2: D7=$40 (64)  = 0.94 shots/sec (every 1068ms)
+; Sector 3: D7=$30 (48)  = 1.25 shots/sec (every 801ms)
+; Sector 4: D7=$25 (37)  = 1.62 shots/sec (every 617ms)
+; Sector 5: D7=$13 (19)  = 3.15 shots/sec (every 317ms)
+; Sector 6: D7=$06 (6)   = 9.99 shots/sec (every 100ms)
+; Sector 7: D7=$04 (4)   = 14.98 shots/sec (every 67ms)
 ;
 ; **ACTUAL RATES** (accounting for randomization and conditions):
 ; - ~25% of theoretical due to hardware randomization ($E80A & #$03 ≠ 0)
 ; - Additional reductions from enemy state and missile availability checks
-; - Level 1: ~0.15 shots/sec (every ~6.4 seconds)
-; - Level 2: ~0.23 shots/sec (every ~4.3 seconds)  
-; - Level 3: ~0.31 shots/sec (every ~3.2 seconds)
-; - Level 4: ~0.40 shots/sec (every ~2.5 seconds)
-; - Level 5: ~0.79 shots/sec (every ~1.3 seconds)
-; - Level 6: ~2.50 shots/sec (every ~0.4 seconds)
-; - Level 7: ~3.75 shots/sec (every ~0.27 seconds)
+; - Sector 1: ~0.15 shots/sec (every ~6.4 seconds)
+; - Sector 2: ~0.23 shots/sec (every ~4.3 seconds)  
+; - Sector 3: ~0.31 shots/sec (every ~3.2 seconds)
+; - Sector 4: ~0.40 shots/sec (every ~2.5 seconds)
+; - Sector 5: ~0.79 shots/sec (every ~1.3 seconds)
+; - Sector 6: ~2.50 shots/sec (every ~0.4 seconds)
+; - Sector 7: ~3.75 shots/sec (every ~0.27 seconds)
 ; ===============================================================================
-$BBE4: .byte $0E, $00, $02, $15    ; Level 0: No firing (D7=$00)
-$BBE8: .byte $14, $60, $02, $12    ; Level 1: 0.6 shots/sec (D7=$60=96)
-$BBEC: .byte $1A, $40, $03, $08    ; Level 2: 0.9 shots/sec (D7=$40=64)
-$BBF0: .byte $1D, $30, $04, $06    ; Level 3: 1.2 shots/sec (D7=$30=48)
-$BBF4: .byte $20, $25, $0A, $04    ; Level 4: 1.6 shots/sec (D7=$25=37)
-$BBF8: .byte $24, $13, $50, $03    ; Level 5: 3.2 shots/sec (D7=$13=19)
-$BBFC: .byte $36, $06, $FF, $01    ; Level 6: 10.0 shots/sec (D7=$06=6)
+$BBE4: .byte $0E, $00, $02, $15    ; Sector 0: No firing (D7=$00)
+$BBE8: .byte $14, $60, $02, $12    ; Sector 1: 0.6 shots/sec (D7=$60=96)
+$BBEC: .byte $1A, $40, $03, $08    ; Sector 2: 0.9 shots/sec (D7=$40=64)
+$BBF0: .byte $1D, $30, $04, $06    ; Sector 3: 1.2 shots/sec (D7=$30=48)
+$BBF4: .byte $20, $25, $0A, $04    ; Sector 4: 1.6 shots/sec (D7=$25=37)
+$BBF8: .byte $24, $13, $50, $03    ; Sector 5: 3.2 shots/sec (D7=$13=19)
+$BBFC: .byte $36, $06, $FF, $01    ; Sector 6: 10.0 shots/sec (D7=$06=6)
 $BC00: .byte $75, $04, $FF, $01    ; Level 7: 15.0 shots/sec (D7=$04=4)
 
 ; ===============================================================================
@@ -6720,31 +6738,64 @@ $BD9B: A9 4F    LDA #$4F        ; **PLAYER FIRE SOUND PARAMETERS**
 $BD9D: 85 D0    STA $D0         ; Set sound frequency/duration
 $BD9F: 85 BD    STA $BD         ; Set sound control
 $BDA1: 60       RTS             ; Return from player fire processing
-$BDA2: A9 00    LDA #$00
-$BDA4: 8D 1D C0 STA $C01D ; GTIA GRACTL - Graphics control
-$BDA7: A2 07    LDX #$07
-$BDA9: 9D 00 C0 STA $C000
-$BDAC: CA       DEX
-$BDAD: 10 FA    BPL $BDA9
-$BDAF: 60       RTS
+
+; ===============================================================================
+; CLEAR COLLISION REGISTERS ($BDA2)
+; ===============================================================================
+; Resets GTIA graphics control and collision detection registers
+; This routine:
+; - Disables graphics via GRACTL register
+; - Clears all 8 collision detection registers ($C000-$C007)
+; - Prepares hardware for new display/collision detection cycle
+;
+; Called at: title screen, sector init, new level setup, game preparation
+; ===============================================================================
+$BDA2: A9 00    clear_collision_registers:
+                LDA #$00         ; Clear accumulator
+$BDA4: 8D 1D C0 STA $C01D        ; GTIA GRACTL - Graphics control (disable graphics)
+$BDA7: A2 07    LDX #$07         ; Set loop counter (8 registers to clear)
+$BDA9: 9D 00 C0 STA $C000,X      ; Clear collision registers $C000-$C007
+                                 ; $C000-$C003: Player-to-playfield collisions (P0PF-P3PF)
+                                 ; $C004-$C007: Missile-to-playfield collisions (M0PF-M3PF)
+$BDAC: CA       DEX              ; Decrement counter
+$BDAD: 10 FA    BPL $BDA9        ; Loop until all 8 registers cleared
+$BDAF: 60       RTS              ; Return
 $BDB0: A9 40    LDA #$40
 $BDB2: 8D 0E E8 STA $E80E
 $BDB5: 85 00    STA $00
 $BDB7: A9 A0    LDA #$A0
 $BDB9: 8D 09 D4 STA $D409 ; POKEY SKCTL - Serial/keyboard control
 $BDBC: 60       RTS
-$BDBD: A9 00    LDA #$00
-$BDBF: 85 BE    STA $BE
-$BDC1: 85 B9    STA $B9
-$BDC3: A2 07    LDX #$07
-$BDC5: 9D 00 E8 STA $E800
-$BDC8: CA       DEX
-$BDC9: 10 FA    BPL $BDC5
-$BDCB: A9 01    LDA #$01
-$BDCD: 8D 08 E8 STA $E808
-$BDD0: A9 A0    LDA #$A0
-$BDD2: 85 B7    STA $B7
-$BDD4: 60       RTS
+
+; ===============================================================================
+; CLEAR GAME STATE ($BDBD)
+; ===============================================================================
+; Resets game state variables in RAM $E800-$E807
+; This routine clears sprite positions, animation counters, and sound parameters
+; Called at: title screen, arena generation, player respawn, escape sequence
+; ===============================================================================
+$BDBD: A9 00    clear_game_state:
+                LDA #$00         ; Clear accumulator
+$BDBF: 85 BE    STA $BE          ; Clear zero page variable $BE
+$BDC1: 85 B9    STA $B9          ; Clear sprite animation flag $B9
+$BDC3: A2 07    LDX #$07         ; Set loop counter (8 bytes: $E800-$E807)
+$BDC5: 9D 00 E8 STA $E800,X      ; Clear game state RAM $E800-$E807
+                                 ; $E800 = sprite position/arena counter
+                                 ; $E801 = sprite config/audio control
+                                 ; $E802 = animation timer
+                                 ; $E803 = secondary timer/sound
+                                 ; $E804 = player sprite X position
+                                 ; $E805 = player sprite character code
+                                 ; $E806 = animation frame
+                                 ; $E807 = animation speed
+$BDC8: CA       DEX              ; Decrement counter
+$BDC9: 10 FA    BPL $BDC5        ; Loop until all 8 bytes cleared
+$BDCB: A9 01    LDA #$01         ; Set initialization flag
+$BDCD: 8D 08 E8 STA $E808        ; Store to sound/sprite control register
+$BDD0: A9 A0    LDA #$A0         ; Load default sprite character code
+$BDD2: 85 B7    STA $B7          ; Store to zero page variable $B7
+$BDD4: 60       RTS              ; Return
+
 $BDD5: 0A       ASL
 $BDD6: 85 69    STA $69
 $BDD8: 8A       TXA
@@ -6757,6 +6808,7 @@ $BDE3: 8D 05 02 STA $0205
 $BDE6: 98       TYA
 $BDE7: 8D 04 02 STA $0204
 $BDEA: 60       RTS
+
 $BDEB: A9 FF    LDA #$FF
 $BDED: 85 60    STA $60
 $BDEF: A5 12    LDA #$12
