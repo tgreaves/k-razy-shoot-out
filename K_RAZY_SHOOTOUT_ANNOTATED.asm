@@ -1820,16 +1820,16 @@ $A346: 20 4F B1 sector_game_loop:
                 JSR move_missiles_in_flight ; Move active player missiles
 $A349: 20 B3 B2 JSR $B2B3 ; Enemy AI/movement
 $A34C: 20 BF B4 JSR $B4BF ; Display updates
-$A34F: A5 DA    LDA #$DA
+$A34F: A5 DA    LDA $DA
 $A351: C9 03    CMP #$03
 $A353: F0 2D    BEQ $A382 ; Branch if equal/zero
-$A355: A5 A9    LDA #$A9
+$A355: A5 A9    LDA $A9
 $A357: D0 E7    BNE $A340 ; Loop back if not zero
 $A359: 20 5B B5 JSR $B55B
 $A35C: 20 3A A8 JSR $A83A
-$A35F: A5 AD    LDA #$AD
+$A35F: A5 AD    LDA $AD
 $A361: F0 0A    BEQ $A36D ; Branch if equal/zero
-$A363: A6 D5    LDX #$D5
+$A363: A6 D5    LDX $D5
 $A365: F6 C5    INC $C5
 $A367: 20 FF A4 JSR $A4FF
 $A36A: 4C 2F A3 JMP $A32F
@@ -2330,7 +2330,7 @@ $A537: 85 D9    STA $D9 ; Clear game over flag $D9
 $A539: 85 CE    STA $CE ; Clear counter variable $CE
 $A53B: 85 CF    STA $CF ; Clear counter variable $CF
 $A53D: 85 0E    STA $0E ; Clear zero page variable $0E
-$A53F: A5 DC    LDA #$DC ; Load initial difficulty/level value
+$A53F: A5 DC    LDA $DC ; Load initial difficulty/level value
 $A541: 85 D5    STA $D5 ; Set initial level counter
 $A543: A2 30    LDX #$30 ; Set X to $30 (48 decimal) for text setup
 $A545: A9 01    LDA #$01 ; Set flag to 1 (enable something)
@@ -2549,14 +2549,14 @@ $A639: 4E       .byte $4E        ; 'N'
 $A63B: A9 40    LDA #$40 ; Initialize animation system
 $A63D: 85 00    STA $00 ; Clear animation state
 $A63F: 8D 0E E8 STA $E80E ; Store in animation control register
-$A642: A5 BE    LDA #$BE ; Check animation enable flag
+$A642: A5 BE    LDA $BE ; Check animation enable flag
 $A644: F0 1F    BEQ $A665 ; Branch if animations disabled
-$A646: A5 B3    LDA #$B3 ; Load animation frame counter
+$A646: A5 B3    LDA $B3 ; Load animation frame counter
 $A648: C9 11    CMP #$11 ; Check if frame limit reached
 $A64A: B0 27    BCS $A673 ; Branch if animation complete
-$A64C: A5 B4    LDA #$B4 ; Load animation type flag
+$A64C: A5 B4    LDA $B4 ; Load animation type flag
 $A64E: D0 15    BNE $A665 ; Branch if not this animation type
-$A650: A5 B3    LDA #$B3 ; Load current frame number
+$A650: A5 B3    LDA $B3 ; Load current frame number
 $A652: 18       CLC ; Clear carry for addition
 $A653: 69 01    ADC #$01 ; Increment frame counter
 $A655: 85 B3    STA $B3 ; Store new frame number
@@ -2566,14 +2566,14 @@ $A65C: D0 07    BNE $A665 ; Branch if not at end
 $A65E: A9 87    LDA #$87 ; Load animation end value
 $A660: 85 B2    STA $B2 ; Store animation state
 $A662: 4C 73 A6 JMP $A673 ; Jump to animation cleanup
-$A665: A6 B4    LDX #$B4 ; Load animation sequence index
+$A665: A6 B4    LDX $B4 ; Load animation sequence index
 $A667: E8       INX ; Increment sequence
 $A668: E0 03    CPX #$03 ; Check if sequence complete (3 steps)
 $A66A: D0 02    BNE $A66E ; Branch if more steps
 $A66C: A2 00    LDX #$00 ; Reset sequence to 0
 $A66E: 86 B4    STX $B4 ; Store sequence index
 $A670: 4C 88 A6 JMP $A688 ; Jump to next animation phase
-$A673: A5 B2    LDA #$B2 ; Load animation speed control
+$A673: A5 B2    LDA $B2 ; Load animation speed control
 $A675: 8D 07 E8 STA $E807 ; Store to speed register
 $A678: C9 80    CMP #$80 ; Check if speed at minimum
 $A67A: D0 07    BNE $A683 ; Branch if not minimum
@@ -2584,20 +2584,20 @@ $A683: 38       SEC ; Set carry for subtraction
 $A684: E9 01    SBC #$01 ; Decrease animation speed
 $A686: 85 B2    STA $B2 ; Store new speed
 $A688: E6 B6    INC $B6 ; Increment animation timer
-$A68A: A5 B6    LDA #$B6 ; Load timer value
+$A68A: A5 B6    LDA $B6 ; Load timer value
 $A68C: 8D 02 E8 STA $E802 ; Store to timer register
 $A68F: C9 20    CMP #$20 ; Check if timer reached 32
 $A691: 90 0E    BCC $A6A1 ; Branch if timer not full
-$A693: A5 B7    LDA #$B7 ; Load secondary timer
+$A693: A5 B7    LDA $B7 ; Load secondary timer
 $A695: C9 A0    CMP #$A0 ; Check if secondary timer at max
 $A697: F0 08    BEQ $A6A1 ; Branch if timer complete
 $A699: 38       SEC ; Set carry for subtraction
 $A69A: E9 01    SBC #$01 ; Decrement secondary timer
 $A69C: 85 B7    STA $B7 ; Store new timer value
 $A69E: 8D 03 E8 STA $E803 ; Update timer register
-$A6A1: A5 B9    LDA #$B9 ; Check sprite animation flag
+$A6A1: A5 B9    LDA $B9 ; Check sprite animation flag
 $A6A3: F0 15    BEQ $A6BA ; Branch if sprite animation off
-$A6A5: A5 B8    LDA #$B8 ; Load sprite position
+$A6A5: A5 B8    LDA $B8 ; Load sprite position
 $A6A7: 38       SEC ; Set carry for subtraction
 $A6A8: E9 04    SBC #$04 ; Move sprite 4 pixels
 $A6AA: 85 B8    STA $B8 ; Store new sprite position
@@ -2607,9 +2607,9 @@ $A6B1: B0 07    BCS $A6BA ; Branch if sprite not at edge
 $A6B3: A9 00    LDA #$00 ; Clear sprite animation
 $A6B5: 8D 05 E8 STA $E805 ; **PLAYER SPRITE CHARACTER** - Clear player sprite (load character $00)
 $A6B8: 85 B9    STA $B9 ; Store sprite disable flag
-$A6BA: A5 93    LDA #$93 ; Check game trigger flag
+$A6BA: A5 93    LDA $93 ; Check game trigger flag
 $A6BC: D0 0F    BNE $A6CD ; Branch if trigger active
-$A6BE: A5 D1    LDA #$D1 ; Load accuracy counter
+$A6BE: A5 D1    LDA $D1 ; Load accuracy counter
 $A6C0: 38       SEC ; Set carry for subtraction
 $A6C1: E5 D4    SBC #$D4 ; Calculate accuracy (shots - hits)
 $A6C3: 90 04    BCC $A6C9 ; Branch if negative (impossible)
@@ -2847,10 +2847,10 @@ $A839: .byte $0E                ; "." (period)
 ; - Manages game state changes
 ; ===============================================================================
 
-$A83A: A6 D5    LDX #$D5 ; Miscellaneous game updates routine
-$A83C: B5 C5    LDA #$C5
+$A83A: A6 D5    LDX $D5 ; Miscellaneous game updates routine
+$A83C: B5 C5    LDA $C5,X
 $A83E: 85 92    STA $92
-$A840: A5 94    LDA #$94
+$A840: A5 94    LDA $94
 $A842: D0 30    BNE $A874 ; Loop back if not zero
 ; ===============================================================================
 ; PLAYER_ENEMY_COLLISION_DETECTION ($A844)
@@ -2861,7 +2861,7 @@ $A844: AD 0A C0 LDA $C00A ; GTIA P2PF - Player 2/Playfield collision
 $A847: 0D 0B C0 ORA $C00B
 $A84A: 29 02    AND #$02
 $A84C: F0 0F    BEQ $A85D ; Branch if equal/zero
-$A84E: A5 92    LDA #$92
+$A84E: A5 92    LDA $92
 $A850: D0 05    BNE $A857 ; Loop back if not zero
 $A852: A9 05    LDA #$05
 $A854: 20 6C BD JSR $BD6C ; Hit/action sound effect
@@ -2871,20 +2871,20 @@ $A85B: 85 94    STA $94         ; Set enemy slot 1 to DEFEATED (enables exit whe
 $A85D: AD 0D C0 LDA $C00D ; GTIA M1PF - Missile 1/Playfield collision
 $A860: 0D 05 C0 ORA $C005
 $A863: F0 0F    BEQ $A874 ; Branch if equal/zero
-$A865: A5 92    LDA #$92
+$A865: A5 92    LDA $92
 $A867: D0 05    BNE $A86E ; Loop back if not zero
 $A869: A9 01    LDA #$01
 $A86B: 20 6C BD JSR $BD6C ; Hit/action sound effect
 $A86E: E6 D2    INC $D2         ; Increment hit counter (enemy defeated)
 $A870: A9 01    LDA #$01
 $A872: 85 94    STA $94         ; Set enemy slot 1 to DEFEATED (enables exit when all 3 defeated)
-$A874: A5 95    LDA #$95
+$A874: A5 95    LDA $95
 $A876: D0 32    BNE $A8AA ; Loop back if not zero
 $A878: AD 09 C0 LDA $C009 ; GTIA P1PF - Player 1/Playfield collision
 $A87B: 0D 0B C0 ORA $C00B
 $A87E: 29 04    AND #$04
 $A880: F0 0F    BEQ $A891 ; Branch if equal/zero
-$A882: A5 92    LDA #$92
+$A882: A5 92    LDA $92
 $A884: D0 05    BNE $A88B ; Loop back if not zero
 $A886: A9 05    LDA #$05
 $A888: 20 6C BD JSR $BD6C ; Hit/action sound effect
@@ -2894,7 +2894,7 @@ $A88F: 85 95    STA $95         ; Set enemy slot 2 to DEFEATED (enables exit whe
 $A891: AD 0E C0 LDA $C00E ; GTIA M2PF - Missile 2/Playfield collision
 $A894: 0D 06 C0 ORA $C006
 $A897: F0 11    BEQ $A8AA ; Branch if equal/zero
-$A899: A5 92    LDA #$92
+$A899: A5 92    LDA $92
 $A89B: D0 05    BNE $A8A2 ; Loop back if not zero
 $A89D: A9 01    LDA #$01
 $A89F: 20 6C BD JSR $BD6C ; Hit/action sound effect
@@ -2902,13 +2902,13 @@ $A8A2: E6 D2    INC $D2         ; Increment hit counter (enemy defeated)
 $A8A4: A9 01    LDA #$01
 $A8A6: 85 95    STA $95         ; Set enemy slot 2 to DEFEATED (enables exit when all 3 defeated)
 $A8A8: A9 01    LDA #$01
-$A8AA: A5 96    LDA #$96
+$A8AA: A5 96    LDA $96
 $A8AC: D0 30    BNE $A8DE ; Loop back if not zero
 $A8AE: AD 09 C0 LDA $C009 ; GTIA P1PF - Player 1/Playfield collision
 $A8B1: 0D 0A C0 ORA $C00A
 $A8B4: 29 08    AND #$08
 $A8B6: F0 0F    BEQ $A8C7 ; Branch if equal/zero
-$A8B8: A5 92    LDA #$92
+$A8B8: A5 92    LDA $92
 $A8BA: D0 05    BNE $A8C1 ; Loop back if not zero
 $A8BC: A9 05    LDA #$05
 $A8BE: 20 6C BD JSR $BD6C ; Hit/action sound effect
@@ -2918,7 +2918,7 @@ $A8C5: 85 96    STA $96         ; Set enemy slot 3 to DEFEATED (enables exit whe
 $A8C7: AD 0F C0 LDA $C00F ; GTIA M3PF - Missile 3/Playfield collision
 $A8CA: 0D 07 C0 ORA $C007
 $A8CD: F0 0F    BEQ $A8DE ; Branch if equal/zero
-$A8CF: A5 92    LDA #$92
+$A8CF: A5 92    LDA $92
 $A8D1: D0 05    BNE $A8D8 ; Loop back if not zero
 $A8D3: A9 01    LDA #$01
 $A8D5: 20 6C BD JSR $BD6C ; Hit/action sound effect
@@ -2928,12 +2928,12 @@ $A8DC: 85 96    STA $96         ; Set enemy slot 3 to DEFEATED (enables exit whe
 $A8DE: A9 00    LDA #$00
 $A8E0: A9 01    LDA #$01
 $A8E2: 85 AC    STA $AC
-$A8E4: A5 D5    LDA #$D5
+$A8E4: A5 D5    LDA $D5
 $A8E6: C9 03    CMP #$03
 $A8E8: 90 04    BCC $A8EE ; Branch if carry clear
 $A8EA: A9 02    LDA #$02
 $A8EC: 85 AC    STA $AC
-$A8EE: A5 92    LDA #$92
+$A8EE: A5 92    LDA $92
 $A8F0: F0 04    BEQ $A8F6 ; Branch if equal/zero
 $A8F2: A9 00    LDA #$00
 $A8F4: 85 AC    STA $AC
@@ -3040,7 +3040,7 @@ $A99B: 60       RTS
 ; - Handles missile availability checking and hardware register setup
 ; ===============================================================================
 
-$A99C: B4 E2    LDY #$E2 ; Process missile creation (X = input type)
+$A99C: B4 E2    LDY $E2,X ; Process missile creation (X = input type)
 $A99E: A9 00    LDA #$00
 $A9A0: 95 E2    STA $E2
 $A9A2: 88       DEY ; Decrement missile timer
@@ -3268,11 +3268,11 @@ $AB07: D0 FD    BNE $AB06 ; Loop back if not zero
 $AB09: 88       DEY
 $AB0A: D0 FA    BNE $AB06 ; Loop back if not zero
 $AB0C: 60       RTS ; Check maximum level reached
-$AB0D: A5 DA    LDA #$DA
+$AB0D: A5 DA    LDA $DA
 $AB0F: C9 03    CMP #$03
 $AB11: D0 03    BNE $AB16 ; Loop back if not zero
 $AB13: 4C D2 AB JMP $ABD2
-$AB16: A5 D9    LDA #$D9
+$AB16: A5 D9    LDA $D9
 $AB18: C9 02    CMP #$02 ; Calculate enemy speed
 $AB1A: D0 03    BNE $AB1F ; Loop back if not zero
 $AB1C: 4C D2 AB JMP $ABD2 ; Calculate spawn rate
@@ -3282,19 +3282,19 @@ $AB24: 85 0D    STA $0D
 $AB26: A9 00    LDA #$00
 $AB28: 85 0E    STA $0E
 $AB2A: 20 93 AC JSR $AC93
-$AB2D: A5 94    LDA #$94
+$AB2D: A5 94    LDA $94
 $AB2F: F0 2E    BEQ $AB5F ; Branch if equal/zero
-$AB31: A5 95    LDA #$95
+$AB31: A5 95    LDA $95
 $AB33: F0 2A    BEQ $AB5F ; Branch if equal/zero
-$AB35: A5 96    LDA #$96
+$AB35: A5 96    LDA $96
 $AB37: F0 26    BEQ $AB5F ; Branch if equal/zero
-$AB39: A5 D4    LDA #$D4
+$AB39: A5 D4    LDA $D4
 $AB3B: C5 D1    CMP #$D1
 $AB3D: 90 20    BCC $AB5F ; Branch if carry clear
-$AB3F: A6 D5    LDX #$D5
+$AB3F: A6 D5    LDX $D5
 $AB41: F0 01    BEQ $AB44 ; Branch if equal/zero
 $AB43: CA       DEX
-$AB44: B5 C5    LDA #$C5
+$AB44: B5 C5    LDA $C5,X
 $AB46: C9 02    CMP #$02
 $AB48: B0 15    BCS $AB5F ; Branch if carry set
 $AB4A: A5 D9    LDA $D9         ; **LOAD TIME REMAINING** for bonus calculation
@@ -3409,13 +3409,13 @@ $ABF1: 85 A4    STA $A4
 ; - Updates enemy counters
 ; ===============================================================================
 
-$ABF3: A4 A6    LDY #$A6 ; Enemy spawning and management system
+$ABF3: A4 A6    LDY $A6 ; Enemy spawning and management system
 $ABF5: 20 B0 BD JSR prepare_display_and_input_scanning ; Initialize hardware
 $ABF8: A9 00    LDA #$00
 $ABFA: 85 0E    STA $0E
-$ABFC: A5 92    LDA #$92
+$ABFC: A5 92    LDA $92
 $ABFE: 85 0D    STA $0D
-$AC00: A5 A4    LDA #$A4
+$AC00: A5 A4    LDA $A4
 $AC02: 85 0C    STA $0C
 $AC04: 20 93 AC JSR $AC93
 $AC07: A9 01    LDA #$01
@@ -4802,15 +4802,15 @@ $B38D: 85 92    STA $92         ; **STORE AS SOURCE** - Save as source position
 $B38F: A9 02    LDA #$02        ; **SET DIRECTION FLAG** - Enemy above player
 $B391: 85 9D    STA $9D
 $B393: 38       SEC
-$B394: A5 77    LDA #$77
+$B394: A5 77    LDA $77
 $B396: E5 92    SBC #$92
 $B398: 85 9F    STA $9F
 $B39A: 85 6C    STA $6C
 $B39C: A9 03    LDA #$03
 $B39E: 85 6B    STA $6B
 $B3A0: 20 09 BD JSR $BD09
-$B3A3: A6 67    LDX #$67
-$B3A5: A5 6C    LDA #$6C
+$B3A3: A6 67    LDX $67
+$B3A5: A5 6C    LDA $6C
 $B3A7: 85 A1    STA $A1
 $B3A9: A9 00    LDA #$00
 $B3AB: 85 A2    STA $A2         ; Clear Y-alignment flag
@@ -5090,9 +5090,9 @@ $B4CB: A9 FF    LDA #$FF
 $B4CD: 85 92    STA $92
 $B4CF: A2 01    LDX #$01 ; Update color palettes
 $B4D1: 86 67    STX $67 ; Process screen effects
-$B4D3: B5 97    LDA #$97
+$B4D3: B5 97    LDA $97,X
 $B4D5: F0 3F    BEQ $B516 ; Branch if equal/zero
-$B4D7: A5 D4    LDA #$D4
+$B4D7: A5 D4    LDA $D4
 $B4D9: C5 D1    CMP #$D1
 $B4DB: 90 06    BCC $B4E3 ; Branch if carry clear
 $B4DD: A9 C0    LDA #$C0
@@ -5110,7 +5110,7 @@ $B4F4: 48       PHA
 $B4F5: BD D4 BF LDA $BFD4
 $B4F8: 48       PHA
 $B4F9: B9 DA BF LDA $BFDA
-$B4FC: A6 67    LDX #$67
+$B4FC: A6 67    LDX $67
 $B4FE: 95 84    STA $84
 $B500: 68       PLA
 $B501: 95 80    STA $80
@@ -5179,16 +5179,16 @@ $B565: A2 01    LDX #$01
 $B567: 86 67    STX $67
 $B569: 86 74    STX $74
 $B56B: E6 7A    INC $7A
-$B56D: B5 93    LDA #$93
+$B56D: B5 93    LDA $93,X
 $B56F: F0 03    BEQ $B574 ; Branch if equal/zero
 $B571: 4C EB B6 JMP $B6EB
 $B574: A9 00    LDA #$00
 $B576: 85 A4    STA $A4
 $B578: 85 A5    STA $A5
-$B57A: A5 91    LDA #$91
+$B57A: A5 91    LDA $91
 $B57C: F0 03    BEQ $B581 ; Branch if equal/zero
 $B57E: 4C EB B6 JMP $B6EB
-$B581: B5 8C    LDA #$8C
+$B581: B5 8C    LDA $8C,X
 $B583: C9 FF    CMP #$FF
 $B585: D0 0B    BNE $B592 ; Loop back if not zero
 $B587: A9 AC    LDA #$AC
@@ -5201,7 +5201,7 @@ $B594: A9 00    LDA #$00
 $B596: 85 6F    STA $6F
 $B598: A9 28    LDA #$28
 $B59A: 85 70    STA $70
-$B59C: B5 80    LDA #$80
+$B59C: B5 80    LDA $80,X
 $B59E: 85 78    STA $78
 $B5A0: C5 80    CMP #$80
 $B5A2: D0 03    BNE $B5A7 ; Loop back if not zero
@@ -5220,31 +5220,31 @@ $B5B9: 85 73    STA $73
 $B5BB: A9 02    LDA #$02
 $B5BD: 85 6B    STA $6B
 $B5BF: 20 09 BD JSR $BD09
-$B5C2: A6 67    LDX #$67
-$B5C4: A5 6C    LDA #$6C
+$B5C2: A6 67    LDX $67
+$B5C4: A5 6C    LDA $6C
 $B5C6: 38       SEC
 $B5C7: E9 18    SBC #$18
 $B5C9: 85 6C    STA $6C
 $B5CB: A9 04    LDA #$04
 $B5CD: 85 6B    STA $6B
 $B5CF: 20 09 BD JSR $BD09
-$B5D2: A6 67    LDX #$67
-$B5D4: A5 6C    LDA #$6C
+$B5D2: A6 67    LDX $67
+$B5D4: A5 6C    LDA $6C
 $B5D6: 85 92    STA $92
 $B5D8: EA       NOP
-$B5D9: B5 84    LDA #$84
+$B5D9: B5 84    LDA $84,X
 $B5DB: 38       SEC
 $B5DC: E9 03    SBC #$03
 $B5DE: 85 6C    STA $6C
 $B5E0: A9 04    LDA #$04
 $B5E2: 85 6B    STA $6B
 $B5E4: 20 09 BD JSR $BD09
-$B5E7: A6 67    LDX #$67
-$B5E9: A5 6C    LDA #$6C
+$B5E7: A6 67    LDX $67
+$B5E9: A5 6C    LDA $6C
 $B5EB: 38       SEC
 $B5EC: E9 08    SBC #$08
 $B5EE: 85 6C    STA $6C
-$B5F0: A5 92    LDA #$92
+$B5F0: A5 92    LDA $92
 $B5F2: 20 09 B7 JSR $B709
 $B5F5: A2 04    LDX #$04
 $B5F7: A9 00    LDA #$00
@@ -5260,14 +5260,14 @@ $B607: E6 70    INC $70
 $B609: A8       TAY
 $B60A: CA       DEX
 $B60B: D0 EE    BNE $B5FB ; Loop back if not zero
-$B60D: A6 67    LDX #$67
-$B60F: A5 6B    LDA #$6B
+$B60D: A6 67    LDX $67
+$B60F: A5 6B    LDA $6B
 $B611: D0 3A    BNE $B64D ; Loop back if not zero
-$B613: B5 84    LDA #$84
+$B613: B5 84    LDA $84,X
 $B615: 85 77    STA $77
 $B617: A9 01    LDA #$01
 $B619: 85 A4    STA $A4
-$B61B: A5 73    LDA #$73
+$B61B: A5 73    LDA $73
 $B61D: F0 14    BEQ $B633 ; Branch if equal/zero
 $B61F: A9 24    LDA #$24
 $B621: D5 8C    CMP #$8C
@@ -5276,7 +5276,7 @@ $B625: A9 30    LDA #$30
 $B627: 85 64    STA $64
 $B629: 95 8C    STA $8C
 $B62B: 20 30 BD JSR $BD30
-$B62E: A6 67    LDX #$67
+$B62E: A6 67    LDX $67
 $B630: 4C 44 B6 JMP $B644
 $B633: A9 0C    LDA #$0C
 $B635: D5 8C    CMP #$8C
@@ -5285,10 +5285,10 @@ $B639: A9 18    LDA #$18
 $B63B: 85 64    STA $64
 $B63D: 95 8C    STA $8C
 $B63F: 20 30 BD JSR $BD30
-$B642: A6 67    LDX #$67
+$B642: A6 67    LDX $67
 $B644: 20 58 BC JSR update_hpos
-$B647: A6 67    LDX #$67
-$B649: A5 78    LDA #$78
+$B647: A6 67    LDX $67
+$B649: A5 78    LDA $78
 $B64B: 95 80    STA $80
 $B64D: A0 00    LDY #$00
 $B64F: A9 00    LDA #$00
@@ -5296,7 +5296,7 @@ $B651: 85 6F    STA $6F
 $B653: C8       INY
 $B654: A9 28    LDA #$28
 $B656: 85 70    STA $70
-$B658: B5 84    LDA #$84
+$B658: B5 84    LDA $84,X
 $B65A: 85 77    STA $77
 $B65C: C5 84    CMP #$84
 $B65E: D0 03    BNE $B663 ; Loop back if not zero
@@ -5315,34 +5315,34 @@ $B675: 85 73    STA $73
 $B677: A9 04    LDA #$04
 $B679: 85 6B    STA $6B
 $B67B: 20 09 BD JSR $BD09
-$B67E: A6 67    LDX #$67
-$B680: A5 6C    LDA #$6C
+$B67E: A6 67    LDX $67
+$B680: A5 6C    LDA $6C
 $B682: 38       SEC
 $B683: E9 08    SBC #$08
 $B685: 85 92    STA $92
-$B687: B5 80    LDA #$80
+$B687: B5 80    LDA $80,X
 $B689: 85 6C    STA $6C
 $B68B: A9 02    LDA #$02
 $B68D: 85 6B    STA $6B
 $B68F: 20 09 BD JSR $BD09
-$B692: A6 67    LDX #$67
-$B694: A5 6C    LDA #$6C
+$B692: A6 67    LDX $67
+$B694: A5 6C    LDA $6C
 $B696: 38       SEC
 $B697: E9 18    SBC #$18
 $B699: 85 6C    STA $6C
 $B69B: A9 04    LDA #$04
 $B69D: 85 6B    STA $6B
 $B69F: 20 09 BD JSR $BD09
-$B6A2: A6 67    LDX #$67
-$B6A4: A5 6C    LDA #$6C
+$B6A2: A6 67    LDX $67
+$B6A4: A5 6C    LDA $6C
 $B6A6: 85 A6    STA $A6
-$B6A8: A5 92    LDA #$92
+$B6A8: A5 92    LDA $92
 $B6AA: 85 6C    STA $6C
-$B6AC: A5 A6    LDA #$A6
+$B6AC: A5 A6    LDA $A6
 $B6AE: 20 09 B7 JSR $B709
 $B6B1: B1 6F    LDA #$6F
 $B6B3: D0 25    BNE $B6DA ; Loop back if not zero
-$B6B5: A5 A4    LDA #$A4
+$B6B5: A5 A4    LDA $A4
 $B6B7: D0 15    BNE $B6CE ; Loop back if not zero
 $B6B9: A9 01    LDA #$01
 $B6BB: 85 A5    STA $A5
@@ -5353,26 +5353,26 @@ $B6C3: A9 48    LDA #$48
 $B6C5: 85 64    STA $64
 $B6C7: 95 8C    STA $8C
 $B6C9: 20 30 BD JSR $BD30
-$B6CC: A6 67    LDX #$67
+$B6CC: A6 67    LDX $67
 $B6CE: 20 7C BC JSR $BC7C
 $B6D1: 20 7C BC JSR $BC7C
-$B6D4: A6 67    LDX #$67
-$B6D6: A5 77    LDA #$77
+$B6D4: A6 67    LDX $67
+$B6D6: A5 77    LDA $77
 $B6D8: 95 84    STA $84
-$B6DA: A5 A4    LDA #$A4
+$B6DA: A5 A4    LDA $A4
 $B6DC: 05 A5    ORA #$A5
 $B6DE: D0 0B    BNE $B6EB ; Loop back if not zero
 $B6E0: 85 64    STA $64
 $B6E2: 95 8C    STA $8C
-$B6E4: B5 84    LDA #$84
+$B6E4: B5 84    LDA $84,X
 $B6E6: 85 77    STA $77
 $B6E8: 20 30 BD JSR $BD30
-$B6EB: A6 67    LDX #$67
+$B6EB: A6 67    LDX $67
 $B6ED: E8       INX
 $B6EE: E0 04    CPX #$04
 $B6F0: F0 03    BEQ $B6F5 ; Branch if equal/zero
 $B6F2: 4C 67 B5 JMP $B567
-$B6F5: A5 91    LDA #$91
+$B6F5: A5 91    LDA $91
 $B6F7: 18       CLC
 $B6F8: 69 01    ADC #$01
 $B6FA: 85 91    STA $91
@@ -5387,7 +5387,7 @@ $B709: 48       PHA
 $B70A: A9 14    LDA #$14
 $B70C: 85 6B    STA $6B
 $B70E: 20 1C BD JSR $BD1C
-$B711: A6 67    LDX #$67
+$B711: A6 67    LDX $67
 $B713: 68       PLA
 $B714: 18       CLC
 $B715: 65 6D    ADC #$6D
@@ -5395,13 +5395,13 @@ $B717: 85 6D    STA $6D
 $B719: A8       TAY
 $B71A: 90 02    BCC $B71E ; Branch if carry clear
 $B71C: E6 6A    INC $6A
-$B71E: A5 6A    LDA #$6A
+$B71E: A5 6A    LDA $6A
 $B720: 18       CLC
 $B721: 65 70    ADC #$70
 $B723: 85 70    STA $70
 $B725: 60       RTS
 $B726: E6 AA    INC $AA
-$B728: A6 AA    LDX #$AA
+$B728: A6 AA    LDX $AA
 $B72A: E0 06    CPX #$06
 $B72C: D0 20    BNE $B74E ; Loop back if not zero
 $B72E: A2 04    LDX #$04
@@ -5515,7 +5515,7 @@ $B7F4: 20 70 B8 JSR $B870       ; **SCREEN CLEAR PHASE 3** (rows $4F-$3F countdo
 $B7F7: A9 00    LDA #$00        ; Clear all effect staging
 $B7F9: 8D 2F 06 STA $062F
 $B7FC: 8D 30 06 STA $0630
-$B7FF: A5 DA    LDA #$DA
+$B7FF: A5 DA    LDA $DA
 $B801: D0 0A    BNE $B80D ; Loop back if not zero
 $B803: A9 20    LDA #$20
 $B805: 8D 18 06 STA $0618
@@ -6269,7 +6269,7 @@ $BBB0: D0 04    BNE $BBB6       ; Branch if not 26
 $BBB2: A9 36    LDA #$36        ; Load critical indicator
 $BBB4: 85 0C    STA $0C         ; Store critical state
 $BBB6: E6 AF    INC $AF
-$BBB8: A5 AF    LDA #$AF
+$BBB8: A5 AF    LDA $AF
 $BBBA: C5 7F    CMP #$7F
 $BBBC: D0 04    BNE $BBC2 ; Loop back if not zero
 $BBBE: A9 00    LDA #$00
@@ -6423,12 +6423,12 @@ $BC3A: 85 99    STA $99         ; **SET ENEMY ACTIVE** - Enable enemy system
 $BC3C: 85 9A    STA $9A         ; **SET MISSILE ACTIVE** - Enable missile system
 $BC3E: 4C CB B4 JMP $B4CB       ; **JUMP TO PLAYER SETUP** - Continue initialization
 
-$BC41: A5 64    LDA #$64
+$BC41: A5 64    LDA $64
 $BC43: 18       CLC
 $BC44: 65 72    ADC #$72
 $BC46: 85 72    STA $72
-$BC48: A6 64    LDX #$64
-$BC4A: A4 77    LDY #$77
+$BC48: A6 64    LDX $64
+$BC4A: A4 77    LDY $77
 $BC4C: BD 20 BE LDA $BE20
 $BC4F: 91 79    STA $79
 $BC51: E8       INX
@@ -6490,17 +6490,17 @@ $BC78: 88       DEY             ; **DECREMENT COUNTER** - One less pixel to move
 $BC79: D0 F5    BNE $BC6E       ; **LOOP** - Continue until all pixels moved
 $BC7B: 60       RTS             ; **RETURN** - Exit with updated position
 
-$BC7C: A5 65    LDA #$65
+$BC7C: A5 65    LDA $65
 $BC7E: 85 66    STA $66
 $BC80: A9 FF    LDA #$FF
 $BC82: 85 75    STA $75
-$BC84: A4 7A    LDY #$7A
+$BC84: A4 7A    LDY $7A
 $BC86: 88       DEY
 $BC87: 84 76    STY $76
-$BC89: A5 73    LDA #$73
+$BC89: A5 73    LDA $73
 $BC8B: D0 13    BNE $BCA0 ; Loop back if not zero
-$BC8D: A4 77    LDY #$77
-$BC8F: A6 71    LDX #$71
+$BC8D: A4 77    LDY $77
+$BC8F: A6 71    LDX $71
 $BC91: B1 79    LDA #$79
 $BC93: 91 75    STA $75
 $BC95: C8       INY
@@ -6511,11 +6511,11 @@ $BC9B: C6 66    DEC $66
 $BC9D: D0 EE    BNE $BC8D ; Loop back if not zero
 $BC9F: 60       RTS
 
-$BCA0: A5 77    LDA #$77
+$BCA0: A5 77    LDA $77
 $BCA2: 18       CLC
 $BCA3: 65 71    ADC #$71
 $BCA5: A8       TAY
-$BCA6: A6 71    LDX #$71
+$BCA6: A6 71    LDX $71
 $BCA8: B1 75    LDA #$75
 $BCAA: 91 79    STA $79
 $BCAC: 88       DEY
@@ -6633,12 +6633,12 @@ $BD2B: D0 F3    BNE $BD20 ; Loop back if not zero
 $BD2D: 85 6A    STA $6A
 $BD2F: 60       RTS
 
-$BD30: A5 64    LDA #$64
+$BD30: A5 64    LDA $64
 $BD32: 18       CLC
 $BD33: 69 0C    ADC #$0C
 $BD35: 85 72    STA $72
-$BD37: A6 64    LDX #$64
-$BD39: A4 77    LDY #$77
+$BD37: A6 64    LDX $64
+$BD39: A4 77    LDY $77
 $BD3B: BD 80 BF LDA $BF80
 $BD3E: 91 79    STA $79
 $BD40: E8       INX
@@ -6863,28 +6863,28 @@ $BDEA: 60       RTS             ; Return with display list safely modified
 
 $BDEB: A9 FF    LDA #$FF
 $BDED: 85 60    STA $60
-$BDEF: A5 12    LDA #$12
+$BDEF: A5 12    LDA $12
 $BDF1: C9 B8    CMP #$B8
 $BDF3: B0 0C    BCS $BE01 ; Branch if carry set
 $BDF5: C9 18    CMP #$18
 $BDF7: B0 0E    BCS $BE07 ; Branch if carry set
-$BDF9: A5 60    LDA #$60
+$BDF9: A5 60    LDA $60
 $BDFB: 29 FE    AND #$FE
 $BDFD: 85 60    STA $60
 $BDFF: D0 06    BNE $BE07 ; Loop back if not zero
-$BE01: A5 60    LDA #$60
+$BE01: A5 60    LDA $60
 $BE03: 29 FD    AND #$FD
 $BE05: 85 60    STA $60
-$BE07: A5 11    LDA #$11
+$BE07: A5 11    LDA $11
 $BE09: C9 B8    CMP #$B8
 $BE0B: B0 0C    BCS $BE19 ; Branch if carry set
 $BE0D: C9 18    CMP #$18
 $BE0F: B0 0E    BCS $BE1F ; Branch if carry set
-$BE11: A5 60    LDA #$60
+$BE11: A5 60    LDA $60
 $BE13: 29 FB    AND #$FB
 $BE15: 85 60    STA $60
 $BE17: D0 06    BNE $BE1F ; Loop back if not zero
-$BE19: A5 60    LDA #$60
+$BE19: A5 60    LDA $60
 $BE1B: 29 F7    AND #$F7
 $BE1D: 85 60    STA $60
 $BE1F: 60       RTS
