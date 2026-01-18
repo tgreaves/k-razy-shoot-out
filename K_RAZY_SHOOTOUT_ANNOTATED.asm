@@ -1812,12 +1812,12 @@ $A336: 85 95    STA $95         ; Clear enemy slot 2 (0=empty, 1=active/defeated
 $A338: 85 96    STA $96         ; Clear enemy slot 3 (0=empty, 1=active/defeated)
                                 ; When all 3 slots = 0, exits become active
 $A33A: 20 C3 BB JSR set_sector_difficulty ; Load difficulty parameters for current sector
-$A33D: 20 74 B9 JSR $B974 ; Graphics/sprite updates
-$A340: 20 AD AF JSR $AFAD ; Input handling routine
-$A343: 20 11 BC JSR $BC11 ; Sound/audio updates
+$A33D: 20 74 B9 JSR generate_arena ; Generate arena layout and patterns
+$A340: 20 AD AF JSR pmg_system_init ; Input handling routine
+$A343: 20 11 BC JSR position_player_and_activate_enemies ; Position player and activate enemy system
 
 $A346: 20 4F B1 sector_game_loop:
-                JSR $B14F ; Collision detection
+                JSR move_missiles_in_flight ; Move active player missiles
 $A349: 20 B3 B2 JSR $B2B3 ; Enemy AI/movement
 $A34C: 20 BF B4 JSR $B4BF ; Display updates
 $A34F: A5 DA    LDA #$DA
@@ -2336,7 +2336,7 @@ $A543: A2 30    LDX #$30 ; Set X to $30 (48 decimal) for text setup
 $A545: A9 01    LDA #$01 ; Set flag to 1 (enable something)
 $A547: 85 DB    STA $DB ; Store flag in game state variable
 $A549: A0 18    LDY #$18 ; Set Y to $18 (24 decimal) for display
-$A54B: 20 B0 BD JSR $BDB0 ; Call text display setup routine
+$A54B: 20 B0 BD JSR prepare_display_and_input_scanning ; Initialize hardware for display
 $A54E: A9 00    LDA #$00 ; Clear zero page variable again
 $A550: 85 0E    STA $0E ; Store in zero page $0E
 $A552: 85 0C    STA $0C ; Clear zero page variable $0C
@@ -2376,7 +2376,7 @@ $A580: 60       RTS ; Return from additional setup
 ; ===============================================================================
 
 $A581: 20 A2 BD JSR clear_collision_registers ; Clear collision detection for new level
-$A584: 20 B0 BD JSR $BDB0 ; Call text display setup routine
+$A584: 20 B0 BD JSR prepare_display_and_input_scanning ; Initialize hardware for new level
 $A587: AD 0A E8 LDA $E80A ; Load hardware configuration
 $A58A: 29 F0    AND #$F0 ; Mask upper 4 bits
 $A58C: 09 08    ORA #$08 ; Set bit 3 (enable feature)
@@ -2645,14 +2645,14 @@ $A6E4: BD E3 A3 LDA $A3E3 ; Load from text data table
 $A6E7: 9D 52 06 STA $0652 ; Store to screen memory area
 $A6EA: CA       DEX ; Decrement copy counter
 $A6EB: D0 F7    BNE $A6E4 ; Continue copying text data
-$A6ED: A9 07    LDA #$07 ; Set up display parameters
-$A6EF: A2 A6    LDX #$A6 ; X coordinate for display
-$A6F1: A0 3B    LDY #$3B ; Y coordinate for display
-$A6F3: 20 D5 BD JSR $BDD5 ; Call display positioning routine
+$A6ED: A9 07    LDA #$07 ; **SECTOR DISPLAY SETUP** - Load sector number/display parameter
+$A6EF: A2 A6    LDX #$A6 ; X coordinate for display (166 decimal)
+$A6F1: A0 3B    LDY #$3B ; Y coordinate for display (59 decimal)
+$A6F3: 20 D5 BD JSR configure_display_list ; **CONFIGURE DISPLAY LIST** - Set up screen positioning for sector display
 $A6F6: A2 30    LDX #$30 ; Set up text display (48 chars)
 $A6F8: A9 02    LDA #$02 ; Text display mode 2
 $A6FA: A0 08    LDY #$08 ; Text height (8 lines)
-$A6FC: 20 B0 BD JSR $BDB0 ; Call text setup routine
+$A6FC: 20 B0 BD JSR prepare_display_and_input_scanning ; Initialize hardware for sector display
 $A6FF: AD 0A E8 LDA $E80A ; Load hardware configuration
 $A702: 29 F0    AND #$F0 ; Mask upper 4 bits
 $A704: 09 08    ORA #$08 ; Set display enable bit
@@ -3138,7 +3138,7 @@ $AA40: D0 F8    BNE $AA3A       ; Outer delay loop - allows player to see arena 
 $AA42: 4C 13 AA JMP $AA13       ; **CONTINUE ARENA GENERATION** - Loop back for next element
 $AA45: A9 A0    LDA #$A0        ; **PHASE 4: ARENA GENERATION COMPLETE**
 $AA47: 8D 01 E8 STA $E801       ; Finalize sprite configuration
-$AA4A: 20 B0 BD JSR $BDB0       ; **SCORE DISPLAY SYSTEM SETUP** - Text display setup routine
+$AA4A: 20 B0 BD JSR prepare_display_and_input_scanning ; **SCORE DISPLAY SYSTEM SETUP** - Initialize hardware
 $AA4D: A5 92    LDA $92         ; Load game state parameter
 $AA4F: 85 0D    STA $0D         ; Store in zero page for fast access
 $AA51: A9 00    LDA #$00        ; Clear secondary parameter
@@ -3276,7 +3276,7 @@ $AB16: A5 D9    LDA #$D9
 $AB18: C9 02    CMP #$02 ; Calculate enemy speed
 $AB1A: D0 03    BNE $AB1F ; Loop back if not zero
 $AB1C: 4C D2 AB JMP $ABD2 ; Calculate spawn rate
-$AB1F: 20 B0 BD JSR $BDB0 ; Text display setup routine
+$AB1F: 20 B0 BD JSR prepare_display_and_input_scanning ; Initialize hardware
 $AB22: A9 7C    LDA #$7C
 $AB24: 85 0D    STA $0D
 $AB26: A9 00    LDA #$00
@@ -3410,7 +3410,7 @@ $ABF1: 85 A4    STA $A4
 ; ===============================================================================
 
 $ABF3: A4 A6    LDY #$A6 ; Enemy spawning and management system
-$ABF5: 20 B0 BD JSR $BDB0 ; Text display setup routine
+$ABF5: 20 B0 BD JSR prepare_display_and_input_scanning ; Initialize hardware
 $ABF8: A9 00    LDA #$00
 $ABFA: 85 0E    STA $0E
 $ABFC: A5 92    LDA #$92
@@ -4016,7 +4016,7 @@ $AF4F: 85 8C    STA $8C         ; Store stationary parameter
 $AF51: 20 41 BC JSR $BC41       ; Call sprite positioning routine
 $AF54: A9 00    LDA #$00        ; Set sprite orientation flag
 $AF56: 85 73    STA $73         ; Store orientation flag
-$AF58: 20 58 BC JSR $BC58       ; Call sprite setup routine
+$AF58: 20 58 BC JSR update_hpos ; Call sprite setup routine
 $AF5B: A5 78    LDA $78         ; Load sprite position parameter
 $AF5D: 85 80    STA $80         ; Store as X position
 $AF5F: A5 60    LDA $60         ; **READ JOYSTICK INPUT** - Check direction
@@ -4042,7 +4042,7 @@ $AF83: 85 8C    STA $8C         ; Store stationary parameter
 $AF85: 20 41 BC JSR $BC41       ; Call sprite positioning routine
 $AF88: A9 01    LDA #$01        ; Set sprite orientation flag
 $AF8A: 85 73    STA $73         ; Store orientation flag
-$AF8C: 20 58 BC JSR $BC58       ; Call sprite setup routine
+$AF8C: 20 58 BC JSR update_hpos ; Call sprite setup routine
 $AF8F: A5 78    LDA $78         ; Load sprite position parameter
 $AF91: 85 80    STA $80         ; Store as X position
 $AF93: A5 60    LDA $60         ; **READ JOYSTICK INPUT** - Check direction
@@ -4090,6 +4090,7 @@ $AFAC: 60       RTS             ; Return from alternative sprite handling
 ; 7. Load initial player position and sprite data
 ; ===============================================================================
 
+pmg_system_init:
 $AFAD: A2 00    LDX #$00        ; **CLEAR PMG MEMORY** - Initialize index
 $AFAF: A9 00    LDA #$00        ; Load zero for clearing
 $AFB1: 95 80    STA $80,X       ; Clear zero page PMG variables
@@ -4152,7 +4153,7 @@ $B027: 20 BD BD JSR clear_game_state ; **CLEAR GAME STATE** - Reset sprite/sound
 $B02A: A9 07    LDA #$07        ; **SET SOUND PARAMETERS** - Load sound value
 $B02C: A2 A6    LDX #$A6        ; Load sound parameter X
 $B02E: A0 3B    LDY #$3B        ; Load sound parameter Y
-$B030: 4C D5 BD JMP $BDD5       ; **JUMP TO SOUND SETUP** - Initialize audio system
+$B030: 4C D5 BD JMP configure_display_list       ; **JUMP TO SOUND SETUP** - Initialize audio system
 ; ===============================================================================
 ; AUDIO/SOUND SYSTEM ($B033-$B116)
 ; ===============================================================================
@@ -4214,6 +4215,10 @@ $B070: 20 8E B0 JSR $B08E       ; Call timing routine (fade delay)
 $B073: A0 FF    LDY #$FF        ; Load fade parameter
 $B075: 20 8E B0 JSR $B08E       ; Call timing routine (fade delay)
 $B078: 60       RTS             ; **RETURN** - Sound generation complete
+
+
+
+
 $B079: A5 0E    LDA $0E         ; **SOUND MODULATION** - Load modulation flag
 $B07B: F0 08    BEQ $B085       ; Branch if no modulation
 $B07D: A9 00    LDA #$00        ; Clear modulation parameters
@@ -4393,134 +4398,157 @@ $B14B: CA       DEX             ; Decrement outer delay counter (X register)
 $B14C: D0 F8    BNE $B146       ; Loop back to inner delay until X reaches zero
 $B14E: 60       RTS             ; Return from timing delay routine
 ; ===============================================================================
-; COLLISION_DETECT ($B14F)
+; MISSILE_MOVEMENT_AND_ANIMATION ($B14F-$B23C)
 ; ===============================================================================
-COLLISION_DETECTION_SYSTEM:
-; Collision detection system
-; This routine:
-; - Checks player-enemy collisions
-; - Processes bullet-enemy collisions
-; - Handles collision responses
-; - Updates collision flags
-; - Triggers collision effects
+; **PLAYER MISSILE MOVEMENT AND SPRITE ANIMATION SYSTEM**
+; This routine handles player-fired missile movement and associated sprite
+; animations. It processes up to 4 active missiles ($E2-$E5) and updates
+; their positions based on movement direction ($88).
+;
+; **FUNCTION**:
+; 1. Checks timing counter ($A8) - only processes every Nth frame
+; 2. Checks if any missiles are active ($E2-$E5)
+; 3. For each active missile:
+;    - Reads movement direction ($88)
+;    - Updates missile position ($DE)
+;    - Calls sprite animation routines ($BCB7, $BC58)
+;    - Updates missile Y position ($E2-$E5)
+; 4. Increments timing counter and compares with speed ($D6)
+;
+; **TIMING CONTROL**:
+; - $A8: Frame counter for missile movement timing
+; - $D6: Speed threshold (from difficulty table)
+; - Movement only occurs when $A8 reaches $D6
+;
+; **MISSILE VARIABLES**:
+; - $E2-$E5: Missile Y positions (0=inactive)
+; - $DE: Missile X position
+; - $88: Movement direction (1-9 for 8 directions)
+; - $77: Temporary missile position storage
+;
+; **CALLED FROM**:
+; - $A346: Main game loop (sector_game_loop)
 ; ===============================================================================
 
-$B14F: A5 A8    LDA #$A8
-$B151: D0 05    BNE $B158 ; Loop back if not zero
-$B153: 85 04    STA $04
-$B155: 4C 2D B2 JMP $B22D ; Check player-powerup collisions
-$B158: A5 E2    LDA #$E2
-$B15A: 05 E3    ORA #$E3
-$B15C: 05 E4    ORA #$E4
-$B15E: 05 E5    ORA #$E5
-$B160: D0 03    BNE $B165 ; Loop back if not zero
-$B162: 4C 2D B2 JMP $B22D
-$B165: A9 00    LDA #$00
-$B167: 85 67    STA $67
-$B169: A5 67    LDA #$67
-$B16B: 85 72    STA $72
-$B16D: C9 04    CMP #$04
-$B16F: F0 F1    BEQ $B162 ; Branch if equal/zero
-$B171: A9 04    LDA #$04
-$B173: 85 68    STA $68
-$B175: A5 67    LDA #$67
-$B177: 85 72    STA $72
-$B179: AA       TAX
-$B17A: B5 E2    LDA #$E2
-$B17C: D0 05    BNE $B183 ; Loop back if not zero
-$B17E: E6 67    INC $67
-$B180: 4C 69 B1 JMP $B169
-$B183: 85 77    STA $77
-$B185: A5 68    LDA #$68
-$B187: 38       SEC
-$B188: E9 01    SBC #$01
-$B18A: 85 68    STA $68
-$B18C: F0 F0    BEQ $B17E ; Branch if equal/zero
-$B18E: B5 DE    LDA #$DE
-$B190: 85 78    STA $78
-$B192: B5 88    LDA #$88
-$B194: C9 07    CMP #$07
-$B196: 30 2F    BMI $B1C7
-$B198: C9 07    CMP #$07
-$B19A: D0 04    BNE $B1A0 ; Loop back if not zero
-$B19C: A9 00    LDA #$00
-$B19E: F0 02    BEQ $B1A2 ; Branch if equal/zero
-$B1A0: A9 01    LDA #$01
-$B1A2: 85 73    STA $73
-$B1A4: 20 B7 BC JSR $BCB7
-$B1A7: A5 67    LDA #$67
-$B1A9: 85 72    STA $72
-$B1AB: 20 B7 BC JSR $BCB7
-$B1AE: A5 67    LDA #$67
-$B1B0: 85 72    STA $72
-$B1B2: 20 B7 BC JSR $BCB7
-$B1B5: A5 67    LDA #$67
-$B1B7: 85 72    STA $72
-$B1B9: 20 B7 BC JSR $BCB7
-$B1BC: A6 67    LDX #$67
-$B1BE: A5 77    LDA #$77
-$B1C0: 95 E2    STA $E2
-$B1C2: E6 67    INC $67
-$B1C4: 4C 69 B1 JMP $B169
-$B1C7: C9 04    CMP #$04
-$B1C9: 30 31    BMI $B1FC
-$B1CB: 8A       TXA
-$B1CC: 18       CLC
-$B1CD: 69 04    ADC #$04
-$B1CF: 85 74    STA $74
-$B1D1: A9 01    LDA #$01
-$B1D3: 85 73    STA $73
-$B1D5: 20 58 BC JSR $BC58
-$B1D8: A6 67    LDX #$67
-$B1DA: A5 78    LDA #$78
-$B1DC: 95 DE    STA $DE
-$B1DE: B5 88    LDA #$88
-$B1E0: C9 05    CMP #$05
-$B1E2: F0 91    BEQ $B175 ; Branch if equal/zero
-$B1E4: C9 04    CMP #$04
-$B1E6: D0 04    BNE $B1EC ; Loop back if not zero
-$B1E8: A9 00    LDA #$00
-$B1EA: F0 02    BEQ $B1EE ; Branch if equal/zero
-$B1EC: A9 01    LDA #$01
-$B1EE: 85 73    STA $73
-$B1F0: 20 B7 BC JSR $BCB7
-$B1F3: A6 67    LDX #$67
-$B1F5: A5 77    LDA #$77
-$B1F7: 95 E2    STA $E2
-$B1F9: 4C 75 B1 JMP $B175
-$B1FC: 8A       TXA
-$B1FD: 18       CLC
-$B1FE: 69 04    ADC #$04
-$B200: 85 74    STA $74
-$B202: A9 00    LDA #$00
-$B204: 85 73    STA $73
-$B206: 20 58 BC JSR $BC58
-$B209: A6 67    LDX #$67
-$B20B: A5 78    LDA #$78
-$B20D: 95 DE    STA $DE
-$B20F: B5 88    LDA #$88
-$B211: C9 02    CMP #$02
-$B213: F0 E4    BEQ $B1F9 ; Branch if equal/zero
-$B215: C9 01    CMP #$01
-$B217: D0 04    BNE $B21D ; Loop back if not zero
-$B219: A9 00    LDA #$00
-$B21B: F0 02    BEQ $B21F ; Branch if equal/zero
-$B21D: A9 01    LDA #$01
-$B21F: 85 73    STA $73
-$B221: 20 B7 BC JSR $BCB7
-$B224: A6 67    LDX #$67
-$B226: A5 77    LDA #$77
-$B228: 95 E2    STA $E2
-$B22A: 4C 75 B1 JMP $B175
-$B22D: A5 A8    LDA #$A8
-$B22F: 18       CLC
-$B230: 69 01    ADC #$01
-$B232: 85 A8    STA $A8
-$B234: C5 D6    CMP #$D6
-$B236: D0 04    BNE $B23C ; Loop back if not zero
-$B238: A9 00    LDA #$00
-$B23A: 85 A8    STA $A8
-$B23C: 60       RTS
+move_missiles_in_flight:
+$B14F: A5 A8    LDA $A8         ; **LOAD TIMING COUNTER** - Check frame counter
+$B151: D0 05    BNE $B158       ; **SKIP IF NOT ZERO** - Only process on specific frames
+$B153: 85 04    STA $04         ; **CLEAR VARIABLE** - Reset $04 to zero
+$B155: 4C 2D B2 JMP $B22D       ; **JUMP TO COUNTER UPDATE** - Skip missile processing this frame
+$B158: A5 E2    LDA $E2         ; **CHECK MISSILE 1** - Load missile 1 Y position
+$B15A: 05 E3    ORA $E3         ; **CHECK MISSILE 2** - OR with missile 2 Y position
+$B15C: 05 E4    ORA $E4         ; **CHECK MISSILE 3** - OR with missile 3 Y position
+$B15E: 05 E5    ORA $E5         ; **CHECK MISSILE 4** - OR with missile 4 Y position
+$B160: D0 03    BNE $B165       ; **BRANCH IF ANY ACTIVE** - Process if any missile != 0
+$B162: 4C 2D B2 JMP $B22D       ; **NO MISSILES ACTIVE** - Skip to counter update
+$B165: A9 00    LDA #$00        ; **INITIALIZE MISSILE INDEX** - Start with missile 0
+$B167: 85 67    STA $67         ; **STORE MISSILE INDEX** - Save in $67
+
+$B169: A5 67    LDA $67         ; **LOAD MISSILE INDEX** - Get current missile being processed
+$B16B: 85 72    STA $72         ; **STORE IN $72** - Copy for subroutine use
+$B16D: C9 04    CMP #$04        ; **CHECK IF DONE** - Processed all 4 missiles?
+$B16F: F0 F1    BEQ $B162       ; **EXIT IF DONE** - Jump to counter update
+$B171: A9 04    LDA #$04        ; **LOAD RETRY COUNTER** - Set to 4 attempts
+$B173: 85 68    STA $68         ; **STORE RETRY COUNTER** - Save in $68
+$B175: A5 67    LDA $67         ; **LOAD MISSILE INDEX** - Get current missile
+$B177: 85 72    STA $72         ; **STORE IN $72** - Copy for subroutine use
+$B179: AA       TAX             ; **TRANSFER TO X** - Use as index register
+$B17A: B5 E2    LDA $E2,X       ; **LOAD MISSILE Y POSITION** - Get Y pos from $E2-$E5
+$B17C: D0 05    BNE $B183       ; **BRANCH IF ACTIVE** - Process if missile Y != 0
+$B17E: E6 67    INC $67         ; **NEXT MISSILE** - Increment missile index
+$B180: 4C 69 B1 JMP $B169       ; **LOOP BACK** - Check next missile
+$B183: 85 77    STA $77         ; **SAVE MISSILE Y** - Store Y position in $77
+$B185: A5 68    LDA $68         ; **LOAD RETRY COUNTER** - Get retry count
+$B187: 38       SEC             ; **SET CARRY** - Prepare for subtraction
+$B188: E9 01    SBC #$01        ; **DECREMENT RETRY** - Subtract 1
+$B18A: 85 68    STA $68         ; **STORE RETRY COUNTER** - Save decremented value
+$B18C: F0 F0    BEQ $B17E       ; **NEXT MISSILE IF DONE** - Move to next if retries exhausted
+$B18E: B5 DE    LDA $DE,X       ; **LOAD MISSILE X POSITION** - Get X pos from $DE-$E1
+$B190: 85 78    STA $78         ; **SAVE MISSILE X** - Store X position in $78
+$B192: B5 88    LDA $88,X       ; **LOAD MOVEMENT DIRECTION** - Get direction from $88-$8B
+$B194: C9 07    CMP #$07        ; **CHECK DIRECTION** - Compare with 7 (DOWN)
+$B196: 30 2F    BMI $B1C7       ; **BRANCH IF < 7** - Handle directions 1-6
+$B198: C9 07    CMP #$07        ; **CHECK IF EXACTLY 7** - Is it DOWN?
+$B19A: D0 04    BNE $B1A0       ; **BRANCH IF NOT 7** - Handle direction 8-9
+$B19C: A9 00    LDA #$00        ; **VERTICAL MOVEMENT** - Set flag for vertical
+$B19E: F0 02    BEQ $B1A2       ; **SKIP TO ANIMATION** - Always branches
+$B1A0: A9 01    LDA #$01        ; **DIAGONAL MOVEMENT** - Set flag for diagonal
+$B1A2: 85 73    STA $73         ; **STORE MOVEMENT TYPE** - Save in $73
+$B1A4: 20 B7 BC JSR update_vpos_with_masking ; **CALL SPRITE ANIMATION** - Update sprite for movement
+$B1A7: A5 67    LDA $67         ; **RELOAD MISSILE INDEX** - Get current missile
+$B1A9: 85 72    STA $72         ; **STORE IN $72** - Copy for subroutine
+$B1AB: 20 B7 BC JSR update_vpos_with_masking ; **CALL SPRITE ANIMATION** - Additional animation update
+$B1AE: A5 67    LDA $67         ; **RELOAD MISSILE INDEX** - Get current missile
+$B1B0: 85 72    STA $72         ; **STORE IN $72** - Copy for subroutine
+$B1B2: 20 B7 BC JSR update_vpos_with_masking ; **CALL SPRITE ANIMATION** - Additional animation update
+$B1B5: A5 67    LDA $67         ; **RELOAD MISSILE INDEX** - Get current missile
+$B1B7: 85 72    STA $72         ; **STORE IN $72** - Copy for subroutine
+$B1B9: 20 B7 BC JSR update_vpos_with_masking ; **CALL SPRITE ANIMATION** - Additional animation update
+$B1BC: A6 67    LDX $67         ; **LOAD MISSILE INDEX TO X** - Get index in X register
+$B1BE: A5 77    LDA $77         ; **LOAD SAVED Y POSITION** - Get missile Y from $77
+$B1C0: 95 E2    STA $E2,X       ; **UPDATE MISSILE Y** - Store back to $E2-$E5
+$B1C2: E6 67    INC $67         ; **NEXT MISSILE** - Increment missile index
+$B1C4: 4C 69 B1 JMP $B169       ; **LOOP BACK** - Process next missile
+$B1C7: C9 04    CMP #$04        ; **CHECK DIRECTION** - Compare with 4 (LEFT)
+$B1C9: 30 31    BMI $B1FC       ; **BRANCH IF < 4** - Handle directions 1-3
+$B1CB: 8A       TXA             ; **TRANSFER INDEX** - Move missile index to A
+$B1CC: 18       CLC             ; **CLEAR CARRY** - Prepare for addition
+$B1CD: 69 04    ADC #$04        ; **ADD OFFSET** - Add 4 to index
+$B1CF: 85 74    STA $74         ; **STORE OFFSET INDEX** - Save in $74
+$B1D1: A9 01    LDA #$01        ; **MOVEMENT FLAG** - Set to 1
+$B1D3: 85 73    STA $73         ; **STORE MOVEMENT TYPE** - Save in $73
+$B1D5: 20 58 BC JSR update_hpos ; **CALL POSITION UPDATE** - Update missile position
+$B1D8: A6 67    LDX $67         ; **RELOAD MISSILE INDEX** - Get index in X
+$B1DA: A5 78    LDA $78         ; **LOAD UPDATED X** - Get new X position
+$B1DC: 95 DE    STA $DE,X       ; **UPDATE MISSILE X** - Store to $DE-$E1
+$B1DE: B5 88    LDA $88,X       ; **LOAD MOVEMENT DIRECTION** - Get direction again
+$B1E0: C9 05    CMP #$05        ; **CHECK IF 5** - Is it UP-LEFT?
+$B1E2: F0 91    BEQ $B175       ; **LOOP BACK IF 5** - Continue processing
+$B1E4: C9 04    CMP #$04        ; **CHECK IF 4** - Is it LEFT?
+$B1E6: D0 04    BNE $B1EC       ; **BRANCH IF NOT 4** - Handle direction 6
+$B1E8: A9 00    LDA #$00        ; **HORIZONTAL MOVEMENT** - Set flag for horizontal
+$B1EA: F0 02    BEQ $B1EE       ; **SKIP TO ANIMATION** - Always branches
+$B1EC: A9 01    LDA #$01        ; **DIAGONAL MOVEMENT** - Set flag for diagonal
+$B1EE: 85 73    STA $73         ; **STORE MOVEMENT TYPE** - Save in $73
+$B1F0: 20 B7 BC JSR update_vpos_with_masking ; **CALL SPRITE ANIMATION** - Update sprite
+$B1F3: A6 67    LDX $67         ; **RELOAD MISSILE INDEX** - Get index in X
+$B1F5: A5 77    LDA $77         ; **LOAD SAVED Y** - Get missile Y from $77
+$B1F7: 95 E2    STA $E2,X       ; **UPDATE MISSILE Y** - Store to $E2-$E5
+$B1F9: 4C 75 B1 JMP $B175       ; **LOOP BACK** - Continue processing
+$B1FC: 8A       TXA             ; **TRANSFER INDEX** - Move missile index to A
+$B1FD: 18       CLC             ; **CLEAR CARRY** - Prepare for addition
+$B1FE: 69 04    ADC #$04        ; **ADD OFFSET** - Add 4 to index
+$B200: 85 74    STA $74         ; **STORE OFFSET INDEX** - Save in $74
+$B202: A9 00    LDA #$00        ; **MOVEMENT FLAG** - Set to 0
+$B204: 85 73    STA $73         ; **STORE MOVEMENT TYPE** - Save in $73
+$B206: 20 58 BC JSR update_hpos ; **CALL POSITION UPDATE** - Update missile position
+$B209: A6 67    LDX $67         ; **RELOAD MISSILE INDEX** - Get index in X
+$B20B: A5 78    LDA $78         ; **LOAD UPDATED X** - Get new X position
+$B20D: 95 DE    STA $DE,X       ; **UPDATE MISSILE X** - Store to $DE-$E1
+$B20F: B5 88    LDA $88,X       ; **LOAD MOVEMENT DIRECTION** - Get direction again
+$B211: C9 02    CMP #$02        ; **CHECK IF 2** - Is it UP-RIGHT?
+$B213: F0 E4    BEQ $B1F9       ; **LOOP BACK IF 2** - Continue processing
+$B215: C9 01    CMP #$01        ; **CHECK IF 1** - Is it DOWN-LEFT?
+$B217: D0 04    BNE $B21D       ; **BRANCH IF NOT 1** - Handle direction 3
+$B219: A9 00    LDA #$00        ; **VERTICAL MOVEMENT** - Set flag for vertical
+$B21B: F0 02    BEQ $B21F       ; **SKIP TO ANIMATION** - Always branches
+$B21D: A9 01    LDA #$01        ; **DIAGONAL MOVEMENT** - Set flag for diagonal
+$B21F: 85 73    STA $73         ; **STORE MOVEMENT TYPE** - Save in $73
+$B221: 20 B7 BC JSR update_vpos_with_masking ; **CALL SPRITE ANIMATION** - Update sprite
+$B224: A6 67    LDX $67         ; **RELOAD MISSILE INDEX** - Get index in X
+$B226: A5 77    LDA $77         ; **LOAD SAVED Y** - Get missile Y from $77
+$B228: 95 E2    STA $E2,X       ; **UPDATE MISSILE Y** - Store to $E2-$E5
+$B22A: 4C 75 B1 JMP $B175       ; **LOOP BACK** - Continue processing
+
+$B22D: A5 A8    LDA $A8         ; **LOAD TIMING COUNTER** - Get frame counter
+$B22F: 18       CLC             ; **CLEAR CARRY** - Prepare for addition
+$B230: 69 01    ADC #$01        ; **INCREMENT COUNTER** - Add 1
+$B232: 85 A8    STA $A8         ; **STORE COUNTER** - Save incremented value
+$B234: C5 D6    CMP $D6         ; **COMPARE WITH SPEED** - Check against speed threshold
+$B236: D0 04    BNE $B23C       ; **RETURN IF NOT EQUAL** - Skip reset if not at threshold
+$B238: A9 00    LDA #$00        ; **RESET COUNTER** - Load zero
+$B23A: 85 A8    STA $A8         ; **STORE ZERO** - Reset timing counter
+$B23C: 60       RTS             ; **RETURN** - Exit routine
 ; ===============================================================================
 ; PLAYER_WEAPON_SOUND_GENERATOR ($B23D-$B2B2)
 ; ===============================================================================
@@ -4656,57 +4684,59 @@ $B2B2: 60       RTS             ; Return from sustain phase
 ; 5. **Missile Setup**: Sets enemy missile positions ($E2/$DE) and enables firing
 ; ===============================================================================
 
-$B2B3: A9 13    LDA #$13
-$B2B5: 85 7A    STA $7A
-$B2B7: A9 00    LDA #$00
-$B2B9: 85 67    STA $67
-$B2BB: A6 67    LDX #$67 ; Update enemy states
-$B2BD: E6 7A    INC $7A ; Process enemy attacks
-$B2BF: B5 93    LDA #$93
-$B2C1: F0 39    BEQ $B2FC ; Branch if equal/zero
-$B2C3: C9 01    CMP #$01 ; Process enemy death
-$B2C5: D0 10    BNE $B2D7 ; Loop back if not zero
-$B2C7: A9 00    LDA #$00
-$B2C9: 8D 06 E8 STA $E806
-$B2CC: 85 B3    STA $B3
-$B2CE: A9 8F    LDA #$8F
-$B2D0: 85 B2    STA $B2
-$B2D2: 8D 07 E8 STA $E807
-$B2D5: 85 BE    STA $BE
-$B2D7: B5 93    LDA #$93
-$B2D9: 29 F0    AND #$F0
-$B2DB: D0 0C    BNE $B2E9 ; Loop back if not zero
-$B2DD: B5 93    LDA #$93
-$B2DF: 95 08    STA $08
-$B2E1: 18       CLC
-$B2E2: 69 03    ADC #$03
-$B2E4: 95 93    STA $93
-$B2E6: 4C FC B2 JMP $B2FC
-$B2E9: A5 9B    LDA #$9B
-$B2EB: D0 0F    BNE $B2FC ; Loop back if not zero
-$B2ED: B5 93    LDA $93,X       ; Load player position from slot
-$B2EF: 85 69    STA $69         ; Store in position variable
-$B2F1: B4 84    LDY $84,X       ; Load Y coordinate
-$B2F3: 20 47 BD JSR $BD47       ; **CHECK BOUNDARY** - sets $97 if escaped
-$B2F6: A6 67    LDX $67         ; Restore index
-$B2F8: A5 69    LDA $69         ; Load updated position
-$B2FA: 95 93    STA $93,X       ; Store back to position slot
-$B2FC: A5 67    LDA #$67
-$B2FE: 18       CLC
-$B2FF: 69 01    ADC #$01
-$B301: 85 67    STA $67
-$B303: C9 04    CMP #$04
-$B305: B0 03    BCS $B30A ; Branch if carry set
-$B307: 4C BB B2 JMP $B2BB
-$B30A: A5 9B    LDA #$9B
-$B30C: 18       CLC
-$B30D: 69 01    ADC #$01
-$B30F: 85 9B    STA $9B
-$B311: C9 03    CMP #$03
-$B313: 30 04    BMI $B319
-$B315: A9 00    LDA #$00
-$B317: 85 9B    STA $9B
-$B319: 60       RTS
+; TODO: Dig into this section next.
+
+$B2B3: A9 13    LDA #$13        ; **INITIALIZE SPRITE HEIGHT** - Load 19 pixels
+$B2B5: 85 7A    STA $7A         ; **STORE HEIGHT** - Save sprite height
+$B2B7: A9 00    LDA #$00        ; **INITIALIZE INDEX** - Start with enemy 0
+$B2B9: 85 67    STA $67         ; **STORE ENEMY INDEX** - Save in $67
+$B2BB: A6 67    LDX $67         ; **LOAD ENEMY INDEX** - Get current enemy being processed
+$B2BD: E6 7A    INC $7A         ; **INCREMENT HEIGHT** - Adjust sprite height
+$B2BF: B5 93    LDA $93,X       ; **LOAD ENEMY STATE** - Get enemy status from $93-$96
+$B2C1: F0 39    BEQ $B2FC       ; **SKIP IF INACTIVE** - Branch if enemy state = 0
+$B2C3: C9 01    CMP #$01        ; **CHECK IF SPAWNING** - Is enemy in spawn state?
+$B2C5: D0 10    BNE $B2D7       ; **SKIP IF NOT SPAWNING** - Branch if state != 1
+$B2C7: A9 00    LDA #$00        ; **CLEAR AUDIO** - Load zero
+$B2C9: 8D 06 E8 STA $E806       ; **AUDC3** - Clear audio control 3
+$B2CC: 85 B3    STA $B3         ; **CLEAR VARIABLE** - Reset $B3
+$B2CE: A9 8F    LDA #$8F        ; **LOAD AUDIO VALUE** - Set audio parameter
+$B2D0: 85 B2    STA $B2         ; **STORE AUDIO** - Save in $B2
+$B2D2: 8D 07 E8 STA $E807       ; **AUDC4** - Set audio control 4
+$B2D5: 85 BE    STA $BE         ; **STORE VARIABLE** - Save in $BE
+$B2D7: B5 93    LDA $93,X       ; **RELOAD ENEMY STATE** - Get enemy status again
+$B2D9: 29 F0    AND #$F0        ; **MASK HIGH NIBBLE** - Check upper 4 bits
+$B2DB: D0 0C    BNE $B2E9       ; **BRANCH IF SET** - Skip if high bits set
+$B2DD: B5 93    LDA $93,X       ; **LOAD ENEMY STATE** - Get enemy status
+$B2DF: 95 08    STA $08,X       ; **STORE TO BACKUP** - Save state to $08-$0B
+$B2E1: 18       CLC             ; **CLEAR CARRY** - Prepare for addition
+$B2E2: 69 03    ADC #$03        ; **INCREMENT STATE** - Add 3 to state
+$B2E4: 95 93    STA $93,X       ; **UPDATE ENEMY STATE** - Store new state
+$B2E6: 4C FC B2 JMP $B2FC       ; **CONTINUE** - Jump to next enemy
+$B2E9: A5 9B    LDA $9B         ; **LOAD COUNTER** - Get animation/timing counter
+$B2EB: D0 0F    BNE $B2FC       ; **SKIP IF NOT ZERO** - Branch if counter active
+$B2ED: B5 93    LDA $93,X       ; **LOAD ENEMY POSITION** - Get position from slot
+$B2EF: 85 69    STA $69         ; **STORE POSITION** - Save in position variable
+$B2F1: B4 84    LDY $84,X       ; **LOAD Y COORDINATE** - Get Y position
+$B2F3: 20 47 BD JSR $BD47       ; **CHECK BOUNDARY** - Call boundary check (sets $97 if escaped)
+$B2F6: A6 67    LDX $67         ; **RESTORE INDEX** - Reload enemy index
+$B2F8: A5 69    LDA $69         ; **LOAD UPDATED POSITION** - Get modified position
+$B2FA: 95 93    STA $93,X       ; **STORE BACK** - Save to position slot
+$B2FC: A5 67    LDA $67         ; **LOAD ENEMY INDEX** - Get current index
+$B2FE: 18       CLC             ; **CLEAR CARRY** - Prepare for addition
+$B2FF: 69 01    ADC #$01        ; **NEXT ENEMY** - Increment to next enemy
+$B301: 85 67    STA $67         ; **STORE INDEX** - Save updated index
+$B303: C9 04    CMP #$04        ; **CHECK IF DONE** - Processed all 4 enemies?
+$B305: B0 03    BCS $B30A       ; **EXIT IF DONE** - Branch if >= 4
+$B307: 4C BB B2 JMP $B2BB       ; **LOOP BACK** - Process next enemy
+$B30A: A5 9B    LDA $9B         ; **LOAD ANIMATION COUNTER** - Get counter
+$B30C: 18       CLC             ; **CLEAR CARRY** - Prepare for addition
+$B30D: 69 01    ADC #$01        ; **INCREMENT COUNTER** - Add 1
+$B30F: 85 9B    STA $9B         ; **STORE COUNTER** - Save updated counter
+$B311: C9 03    CMP #$03        ; **CHECK LIMIT** - Counter reached 3?
+$B313: 30 04    BMI $B319       ; **RETURN IF < 3** - Branch if less than 3
+$B315: A9 00    LDA #$00        ; **RESET COUNTER** - Load zero
+$B317: 85 9B    STA $9B         ; **STORE ZERO** - Reset counter
+$B319: 60       RTS             ; **RETURN** - Exit routine
 ; ===============================================================================
 ; LEVEL-BASED FIRING CONTROL ($B31A)
 ; **FIRING FREQUENCY PERMISSION CHECK**
@@ -4734,42 +4764,42 @@ $B340: B5 E2    LDA $E2,X       ; **MISSILE AVAILABILITY CHECK** - Load enemy mi
 $B342: 15 93    ORA $93,X       ; Combine with enemy position status
 $B344: F0 03    BEQ $B349       ; Branch if no active missile (FIRING POSSIBLE)
 $B346: 4C B3 B4 JMP $B4B3       ; Exit if missile already active (NO FIRING)
-$B349: A5 80    LDA #$80
-$B34B: 85 92    STA $92
-$B34D: B5 80    LDA #$80
-$B34F: 85 78    STA $78
-$B351: C5 80    CMP #$80
-$B353: B0 0E    BCS $B363 ; Branch if carry set
-$B355: 85 6B    STA $6B
-$B357: A5 80    LDA #$80
-$B359: 85 78    STA $78
-$B35B: A5 6B    LDA #$6B
-$B35D: 85 92    STA $92
-$B35F: A9 01    LDA #$01
-$B361: 85 9C    STA $9C
-$B363: 38       SEC
-$B364: A5 78    LDA #$78
-$B366: E5 92    SBC #$92
-$B368: 85 9E    STA $9E
-$B36A: 85 6C    STA $6C
-$B36C: A9 03    LDA #$03
-$B36E: 85 6B    STA $6B
-$B370: 20 09 BD JSR $BD09
-$B373: A6 67    LDX #$67
-$B375: A5 6C    LDA #$6C
-$B377: 85 A0    STA $A0
-$B379: A5 84    LDA #$84
-$B37B: 85 92    STA $92
-$B37D: B5 84    LDA #$84
-$B37F: 85 77    STA $77
-$B381: C5 84    CMP #$84
-$B383: B0 0E    BCS $B393 ; Branch if carry set
-$B385: 85 6B    STA $6B
-$B387: A5 84    LDA #$84
-$B389: 85 77    STA $77
-$B38B: A5 6B    LDA #$6B
-$B38D: 85 92    STA $92
-$B38F: A9 02    LDA #$02
+$B349: A5 80    LDA $80         ; **LOAD PLAYER X** - Get player X position
+$B34B: 85 92    STA $92         ; **STORE PLAYER X** - Save in $92
+$B34D: B5 80    LDA $80,X       ; **LOAD ENEMY X** - Get enemy X position
+$B34F: 85 78    STA $78         ; **STORE ENEMY X** - Save in $78
+$B351: C5 80    CMP $80         ; **COMPARE POSITIONS** - Enemy X vs Player X
+$B353: B0 0E    BCS $B363       ; **BRANCH IF ENEMY >= PLAYER** - Skip if enemy to right
+$B355: 85 6B    STA $6B         ; **STORE ENEMY X** - Save for calculation
+$B357: A5 80    LDA $80         ; **LOAD PLAYER X** - Get player X again
+$B359: 85 78    STA $78         ; **STORE AS TARGET** - Save as target position
+$B35B: A5 6B    LDA $6B         ; **LOAD ENEMY X** - Get enemy X back
+$B35D: 85 92    STA $92         ; **STORE AS SOURCE** - Save as source position
+$B35F: A9 01    LDA #$01        ; **SET DIRECTION FLAG** - Enemy left of player
+$B361: 85 9C    STA $9C         ; **STORE DIRECTION** - Save horizontal direction
+$B363: 38       SEC             ; **SET CARRY** - Prepare for subtraction
+$B364: A5 78    LDA $78         ; **LOAD TARGET X** - Get target position
+$B366: E5 92    SBC $92         ; **CALCULATE DISTANCE** - Target - Source
+$B368: 85 9E    STA $9E         ; **STORE X DISTANCE** - Save horizontal distance
+$B36A: 85 6C    STA $6C         ; **STORE FOR CALCULATION** - Save for division
+$B36C: A9 03    LDA #$03        ; **LOAD DIVISOR** - Set divisor to 3
+$B36E: 85 6B    STA $6B         ; **STORE DIVISOR** - Save divisor
+$B370: 20 09 BD JSR $BD09       ; **CALL DIVISION** - Divide distance by 3
+$B373: A6 67    LDX $67         ; **RESTORE ENEMY INDEX** - Get enemy index back
+$B375: A5 6C    LDA $6C         ; **LOAD RESULT** - Get division result
+$B377: 85 A0    STA $A0         ; **STORE X VELOCITY** - Save horizontal velocity
+$B379: A5 84    LDA $84         ; **LOAD PLAYER Y** - Get player Y position
+$B37B: 85 92    STA $92         ; **STORE PLAYER Y** - Save in $92
+$B37D: B5 84    LDA $84,X       ; **LOAD ENEMY Y** - Get enemy Y position
+$B37F: 85 77    STA $77         ; **STORE ENEMY Y** - Save in $77
+$B381: C5 84    CMP $84         ; **COMPARE POSITIONS** - Enemy Y vs Player Y
+$B383: B0 0E    BCS $B393       ; **BRANCH IF ENEMY >= PLAYER** - Skip if enemy below
+$B385: 85 6B    STA $6B         ; **STORE ENEMY Y** - Save for calculation
+$B387: A5 84    LDA $84         ; **LOAD PLAYER Y** - Get player Y again
+$B389: 85 77    STA $77         ; **STORE AS TARGET** - Save as target position
+$B38B: A5 6B    LDA $6B         ; **LOAD ENEMY Y** - Get enemy Y back
+$B38D: 85 92    STA $92         ; **STORE AS SOURCE** - Save as source position
+$B38F: A9 02    LDA #$02        ; **SET DIRECTION FLAG** - Enemy above player
 $B391: 85 9D    STA $9D
 $B393: 38       SEC
 $B394: A5 77    LDA #$77
@@ -5256,7 +5286,7 @@ $B63B: 85 64    STA $64
 $B63D: 95 8C    STA $8C
 $B63F: 20 30 BD JSR $BD30
 $B642: A6 67    LDX #$67
-$B644: 20 58 BC JSR $BC58
+$B644: 20 58 BC JSR update_hpos
 $B647: A6 67    LDX #$67
 $B649: A5 78    LDA #$78
 $B64B: 95 80    STA $80
@@ -5633,6 +5663,7 @@ $B89A: 60       RTS             ; Arena pattern transfer complete
 ; Clears 768+ bytes across three screen memory pages plus specific areas.
 ; ===============================================================================
 
+clear_screen_memory:
 $B89B: A9 00    LDA #$00        ; **SCREEN MEMORY CLEAR** - Load zero for clearing
 $B89D: A2 00    LDX #$00        ; Initialize counter (will wrap from $00 to $FF)
 $B89F: 9D 00 28 STA $2800,X     ; Clear screen memory page $2800-$28FF (256 bytes)
@@ -5883,10 +5914,11 @@ $B96F: 60       RTS             ; Return from forward element processing
 ; - Multiple calls ensure proper wall/exit pattern integration
 ; ===============================================================================
 
-$B970: 20 20 20 JSR $2020       ; Call system routine (possibly display/timing)
-$B973: 31 20    AND ($20),Y     ; Mask operation with indirect addressing
-$B975: 9B       .byte $9B       ; Data byte (possibly sprite/pattern data)
-$B976: B8       CLV             ; **CLEAR OVERFLOW FLAG** - Reset processor state
+$B970: 20 20 20 .byte $20,$20,$20  ; Data bytes (padding or table data)
+$B973: 31       .byte $31       ; Data byte
+
+generate_arena:
+$B974: 20 9B B8 JSR clear_screen_memory ; **ARENA GENERATION CALL** - Clear screen before generation
 $B977: A9 A2    LDA #$A2        ; **INITIALIZATION PHASE** - Load base parameter
 $B979: 85 06    STA $06         ; Store in zero page variable
 $B97B: A9 70    LDA #$70        ; Load secondary parameter
@@ -6282,7 +6314,7 @@ $BBDE: BD E6 BB LDA $BBE6,X     ; Load parameter 2 from sector table
 $BBE1: 85 D6    STA $D6         ; Store game speed parameter
 $BBE3: 60       RTS             ; Return
 ; ===============================================================================
-; SECTOR DIFFICULTY PARAMETER TABLES ($BBE4-$BC03)
+; SECTOR DIFFICULTY PARAMETER TABLES ($BBE4-$BC10)
 ; ===============================================================================
 ; **ENEMY FIRING FREQUENCY AND DIFFICULTY DATA**
 ; Format: 4 bytes per sector (D1, D7, D6, D8)
@@ -6301,6 +6333,9 @@ $BBE3: 60       RTS             ; Return
 ; Sector 5: D7=$13 (19)  = 3.15 shots/sec (every 317ms)
 ; Sector 6: D7=$06 (6)   = 9.99 shots/sec (every 100ms)
 ; Sector 7: D7=$04 (4)   = 14.98 shots/sec (every 67ms)
+; Sector 8: D7=$FF (255) = 0.23 shots/sec (every 4256ms) - Extended difficulty
+; Sector 9: D7=$3A (58)  = 1.03 shots/sec (every 968ms)
+; Sector 10: D7=$36 (54) = 1.11 shots/sec (every 901ms)
 ;
 ; **ACTUAL RATES** (accounting for randomization and conditions):
 ; - ~25% of theoretical due to hardware randomization ($E80A & #$03 ≠ 0)
@@ -6312,6 +6347,9 @@ $BBE3: 60       RTS             ; Return
 ; - Sector 5: ~0.79 shots/sec (every ~1.3 seconds)
 ; - Sector 6: ~2.50 shots/sec (every ~0.4 seconds)
 ; - Sector 7: ~3.75 shots/sec (every ~0.27 seconds)
+; - Sector 8: ~0.06 shots/sec (every ~17 seconds) - Very slow extended level
+; - Sector 9: ~0.26 shots/sec (every ~3.9 seconds)
+; - Sector 10: ~0.28 shots/sec (every ~3.6 seconds)
 ; ===============================================================================
 $BBE4: .byte $0E, $00, $02, $15    ; Sector 0: No firing (D7=$00)
 $BBE8: .byte $14, $60, $02, $12    ; Sector 1: 0.6 shots/sec (D7=$60=96)
@@ -6320,203 +6358,71 @@ $BBF0: .byte $1D, $30, $04, $06    ; Sector 3: 1.2 shots/sec (D7=$30=48)
 $BBF4: .byte $20, $25, $0A, $04    ; Sector 4: 1.6 shots/sec (D7=$25=37)
 $BBF8: .byte $24, $13, $50, $03    ; Sector 5: 3.2 shots/sec (D7=$13=19)
 $BBFC: .byte $36, $06, $FF, $01    ; Sector 6: 10.0 shots/sec (D7=$06=6)
-$BC00: .byte $75, $04, $FF, $01    ; Level 7: 15.0 shots/sec (D7=$04=4)
+$BC00: .byte $75, $04, $FF, $01    ; Sector 7: 15.0 shots/sec (D7=$04=4)
+$BC04: .byte $01, $FF, $01, $3C    ; Sector 8: 0.23 shots/sec (D7=$FF=255) - Extended level
+$BC08: .byte $3A, $38, $36, $34    ; Sector 9: 1.03 shots/sec (D7=$38=56)
+$BC0C: .byte $32, $30, $2E, $2C    ; Sector 10: 1.11 shots/sec (D7=$30=48)
 
 ; ===============================================================================
-; COMPLETE ARENA GENERATION SYSTEM SUMMARY
+; PLAYER_RESET_AND_INITIALIZATION ($BC11-$BC3E)
 ; ===============================================================================
-; K-Razy Shoot-Out implements a sophisticated multi-layered procedural arena
-; generation system that combines multiple techniques:
+; **PLAYER CHARACTER RESET AND ENEMY SLOT CLEARING**
+; This routine resets the player character to a starting position and clears
+; enemy slot status. Called at the beginning of each sector or after player death.
+; It randomizes the starting X position and initializes player/enemy state variables.
 ;
-; **LAYER 1: BASIC SEQUENTIAL PLACEMENT** ($ACD9)
-; - Simple 39-element sequential placement system
-; - Each element = 20 bytes placed at calculated screen positions
-; - Uses basic alternation between wall ($AA) and empty ($00) patterns
-; - Formula: screen_address = $2800 + (element_count × 20)
+; **FUNCTION**:
+; 1. Randomly selects starting position (index 2 or 3 from $BFD4 table)
+; 2. Sets player X position ($80) and hardware register ($C000/HPOSP0)
+; 3. Sets player Y position to $66 (102 decimal)
+; 4. Clears enemy slot status ($94-$96) - marks all 3 enemy slots as empty
+; 5. Sets active flags ($98-$9A) - enables player, enemy, and missile systems
+; 6. Jumps to additional player setup routine at $B4CB
 ;
-; **LAYER 2: ADVANCED PATTERN GENERATION** ($B8AF)
-; - Sophisticated bit-manipulation system for complex patterns
-; - Position-dependent conditional logic with 4 different bit masks
-; - Pattern combination using ORA operations with existing screen data
-; - Enhanced position calculations with alignment and masking
+; **RANDOMIZATION**:
+; - Uses hardware random register ($E80A) to select between X positions
+; - If random bit 0 = 0: Uses index 2 (X=$6E/110)
+; - If random bit 0 = 1: Uses index 3 (X=$87/135)
+; - This provides variety in player starting positions
 ;
-; **LAYER 3: HARDWARE RANDOMIZATION** ($B9D6)
-; - True hardware random number generation using $E80A register
-; - Rejection sampling to ensure uniform 0-5 distribution
-; - Random values stored in $6C for maze variation parameters
-; - Creates "seemingly random" but deterministic level variations
+; **ENEMY SLOT CLEARING**:
+; - $94, $95, $96: Enemy slot status (0=empty, 1=defeated)
+; - Clearing these allows new enemies to spawn
+; - Only cleared if game state ($D4) < difficulty ($D1)
 ;
-; **LAYER 4: SELF-MODIFYING CODE** ($A9D3)
-; - Level-based instruction modification: LSR $B689
-; - Changes immediate values in STA instructions based on current level
-; - Creates level-specific parameter variations without lookup tables
-; - Provides deterministic but unpredictable maze layouts per sector
+; **ACTIVE FLAGS**:
+; - $98: Player active flag (1=active)
+; - $99: Enemy active flag (1=active)
+; - $9A: Missile active flag (1=active)
 ;
-; **LAYER 5: STAGING AND TRANSFER SYSTEM** ($B889)
-; - Pre-calculation of arena patterns in staging areas ($06xx)
-; - Transfer of calculated patterns to specific screen memory locations
-; - Two-phase approach: calculate patterns, then transfer to display
-; - Enables complex pattern preprocessing before screen display
-; - **EXIT FINALIZATION**: Transfers calculated exit hole patterns to final screen positions
-;
-; **COMPLETE EXIT PLACEMENT SYSTEM ANALYSIS**:
-; The exit placement mechanism represents one of the most sophisticated aspects
-; of the arena generation system, involving coordination between all 5 layers
-; plus the newly discovered control and sequencing systems:
-;
-; **STEP 1 - ELEMENT TARGETING** (Layer 1 - $ACD9):
-; - Arena generation loop specifically identifies Element 2 and Element 38
-; - Element 2: Positioned early in sequence (left wall area)
-; - Element 38: Positioned late in sequence (right wall area)  
-; - Each element represents a 20-byte vertical column in the arena
-;
-; **STEP 2 - CONTROL SYSTEM COORDINATION** ($B90D-$B96F):
-; - Multi-element generation controller manages complex parameter sequences
-; - Handles bidirectional processing (forward/backward element generation)
-; - Uses conditional logic to determine generation paths based on comparisons
-; - Preserves and restores state across multiple generation calls
-; - Enables precise control over which elements receive exit modifications
-;
-; **STEP 3 - ORCHESTRATED GENERATION SEQUENCE** ($B970-$B9D4):
-; - Coordinated sequence specifically targets Elements 2 and 38 for exit processing
-; - $B9A7: Sets element counter to 2 (left exit) for specialized processing
-; - $B9B5: Sets element counter to $26 (38 decimal, right exit) for processing
-; - Multiple passes ensure proper wall/exit pattern integration
-; - Alternates between wall generation ($AA patterns) and exit modifications
-;
-; **STEP 4 - RANDOM VERTICAL POSITIONING** (Layer 3 - $B9D6):
-; - Hardware random generator creates value 0-5 for vertical offset
-; - Same random value used for both exits (consistent but varied placement)
-; - Value stored in $6C and used by pattern generation routines
-; - Creates 6 possible exit heights within each 20-byte element column
-;
-; **STEP 5 - EXIT HOLE PATTERN CREATION** (Layer 2 - $B8AF):
-; - Advanced pattern generation creates actual exit holes using bit masks
-; - Different mask patterns ($C0, $30, $0C, $03) create varied hole sizes
-; - Pattern selection based on element position and random vertical offset
-; - ORA operations combine exit patterns with existing wall data
-;
-; **STEP 6 - PATTERN STAGING AND TRANSFER** (Layer 5 - $B889):
-; - Exit patterns pre-calculated in staging areas ($0629, $0615)
-; - Final transfer to screen memory positions ($2E29, $2E15)
-; - Screen coordinates align with Element 2 and Element 38 positions
-; - Creates visible exit holes for player navigation
-;
-; **STEP 7 - LEVEL-SPECIFIC VARIATIONS** (Layer 4 - $A9D3):
-; - Self-modifying code (LSR $B689) creates level-based exit variations
-; - Different levels may have different exit sizes or positions
-; - Maintains deterministic but unpredictable exit placement per sector
-;
-; **RESULT**: 
-; Every arena has exactly 2 exits (left and right walls) at seemingly random
-; vertical positions, but the system is actually deterministic with hardware
-; randomization providing controlled variation. The sophisticated control and
-; sequencing systems ensure precise targeting of Elements 2 and 38 while
-; maintaining proper wall structure around the exits.
-;
-; **INTEGRATION**:
-; All layers work together to create varied, structured maze layouts:
-; - Perimeter walls with strategically placed exit holes
-; - Interior obstacles and pathways
-; - Level-specific variations in exit positions and internal structure
-; - Hardware randomization within deterministic constraints
-; - Visual generation timing for player feedback
-;
-; **EXIT PLACEMENT MECHANISM**:
-; The sophisticated exit placement system works through multiple coordinated layers:
-;
-; 1. **ELEMENT TARGETING**: The arena generation specifically targets certain elements
-;    for exit placement. Based on the 39-element sequential system ($ACD9), exits
-;    are placed at predetermined element positions:
-;    - Element 2: LEFT SIDE EXIT (early in sequence, left wall area)
-;    - Element 38: RIGHT SIDE EXIT (late in sequence, right wall area)
-;
-; 2. **VERTICAL RANDOMIZATION**: The hardware randomization system ($B9D6) generates
-;    random values (0-5) that determine the VERTICAL POSITION within each exit element:
-;    - Random value stored in $6C determines Y-offset within the 20-byte element block
-;    - Creates "seemingly random" vertical exit positions while maintaining left/right placement
-;    - Each element spans 20 bytes vertically, allowing 6 different exit heights
-;
-; 3. **PATTERN MASKING**: The advanced pattern generation ($B8AF) uses different bit masks
-;    to create the actual exit holes:
-;    - Normal wall elements use full pattern data ($AA = solid wall)
-;    - Exit elements use masked patterns to create openings
-;    - Mask selection based on element position and random vertical offset
-;
-; 4. **STAGING AND TRANSFER**: The $B889 routine transfers the calculated exit patterns
-;    from staging areas ($06xx) to final screen positions, ensuring exits appear at
-;    the correct screen coordinates for player navigation.
-;
-; This explains the user's observation: "every level will ALWAYS have walls around 
-; the outside with TWO holes - one on the left, one on the right at seemingly 
-; random vertical levels." The system is deterministic (always 2 exits, always 
-; left/right) but uses hardware randomization for vertical positioning variety.
-;
-; This represents remarkably sophisticated procedural generation for 1981,
-; combining multiple coordinated systems: basic placement, advanced pattern
-; generation, hardware randomization, self-modifying code, staging/transfer,
-; multi-element control, and orchestrated sequencing. The system demonstrates
-; exceptional engineering that creates engaging and varied gameplay while
-; maintaining consistent game mechanics across all sectors.
+; **CALLED FROM**:
+; - $A343: Main game loop (sector initialization)
 ; ===============================================================================
-;
-; **LAYER 1: FREQUENCY CONTROL (VBI-synchronized timing)**
-; - $A7 = Frame counter (increments each VBI at 59.92 Hz)
-; - $D7 = Frequency limit (loaded from level table at $BBE4)
-; - Enemies can only attempt to fire when $A7 = 0
-; - Creates level-based difficulty scaling from 0.62 to 14.98 shots/sec
-;
-; **LAYER 2: TARGETING DECISION (Position-based AI)**
-; - Calculates player-enemy distance in X/Y directions
-; - Creates 4-bit targeting value based on alignment thresholds
-; - Selects from 8 different firing patterns based on positioning
-; - Ensures intelligent targeting rather than random firing
-;
-; **LAYER 3: MISSILE EXECUTION (Graphics and sound)**
-; - Sets missile positions with spawn offsets (+5Y, +3X from enemy)
-; - Applies rotation effects for visual variety per enemy
-; - Triggers POKEY sound effects for audio feedback
-; - Updates screen memory with missile graphics
-;
-; **DIFFICULTY PROGRESSION:**
-; Level 0: Tutorial (no firing) - Learn movement and escape mechanics
-; Level 1-2: Beginner (0.15-0.23 shots/sec) - Introduction to combat
-; Level 3-4: Intermediate (0.31-0.40 shots/sec) - Standard challenge
-; Level 5: Advanced (0.79 shots/sec) - High skill required
-; Level 6-7: Expert (2.5-3.75 shots/sec) - Maximum challenge
-;
-; This system demonstrates sophisticated game design for 1981, combining
-; mathematical precision with intuitive gameplay progression.
-; ===============================================================================
-$BC05: 01 FF    ORA #$FF
-$BC07: 01 3C    ORA #$3C
-$BC09: 3A       .byte $3A        ; Data byte
-$BC0A: 38       SEC
-$BC0B: 36 34    ROL $34
-$BC0D: 32       .byte $32        ; Data byte
-$BC0E: 30 2E    BMI $BC3E
-$BC10: 2C A2 02 BIT $02A2
-$BC13: AD 0A E8 LDA $E80A
-$BC16: 29 01    AND #$01
-$BC18: D0 02    BNE $BC1C ; Loop back if not zero
-$BC1A: A2 03    LDX #$03
-$BC1C: BD D4 BF LDA $BFD4
-$BC1F: 85 80    STA $80
-$BC21: 8D 00 C0 STA $C000
-$BC24: A9 66    LDA #$66
-$BC26: 85 84    STA $84
-$BC28: A5 D4    LDA #$D4
-$BC2A: C5 D1    CMP #$D1
-$BC2C: B0 08    BCS $BC36 ; Branch if carry set
-$BC2E: A9 00    LDA #$00
-$BC30: 85 94    STA $94
-$BC32: 85 95    STA $95
-$BC34: 85 96    STA $96
-$BC36: A9 01    LDA #$01
-$BC38: 85 98    STA $98
-$BC3A: 85 99    STA $99
-$BC3C: 85 9A    STA $9A
-$BC3E: 4C CB B4 JMP $B4CB
+
+position_player_and_activate_enemies:
+$BC11: A2 02    LDX #$02        ; **INITIALIZE INDEX** - Default to position 2
+$BC13: AD 0A E8 LDA $E80A       ; **HARDWARE RANDOMIZATION** - Read random register
+$BC16: 29 01    AND #$01        ; **MASK BIT 0** - Get random 0 or 1
+$BC18: D0 02    BNE $BC1C       ; **BRANCH IF BIT SET** - Use index 3 if random bit = 1
+$BC1A: A2 03    LDX #$03        ; **ALTERNATE INDEX** - Use position 3
+$BC1C: BD D4 BF LDA $BFD4,X     ; **LOAD STARTING X POSITION** - Get X coord from table
+$BC1F: 85 80    STA $80         ; **STORE PLAYER X** - Save to player X position variable
+$BC21: 8D 00 C0 STA $C000       ; **HPOSP0** - Set Player 0 hardware X position
+$BC24: A9 66    LDA #$66        ; **LOAD STARTING Y** - Y position = 102 decimal
+$BC26: 85 84    STA $84         ; **STORE PLAYER Y** - Save to player Y position variable
+$BC28: A5 D4    LDA $D4         ; **LOAD GAME STATE** - Check current game state
+$BC2A: C5 D1    CMP $D1         ; **COMPARE WITH DIFFICULTY** - Check against difficulty parameter
+$BC2C: B0 08    BCS $BC36       ; **BRANCH IF HIGHER** - Skip clearing if state >= difficulty
+$BC2E: A9 00    LDA #$00        ; **CLEAR VALUE** - Load zero
+$BC30: 85 94    STA $94         ; **CLEAR ENEMY SLOT 1** - Mark enemy slot 1 as empty
+$BC32: 85 95    STA $95         ; **CLEAR ENEMY SLOT 2** - Mark enemy slot 2 as empty
+$BC34: 85 96    STA $96         ; **CLEAR ENEMY SLOT 3** - Mark enemy slot 3 as empty
+$BC36: A9 01    LDA #$01        ; **INITIALIZE VALUE** - Load 1
+$BC38: 85 98    STA $98         ; **SET PLAYER ACTIVE** - Enable player system
+$BC3A: 85 99    STA $99         ; **SET ENEMY ACTIVE** - Enable enemy system
+$BC3C: 85 9A    STA $9A         ; **SET MISSILE ACTIVE** - Enable missile system
+$BC3E: 4C CB B4 JMP $B4CB       ; **JUMP TO PLAYER SETUP** - Continue initialization
+
 $BC41: A5 64    LDA #$64
 $BC43: 18       CLC
 $BC44: 65 72    ADC #$72
@@ -6530,26 +6436,60 @@ $BC52: C8       INY
 $BC53: E4 72    CPX #$72
 $BC55: D0 F5    BNE $BC4C ; Loop back if not zero
 $BC57: 60       RTS
-$BC58: A6 74    LDX #$74
-$BC5A: A4 65    LDY #$65
-$BC5C: A5 73    LDA #$73
-$BC5E: F0 0E    BEQ $BC6E ; Branch if equal/zero
-$BC60: A5 78    LDA #$78
-$BC62: 18       CLC
-$BC63: 69 01    ADC #$01
-$BC65: 9D 00 C0 STA $C000
-$BC68: 85 78    STA $78
-$BC6A: 88       DEY
-$BC6B: D0 F5    BNE $BC62 ; Loop back if not zero
-$BC6D: 60       RTS
-$BC6E: A5 78    LDA #$78
-$BC70: 38       SEC
-$BC71: E9 01    SBC #$01
-$BC73: 9D 00 C0 STA $C000
-$BC76: 85 78    STA $78
-$BC78: 88       DEY
-$BC79: D0 F5    BNE $BC70 ; Loop back if not zero
-$BC7B: 60       RTS
+
+; ===============================================================================
+; ADJUST_HORIZONTAL_POSITION ($BC58-$BC7B)
+; ===============================================================================
+; **HORIZONTAL POSITION ADJUSTMENT WITH HARDWARE UPDATE**
+; This routine adjusts a horizontal position value and updates the corresponding
+; hardware position register. Used for moving sprites/missiles left or right.
+;
+; **INPUT PARAMETERS**:
+; - $73: Direction flag (0=left/decrement, 1=right/increment)
+; - $74: Hardware register offset (added to $C000 base)
+; - $65: Number of pixels to move (loop counter)
+; - $78: Current X position
+;
+; **FUNCTION**:
+; - If $73 = 0: Decrements $78 by $65 (moves left)
+; - If $73 = 1: Increments $78 by $65 (moves right)
+; - Updates hardware register $C000+$74 each iteration
+; - Returns updated position in $78
+;
+; **HARDWARE REGISTERS**:
+; - $C000-$C003: HPOSP0-HPOSP3 (Player horizontal positions)
+; - $C004-$C007: HPOSM0-HPOSM3 (Missile horizontal positions)
+;
+; **CALLED FROM**:
+; - $AF58, $AF8C: Player sprite positioning
+; - $B1D5, $B206: Missile movement system
+; - $B644: Additional sprite positioning
+; ===============================================================================
+
+update_hpos:
+$BC58: A6 74    LDX $74         ; **LOAD REGISTER OFFSET** - Get hardware register index
+$BC5A: A4 65    LDY $65         ; **LOAD MOVE DISTANCE** - Get number of pixels to move
+$BC5C: A5 73    LDA $73         ; **LOAD DIRECTION FLAG** - Check movement direction
+$BC5E: F0 0E    BEQ $BC6E       ; **BRANCH IF ZERO** - Jump to decrement (left/up)
+; **INCREMENT PATH (RIGHT/DOWN MOVEMENT)**
+$BC60: A5 78    LDA $78         ; **LOAD CURRENT X** - Get current position
+$BC62: 18       CLC             ; **CLEAR CARRY** - Prepare for addition
+$BC63: 69 01    ADC #$01        ; **INCREMENT X** - Move right by 1 pixel
+$BC65: 9D 00 C0 STA $C000,X     ; **UPDATE HARDWARE** - Write to position register
+$BC68: 85 78    STA $78         ; **STORE NEW X** - Save updated position
+$BC6A: 88       DEY             ; **DECREMENT COUNTER** - One less pixel to move
+$BC6B: D0 F5    BNE $BC60       ; **LOOP** - Continue until all pixels moved
+$BC6D: 60       RTS             ; **RETURN** - Exit with updated position
+; **DECREMENT PATH (LEFT/UP MOVEMENT)**
+$BC6E: A5 78    LDA $78         ; **LOAD CURRENT X** - Get current position
+$BC70: 38       SEC             ; **SET CARRY** - Prepare for subtraction
+$BC71: E9 01    SBC #$01        ; **DECREMENT X** - Move left by 1 pixel
+$BC73: 9D 00 C0 STA $C000,X     ; **UPDATE HARDWARE** - Write to position register
+$BC76: 85 78    STA $78         ; **STORE NEW X** - Save updated position
+$BC78: 88       DEY             ; **DECREMENT COUNTER** - One less pixel to move
+$BC79: D0 F5    BNE $BC6E       ; **LOOP** - Continue until all pixels moved
+$BC7B: 60       RTS             ; **RETURN** - Exit with updated position
+
 $BC7C: A5 65    LDA #$65
 $BC7E: 85 66    STA $66
 $BC80: A9 FF    LDA #$FF
@@ -6570,6 +6510,7 @@ $BC99: C6 77    DEC $77
 $BC9B: C6 66    DEC $66
 $BC9D: D0 EE    BNE $BC8D ; Loop back if not zero
 $BC9F: 60       RTS
+
 $BCA0: A5 77    LDA #$77
 $BCA2: 18       CLC
 $BCA3: 65 71    ADC #$71
@@ -6584,52 +6525,89 @@ $BCB0: E6 77    INC $77
 $BCB2: C6 66    DEC $66
 $BCB4: D0 EA    BNE $BCA0 ; Loop back if not zero
 $BCB6: 60       RTS
-$BCB7: A9 13    LDA #$13
-$BCB9: 85 7A    STA $7A
-$BCBB: A9 FF    LDA #$FF
-$BCBD: 85 75    STA $75
-$BCBF: A2 13    LDX #$13
-$BCC1: CA       DEX
-$BCC2: 8A       TXA
-$BCC3: 85 76    STA $76
-$BCC5: A5 72    LDA #$72
-$BCC7: AA       TAX
-$BCC8: BD 7C BF LDA $BF7C
-$BCCB: 85 72    STA $72
-$BCCD: 49 FF    EOR #$FF
-$BCCF: 85 74    STA $74
-$BCD1: A2 02    LDX #$02
-$BCD3: A5 73    LDA #$73
-$BCD5: D0 17    BNE $BCEE ; Loop back if not zero
-$BCD7: A4 77    LDY #$77
-$BCD9: B1 75    LDA #$75
-$BCDB: 25 74    AND #$74
-$BCDD: 85 66    STA $66
-$BCDF: B1 79    LDA #$79
-$BCE1: 25 72    AND #$72
-$BCE3: 05 66    ORA #$66
-$BCE5: 91 75    STA $75
-$BCE7: C8       INY
-$BCE8: CA       DEX
-$BCE9: 10 EE    BPL $BCD9
-$BCEB: C6 77    DEC $77
-$BCED: 60       RTS
-$BCEE: A5 77    LDA #$77
-$BCF0: 18       CLC
-$BCF1: 69 02    ADC #$02
-$BCF3: A8       TAY
-$BCF4: B1 79    LDA #$79
-$BCF6: 25 74    AND #$74
-$BCF8: 85 66    STA $66
-$BCFA: B1 75    LDA #$75
-$BCFC: 25 72    AND #$72
-$BCFE: 05 66    ORA #$66
-$BD00: 91 79    STA $79
-$BD02: 88       DEY
-$BD03: CA       DEX
-$BD04: 10 EE    BPL $BCF4
-$BD06: E6 77    INC $77
-$BD08: 60       RTS
+
+; ===============================================================================
+; UPDATE_VPOS_WITH_MASKING ($BCB7-$BD08)
+; ===============================================================================
+; **VERTICAL POSITION UPDATE WITH SPRITE MASKING**
+; This routine updates vertical sprite positions with proper masking to handle
+; sprite overlap and movement. It uses bit masking to clear old sprite data
+; and draw new sprite data at the updated position.
+;
+; **INPUT PARAMETERS**:
+; - $72: Sprite index (used to look up sprite data at $BF7C)
+; - $73: Direction flag (0=up/decrement, 1=down/increment)
+; - $77: Current Y position
+; - $75/$76: Pointer to sprite memory (high/low bytes)
+; - $79/$7A: Pointer to destination memory (high/low bytes)
+;
+; **FUNCTION**:
+; 1. Loads sprite pattern from $BF7C table
+; 2. Creates inverted mask (EOR #$FF) for clearing
+; 3. If $73 = 0: Moves sprite up (decrements Y)
+; 4. If $73 = 1: Moves sprite down (increments Y)
+; 5. Uses AND/ORA operations to mask and draw sprite
+;
+; **MASKING TECHNIQUE**:
+; - AND with inverted pattern clears old sprite bits
+; - ORA with normal pattern sets new sprite bits
+; - Prevents sprite corruption during movement
+;
+; **CALLED FROM**:
+; - $B1A4, $B1AB, $B1B2, $B1B9: Missile movement (multiple calls for smooth animation)
+; - $B1F0, $B221: Additional missile animation updates
+; ===============================================================================
+
+update_vpos_with_masking:
+$BCB7: A9 13    LDA #$13        ; **INITIALIZE HEIGHT** - Load sprite height (19 pixels)
+$BCB9: 85 7A    STA $7A         ; **STORE HEIGHT** - Save in $7A
+$BCBB: A9 FF    LDA #$FF        ; **INITIALIZE MASK** - Load $FF for masking
+$BCBD: 85 75    STA $75         ; **STORE MASK HIGH** - Save high byte
+$BCBF: A2 13    LDX #$13        ; **LOAD COUNTER** - Initialize to 19
+$BCC1: CA       DEX             ; **DECREMENT COUNTER** - Reduce by 1
+$BCC2: 8A       TXA             ; **TRANSFER TO A** - Move counter to accumulator
+$BCC3: 85 76    STA $76         ; **STORE MASK LOW** - Save low byte
+$BCC5: A5 72    LDA $72         ; **LOAD SPRITE INDEX** - Get sprite table index
+$BCC7: AA       TAX             ; **TRANSFER TO X** - Use as index register
+$BCC8: BD 7C BF LDA $BF7C,X     ; **LOAD SPRITE PATTERN** - Get pattern from table
+$BCCB: 85 72    STA $72         ; **STORE PATTERN** - Save sprite pattern
+$BCCD: 49 FF    EOR #$FF        ; **INVERT PATTERN** - Create clear mask (flip all bits)
+$BCCF: 85 74    STA $74         ; **STORE INVERTED** - Save inverted pattern for clearing
+$BCD1: A2 02    LDX #$02        ; **LOAD PIXEL COUNT** - Process 2 pixels
+$BCD3: A5 73    LDA $73         ; **LOAD DIRECTION FLAG** - Check movement direction
+$BCD5: D0 17    BNE $BCEE       ; **BRANCH IF DOWN** - Jump to increment path
+; **DECREMENT PATH (UP MOVEMENT)**
+$BCD7: A4 77    LDY $77         ; **LOAD Y POSITION** - Get current Y coordinate
+$BCD9: B1 75    LDA ($75),Y     ; **LOAD OLD SPRITE DATA** - Read from sprite memory
+$BCDB: 25 74    AND $74         ; **CLEAR OLD BITS** - Mask out old sprite with inverted pattern
+$BCDD: 85 66    STA $66         ; **STORE CLEARED** - Save cleared data
+$BCDF: B1 79    LDA ($79),Y     ; **LOAD DESTINATION** - Read from destination memory
+$BCE1: 25 72    AND $72         ; **MASK WITH PATTERN** - Apply sprite pattern
+$BCE3: 05 66    ORA $66         ; **COMBINE** - Merge cleared and new sprite data
+$BCE5: 91 75    STA ($75),Y     ; **WRITE SPRITE** - Store to sprite memory
+$BCE7: C8       INY             ; **INCREMENT Y** - Move to next scan line
+$BCE8: CA       DEX             ; **DECREMENT COUNTER** - One less pixel to process
+$BCE9: 10 EE    BPL $BCD9       ; **LOOP** - Continue if more pixels
+$BCEB: C6 77    DEC $77         ; **DECREMENT Y POSITION** - Move sprite up
+$BCED: 60       RTS             ; **RETURN** - Exit routine
+; **INCREMENT PATH (DOWN MOVEMENT)**
+$BCEE: A5 77    LDA $77         ; **LOAD Y POSITION** - Get current Y coordinate
+$BCF0: 18       CLC             ; **CLEAR CARRY** - Prepare for addition
+$BCF1: 69 02    ADC #$02        ; **ADD OFFSET** - Move down 2 pixels
+$BCF3: A8       TAY             ; **TRANSFER TO Y** - Use as index
+$BCF4: B1 79    LDA ($79),Y     ; **LOAD DESTINATION** - Read from destination memory
+$BCF6: 25 74    AND $74         ; **CLEAR OLD BITS** - Mask out old sprite with inverted pattern
+$BCF8: 85 66    STA $66         ; **STORE CLEARED** - Save cleared data
+$BCFA: B1 75    LDA ($75),Y     ; **LOAD SPRITE DATA** - Read from sprite memory
+$BCFC: 25 72    AND $72         ; **MASK WITH PATTERN** - Apply sprite pattern
+$BCFE: 05 66    ORA $66         ; **COMBINE** - Merge cleared and new sprite data
+$BD00: 91 79    STA ($79),Y     ; **WRITE SPRITE** - Store to destination memory
+$BD02: 88       DEY             ; **DECREMENT Y** - Move to previous scan line
+$BD03: CA       DEX             ; **DECREMENT COUNTER** - One less pixel to process
+$BD04: 10 EE    BPL $BCF4       ; **LOOP** - Continue if more pixels
+$BD06: E6 77    INC $77         ; **INCREMENT Y POSITION** - Move sprite down
+$BD08: 60       RTS             ; **RETURN** - Exit routine
+
 $BD09: A9 00    LDA #$00
 $BD0B: A2 08    LDX #$08
 $BD0D: 06 6C    ASL $6C
@@ -6641,6 +6619,7 @@ $BD16: E6 6C    INC $6C
 $BD18: CA       DEX
 $BD19: D0 F2    BNE $BD0D ; Loop back if not zero
 $BD1B: 60       RTS
+
 $BD1C: A9 00    LDA #$00
 $BD1E: A2 08    LDX #$08
 $BD20: 46 6C    LSR $6C
@@ -6653,6 +6632,7 @@ $BD2A: CA       DEX
 $BD2B: D0 F3    BNE $BD20 ; Loop back if not zero
 $BD2D: 85 6A    STA $6A
 $BD2F: 60       RTS
+
 $BD30: A5 64    LDA #$64
 $BD32: 18       CLC
 $BD33: 69 0C    ADC #$0C
@@ -6760,12 +6740,42 @@ $BDA9: 9D 00 C0 STA $C000,X      ; Clear collision registers $C000-$C007
 $BDAC: CA       DEX              ; Decrement counter
 $BDAD: 10 FA    BPL $BDA9        ; Loop until all 8 registers cleared
 $BDAF: 60       RTS              ; Return
-$BDB0: A9 40    LDA #$40
-$BDB2: 8D 0E E8 STA $E80E
-$BDB5: 85 00    STA $00
-$BDB7: A9 A0    LDA #$A0
-$BDB9: 8D 09 D4 STA $D409 ; POKEY SKCTL - Serial/keyboard control
-$BDBC: 60       RTS
+
+; ===============================================================================
+; HARDWARE_INIT ($BDB0-$BDBC)
+; ===============================================================================
+; **HARDWARE INITIALIZATION ROUTINE**
+; Initializes critical hardware registers for display and sound systems.
+; This routine is called frequently throughout the game to reset hardware state.
+;
+; **FUNCTION**:
+; 1. Sets $E80E to $40 (64) - Display/sprite control register
+; 2. Sets $00 (zero page) to $40 - Mirror of display control
+; 3. Sets POKEY SKCTL ($D409) to $A0 (160) - Serial/keyboard control
+;
+; **POKEY SKCTL ($D409) = $A0 (10100000 binary)**:
+; - Bit 7 (1): Force break (serial output)
+; - Bit 5 (1): Enable keyboard scan
+; - Bits 0-4 (0): Normal serial mode, no fast pot scan
+;
+; **USAGE CONTEXTS**:
+; - **Sector Setup** ($A54B, $A584, $A6FC): Initialize display for new sector
+; - **Arena Generation** ($AA4A): Reset hardware before arena creation
+; - **Game State Changes** ($AB1F, $ABF5): Reinitialize during gameplay transitions
+;
+; **PURPOSE**:
+; This routine ensures the hardware is in a known state for display rendering
+; and input processing. The $40 value in $E80E/$00 likely controls sprite/display
+; modes, while the POKEY SKCTL setting enables keyboard scanning for joystick input.
+; ===============================================================================
+
+prepare_display_and_input_scanning:
+$BDB0: A9 40    LDA #$40         ; **DISPLAY CONTROL** - Load display mode value
+$BDB2: 8D 0E E8 STA $E80E        ; Set display/sprite control register
+$BDB5: 85 00    STA $00          ; Mirror to zero page for fast access
+$BDB7: A9 A0    LDA #$A0         ; **POKEY CONTROL** - Load SKCTL value ($A0 = 10100000)
+$BDB9: 8D 09 D4 STA $D409        ; **POKEY SKCTL** - Enable keyboard scan, force break
+$BDBC: 60       RTS              ; Return with hardware initialized
 
 ; ===============================================================================
 ; CLEAR GAME STATE ($BDBD)
@@ -6796,18 +6806,60 @@ $BDD0: A9 A0    LDA #$A0         ; Load default sprite character code
 $BDD2: 85 B7    STA $B7          ; Store to zero page variable $B7
 $BDD4: 60       RTS              ; Return
 
-$BDD5: 0A       ASL
-$BDD6: 85 69    STA $69
-$BDD8: 8A       TXA
-$BDD9: A2 05    LDX #$05
-$BDDB: 8D 0A D4 STA $D40A
-$BDDE: CA       DEX
-$BDDF: D0 FD    BNE $BDDE ; Loop back if not zero
-$BDE1: A6 69    LDX #$69
-$BDE3: 8D 05 02 STA $0205
-$BDE6: 98       TYA
-$BDE7: 8D 04 02 STA $0204
-$BDEA: 60       RTS
+; ===============================================================================
+; DISPLAY_LIST_SETUP ($BDD5-$BDEA)
+; ===============================================================================
+; **DISPLAY LIST MODIFICATION WITH SYNCHRONIZED TIMING**
+; This routine modifies the display list with precise timing synchronization
+; to avoid visual artifacts (tearing/glitches) during screen updates.
+;
+; **INPUT PARAMETERS**:
+; - A: Base value (multiplied by 2 via ASL) - typically sector number or display mode
+; - X: Value to write to WSYNC ($A6 = 166) - triggers horizontal sync wait
+; - Y: Vertical position/parameter ($3B = 59)
+;
+; **FUNCTION**:
+; 1. Doubles the accumulator value (ASL) and stores in $69
+; 2. Writes X to POKEY WSYNC ($D40A) - **HALTS CPU until next horizontal scan line**
+; 3. Executes 5-cycle delay loop for additional timing precision
+; 4. Writes doubled A value (from $69) to display list at $0205
+; 5. Writes Y value to display list at $0204
+;
+; **WHY WSYNC AND DELAY?**:
+; - **WSYNC**: Ensures display list modifications happen during horizontal blank
+;   (the brief period when the electron beam returns to start the next scan line)
+; - **5-cycle delay**: Provides additional timing buffer to ensure modifications
+;   complete before the beam starts drawing the next line
+; - **Purpose**: Prevents visual tearing/glitches when changing display list mid-frame
+;
+; **DISPLAY LIST MEMORY ($0204-$0205)**:
+; These locations are part of the display list structure that controls how
+; ANTIC renders the screen. Modifying them with synchronized timing ensures
+; smooth visual transitions without artifacts.
+;
+; **USAGE CONTEXTS**:
+; - **Sector Setup** ($A6F3): Updates display list for sector/level display
+;   * A=07 (sector number), X=$A6, Y=$3B
+;   * Synchronized update prevents visual glitches during sector transition
+; - **Sound System** ($B030): Same timing mechanism for audio/visual coordination
+;
+; **NOT SCREEN ERASING**: This routine modifies display list parameters, not
+; screen memory. Screen clearing is done by other routines (like $B89B).
+; ===============================================================================
+
+configure_display_list:
+$BDD5: 0A       ASL             ; **DOUBLE INPUT VALUE** - Multiply A by 2
+$BDD6: 85 69    STA $69         ; Store doubled value in zero page for later use
+$BDD8: 8A       TXA             ; **TRANSFER X TO A** - Prepare X value for WSYNC
+$BDD9: A2 05    LDX #$05        ; **TIMING DELAY SETUP** - Load 5-cycle counter
+$BDDB: 8D 0A D4 STA $D40A       ; **POKEY WSYNC** - Write to WSYNC, CPU halts until horizontal sync!
+$BDDE: CA       DEX             ; Decrement delay counter (executed after sync)
+$BDDF: D0 FD    BNE $BDDE       ; **5-CYCLE DELAY LOOP** - Additional timing buffer
+$BDE1: A6 69    LDX $69         ; **RELOAD DOUBLED VALUE** - Get processed A value from $69
+$BDE3: 8D 05 02 STA $0205       ; **DISPLAY LIST UPDATE** - Write to DL during safe timing window
+$BDE6: 98       TYA             ; **TRANSFER Y PARAMETER** - Move Y to accumulator  
+$BDE7: 8D 04 02 STA $0204       ; **DISPLAY LIST UPDATE** - Write Y to DL during safe timing window
+$BDEA: 60       RTS             ; Return with display list safely modified
 
 $BDEB: A9 FF    LDA #$FF
 $BDED: 85 60    STA $60
@@ -7355,16 +7407,24 @@ $BFCF: BC       .byte $BC        ; #.####..  - **DETAILED SPRITE** - Complex pat
 $BFD0: 3C       .byte $3C        ; ..####..  - **DETAILED SPRITE** - Complex pattern
 $BFD1: 64       .byte $64        ; .##..#..  - **DETAILED SPRITE** - Complex pattern
 $BFD2: 04       .byte $04        ; .....#..  - **DETAILED SPRITE** - Complex pattern
+$BFD3: 06       .byte $06        ; .....##.  - **DETAILED SPRITE** - Complex pattern
 
 ; ===============================================================================
-; SYSTEM INITIALIZATION AND RESET VECTORS ($BFD3-$BFFF)
-; **SYSTEM STARTUP CODE** - Reset vector handling and initialization
-; This section contains the system reset and initialization code
+; PLAYER STARTING POSITION TABLE ($BFD4-$BFD7)
 ; ===============================================================================
-
-$BFD3: 06 3D    ASL $3D          ; Arithmetic shift left on memory location $3D
-$BFD5: 55 6E    EOR $6E,X        ; Exclusive OR with memory location $6E indexed by X
-$BFD7: 87       .byte $87        ; Data byte - possibly part of initialization data
+; **INITIAL PLAYER X POSITIONS**
+; This table contains 4 possible starting X positions for the player character.
+; The game randomly selects between positions 2 and 3 (index $02 or $03) at
+; the start of each sector using hardware randomization ($E80A).
+;
+; Used by:
+; - $B015: Initial player setup at sector start
+; - $BC1C: Player respawn/reset positioning
+; ===============================================================================
+$BFD4: 3D       .byte $3D        ; Starting position 0: X=61
+$BFD5: 55       .byte $55        ; Starting position 1: X=85
+$BFD6: 6E       .byte $6E        ; Starting position 2: X=110 (commonly used)
+$BFD7: 87       .byte $87        ; Starting position 3: X=135 (commonly used)
 
 ; ===============================================================================
 ; SYSTEM INITIALIZATION AND RESET VECTORS ($BFD8-$BFFF)
