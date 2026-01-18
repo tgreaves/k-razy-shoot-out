@@ -7,11 +7,7 @@
 ; ROM Size: 8KB (8192 bytes)
 ; Memory Map: $A000-$BFFF
 ;
-; This disassembly includes:
-; - ASCII art representations of all graphics
-; - Detailed comments on game mechanics
-; - Hardware register explanations
-; - Game state variable documentation
+; Disassembly by: Tristan Greaves <tristan@extricate.org>
 ;
 ; ===============================================================================
 ; NAVIGATION TABLE OF CONTENTS (Use Ctrl+F to search for these labels)
@@ -39,46 +35,6 @@ CHARACTER_DATA:
 ; Each character is 8x8 pixels, stored as 8 bytes
 ; Bit 1 = pixel on (#), Bit 0 = pixel off (.)
 
-; ===============================================================================
-; PLAYER SPRITE ANIMATION SYSTEM
-; ===============================================================================
-; K-Razy Shoot-Out uses a sophisticated multi-sprite player character system
-; with directional animation and walking cycles.
-;
-; SPRITE COMPONENTS:
-; - Character $02: Player Head (Sideways) - Used for horizontal movement
-; - Character $04: Player Head (Vertical) - Used for vertical/stationary movement  
-; - Character $03: Player Body (Horizontal) Frame 1 - Walking animation frame 1
-; - Character $05: Player Body (Horizontal) Frame 2 - Walking animation frame 2
-; - Character $1E: Player Body (Stationary) - Used for vertical/stationary movement
-; - Characters $06-$09: Death animation and final dead state sprites
-;
-; HARDWARE REGISTERS:
-; - $E804: Player sprite position register
-; - $E805: Player sprite control/character register (loads character codes)
-;
-; ANIMATION STATES:
-; 1. STATIONARY/VERTICAL MOVEMENT:
-;    - Head: Character $04 (centered, vertical orientation)
-;    - Body: Character $1E (standard stationary body)
-;    - Display: Single static 8x16 sprite combination
-;
-; 2. HORIZONTAL MOVEMENT (Walking Animation):
-;    - Head: Character $02 (sideways orientation, constant)
-;    - Body: Alternates between Character $03 and $05 (walking frames)
-;    - Display: Animated 8x16 sprite with 2-frame walking cycle
-;
-; 3. DEATH SEQUENCE:
-;    - Animation: Character $06 (top) + Character $07 (bottom) - vertical pair
-;    - Final State: Character $08 (left) + Character $09 (right) - horizontal pair
-;
-; TECHNICAL IMPLEMENTATION:
-; - Player rendered as two separate 8x8 sprites stacked vertically
-; - Movement detection via collision registers $C004/$C00C and joystick input
-; - Sprite selection based on movement direction and animation frame
-; - Hardware PMG (Player/Missile Graphics) system handles display and positioning
-; ===============================================================================
-
 ; Character $00 - Space/blank character
 ;   ........
 ;   ........
@@ -98,7 +54,7 @@ CHARACTER_DATA:
         .byte $00        ; $A006 - Row 6
         .byte $00        ; $A007 - Row 7
 
-; Character $01 - Player sprite: Central body column
+; Character $01 - UNKNOWN usage
 ;   ..###...
 ;   ..###...
 ;   ..###...
@@ -194,6 +150,7 @@ CHARACTER_DATA:
         .byte $1C        ; $A02F - Row 7
 
 ; Character $06 - HUD Player sprite: Dying Top
+; Positioned up and to the right of the bottom half.
 ;   ........
 ;   ........
 ;   #...##..
@@ -612,6 +569,7 @@ CHARACTER_DATA:
         .byte $00        ; $A0DF - Row 7
 
 ; Character $1C - Enemy
+; This version used between rounds when showing scoring.
 ;   ........
 ;   ..#####.
 ;   ....#...
@@ -630,7 +588,7 @@ CHARACTER_DATA:
         .byte $5D        ; $A0E6 - Row 6
         .byte $1C        ; $A0E7 - Row 7
 
-; Character $1D - Game graphics/sprite data
+; Character $1D - UNKNOWN usage
 ;   ........
 ;   .######.
 ;   ........
@@ -687,7 +645,7 @@ CHARACTER_DATA:
         .byte $1C        ; $A0FE - Row 6
         .byte $00        ; $A0FF - Row 7
 
-; Character $20 - Game graphics/sprite data
+; Character $20 - HUD Player sprite: Head - Stationary
 ;   ........
 ;   ........
 ;   ........
@@ -1200,7 +1158,7 @@ CHARACTER_DATA:
         .byte $7F        ; $A1D6 - Row 6
         .byte $00        ; $A1D7 - Row 7
 
-; Character $3B - Game graphics/sprite data
+; Character $3B - UNKNOWN usage
 ;   .###....
 ;   .###....
 ;   .###....
@@ -1219,7 +1177,7 @@ CHARACTER_DATA:
         .byte $02        ; $A1DE - Row 6
         .byte $02        ; $A1DF - Row 7
 
-; Character $3C - Game graphics/sprite data
+; Character $3C - UNKNOWN usage
 ;   ......#.
 ;   ......#.
 ;   ......#.
@@ -1238,7 +1196,7 @@ CHARACTER_DATA:
         .byte $70        ; $A1E6 - Row 6
         .byte $02        ; $A1E7 - Row 7
 
-; Character $3D - Game graphics/sprite data
+; Character $3D - UNKNOWN usage
 ;   .###....
 ;   .....###
 ;   .###....
@@ -1257,7 +1215,7 @@ CHARACTER_DATA:
         .byte $06        ; $A1EE - Row 6
         .byte $70        ; $A1EF - Row 7
 
-; Character $3E - Game graphics/sprite data
+; Character $3E - UNKNOWN usage
 ;   ..##....
 ;   .....##.
 ;   .###....
@@ -1276,7 +1234,7 @@ CHARACTER_DATA:
         .byte $D8        ; $A1F6 - Row 6
         .byte $A1        ; $A1F7 - Row 7
 
-; Character $3F - Game graphics/sprite data
+; Character $3F - UNKNOWN usage
 ;   ........
 ;   ........
 ;   ........
@@ -1295,7 +1253,7 @@ CHARACTER_DATA:
         .byte $00        ; $A1FE - Row 6
         .byte $00        ; $A1FF - Row 7
 
-; Character $40 - Game graphics/sprite data
+; Character $40 - UNKNOWN usage
 ;   ........
 ;   ........
 ;   ........
@@ -1314,7 +1272,7 @@ CHARACTER_DATA:
         .byte $00        ; $A206 - Row 6
         .byte $00        ; $A207 - Row 7
 
-; Character $41 - Game graphics/sprite data
+; Character $41 - CBS logo building block
 ;   .###....
 ;   .###....
 ;   .###....
@@ -1333,7 +1291,7 @@ CHARACTER_DATA:
         .byte $00        ; $A20E - Row 6
         .byte $00        ; $A20F - Row 7
 
-; Character $42 - Game graphics/sprite data
+; Character $42 - CBS logo building block
 ;   .....###
 ;   .....###
 ;   .....###
@@ -1352,7 +1310,7 @@ CHARACTER_DATA:
         .byte $00        ; $A216 - Row 6
         .byte $00        ; $A217 - Row 7
 
-; Character $43 - Game graphics/sprite data
+; Character $43 - CBS logo building block
 ;   .###.###
 ;   .###.###
 ;   .###.###
@@ -1371,7 +1329,7 @@ CHARACTER_DATA:
         .byte $00        ; $A21E - Row 6
         .byte $00        ; $A21F - Row 7
 
-; Character $44 - Game graphics/sprite data
+; Character $44 - CBS logo building block
 ;   ........
 ;   ........
 ;   ........
@@ -1390,7 +1348,7 @@ CHARACTER_DATA:
         .byte $70        ; $A226 - Row 6
         .byte $00        ; $A227 - Row 7
 
-; Character $45 - Game graphics/sprite data
+; Character $45 - CBS logo building block
 ;   .###....
 ;   .###....
 ;   .###....
@@ -1409,7 +1367,7 @@ CHARACTER_DATA:
         .byte $70        ; $A22E - Row 6
         .byte $00        ; $A22F - Row 7
 
-; Character $46 - Game graphics/sprite data
+; Character $46 - CBS logo building block
 ;   .###.###
 ;   .###.###
 ;   .###.###
@@ -1428,7 +1386,7 @@ CHARACTER_DATA:
         .byte $70        ; $A236 - Row 6
         .byte $00        ; $A237 - Row 7
 
-; Character $47 - Game graphics/sprite data
+; Character $47 - CBS logo building block
 ;   ........
 ;   ........
 ;   ........
@@ -1447,7 +1405,7 @@ CHARACTER_DATA:
         .byte $07        ; $A23E - Row 6
         .byte $00        ; $A23F - Row 7
 
-; Character $48 - Game graphics/sprite data
+; Character $48 - CBS logo building block
 ;   ........
 ;   ........
 ;   ........
@@ -1466,7 +1424,7 @@ CHARACTER_DATA:
         .byte $77        ; $A246 - Row 6
         .byte $00        ; $A247 - Row 7
 
-; Character $49 - Game graphics/sprite data
+; Character $49 - CBS logo building block
 ;   .###....
 ;   .###....
 ;   .###....
@@ -1485,7 +1443,7 @@ CHARACTER_DATA:
         .byte $77        ; $A24E - Row 6
         .byte $00        ; $A24F - Row 7
 
-; Character $4A - Game graphics/sprite data
+; Character $4A - CBS logo building block
 ;   .###.###
 ;   .###.###
 ;   .###.###
@@ -1504,7 +1462,7 @@ CHARACTER_DATA:
         .byte $77        ; $A256 - Row 6
         .byte $00        ; $A257 - Row 7
 
-; Character $4B - Game graphics/sprite data
+; Character $4B - UNKNOWN usage
 ;   .###....
 ;   .###....
 ;   .###....
@@ -1523,7 +1481,7 @@ CHARACTER_DATA:
         .byte $07        ; $A25E - Row 6
         .byte $07        ; $A25F - Row 7
 
-; Character $4C - Game graphics/sprite data
+; Character $4C - UNKNOWN usage
 ;   .....###
 ;   .....###
 ;   .....###
@@ -1542,7 +1500,7 @@ CHARACTER_DATA:
         .byte $07        ; $A266 - Row 6
         .byte $46        ; $A267 - Row 7
 
-; Character $4D - Game graphics/sprite data
+; Character $4D - UNKNOWN usage
 ;   ........
 ;   ..#.###.
 ;   .....##.
@@ -1561,7 +1519,7 @@ CHARACTER_DATA:
         .byte $58        ; $A26E - Row 6
         .byte $A2        ; $A26F - Row 7
 
-; Character $4E - Game graphics/sprite data
+; Character $4E - UNKNOWN usage
 ;   .###....
 ;   .###....
 ;   .###....
@@ -1580,7 +1538,7 @@ CHARACTER_DATA:
         .byte $0A        ; $A276 - Row 6
         .byte $0A        ; $A277 - Row 7
 
-; Character $4F - Game graphics/sprite data
+; Character $4F - UNKNOWN usage
 ;   ....#.#.
 ;   ....#.#.
 ;   ....#.#.
@@ -1599,7 +1557,7 @@ CHARACTER_DATA:
         .byte $0A        ; $A27E - Row 6
         .byte $0A        ; $A27F - Row 7
 
-; Character $50 - Game graphics/sprite data
+; Character $50 - UNKNOWN usage
 ;   ....#.#.
 ;   ....#.#.
 ;   ....#.#.
@@ -1618,7 +1576,7 @@ CHARACTER_DATA:
         .byte $0A        ; $A286 - Row 6
         .byte $0A        ; $A287 - Row 7
 
-; Character $51 - Game graphics/sprite data
+; Character $51 - UNKNOWN usage
 ;   ....#.#.
 ;   ....#.#.
 ;   ....#.#.
@@ -1637,7 +1595,7 @@ CHARACTER_DATA:
         .byte $0A        ; $A28E - Row 6
         .byte $0A        ; $A28F - Row 7
 
-; Character $52 - Game graphics/sprite data
+; Character $52 - UNKNOWN usage
 ;   ....#.#.
 ;   ....#.#.
 ;   ....#.#.
@@ -1656,7 +1614,7 @@ CHARACTER_DATA:
         .byte $0A        ; $A296 - Row 6
         .byte $0A        ; $A297 - Row 7
 
-; Character $53 - Game graphics/sprite data
+; Character $53 - UNKNOWN usage
 ;   ....#.#.
 ;   ....#.#.
 ;   ....#.#.
@@ -1675,7 +1633,7 @@ CHARACTER_DATA:
         .byte $00        ; $A29E - Row 6
         .byte $2E        ; $A29F - Row 7
 
-; Character $54 - Game graphics/sprite data
+; Character $54 - UNKNOWN usage
 ;   .....##.
 ;   .....##.
 ;   .....##.
@@ -1694,7 +1652,7 @@ CHARACTER_DATA:
         .byte $70        ; $A2A6 - Row 6
         .byte $70        ; $A2A7 - Row 7
 
-; Character $55 - Game graphics/sprite data
+; Character $55 - UNKNOWN usage
 ;   .###....
 ;   .#...##.
 ;   ........
@@ -1713,7 +1671,7 @@ CHARACTER_DATA:
         .byte $06        ; $A2AE - Row 6
         .byte $06        ; $A2AF - Row 7
 
-; Character $56 - Game graphics/sprite data
+; Character $56 - UNKNOWN usage
 ;   .....##.
 ;   .....##.
 ;   .....##.
@@ -1732,7 +1690,7 @@ CHARACTER_DATA:
         .byte $06        ; $A2B6 - Row 6
         .byte $06        ; $A2B7 - Row 7
 
-; Character $57 - Game graphics/sprite data
+; Character $57 - UNKNOWN usage
 ;   .....##.
 ;   .....##.
 ;   .....##.
@@ -1751,7 +1709,7 @@ CHARACTER_DATA:
         .byte $06        ; $A2BE - Row 6
         .byte $46        ; $A2BF - Row 7
 
-; Character $58 - Game graphics/sprite data
+; Character $58 - UNKNOWN usage
 ;   ........
 ;   ..#.###.
 ;   .....##.
@@ -1770,6 +1728,9 @@ CHARACTER_DATA:
         .byte $A6        ; $A2C6 - Row 6
         .byte $A2        ; $A2C7 - Row 7
 
+; Note: There is more sprite data (player and enemy animations) at the end of this
+; dissassembly.
+
 ; ===============================================================================
 ; GAME CODE SECTION ($A2C8-$BFFF)
 ; ===============================================================================
@@ -1781,7 +1742,8 @@ GAME_CODE_START:
 ; System startup and hardware setup
 ; ===============================================================================
 
-$A2C8: E8       INX
+$A2C8: E8       cartridge_init:
+                INX
 $A2C9: 8A       TXA
 $A2CA: 9D 00 E8 STA $E800
 $A2CD: 9D 00 C0 STA $C000
@@ -1830,35 +1792,6 @@ $A328: 20 D0 A6 JSR $A6D0 ; Setup routine
 $A32B: 20 18 A5 JSR $A518 ; Additional setup - Initialize game variables and text displays
 $A32E: 58       CLI
 $A32F: 20 B6 A9 JSR $A9B6 ; **PROCEDURAL ARENA GENERATION** - Generate initial maze layout
-
-; ===============================================================================
-; PLAYER SPRITE SYSTEM SUMMARY
-; ===============================================================================
-; The K-Razy Shoot-Out player character uses a sophisticated multi-sprite system
-; with directional animation and walking cycles. This was remarkably advanced for 1981.
-;
-; COMPLETE SPRITE INVENTORY:
-; - Character $02: Head (Sideways)  - Used for horizontal movement
-; - Character $04: Head (Vertical)  - Used for vertical/stationary movement
-; - Character $03: Body (Horizontal) Frame 1 - Walking animation frame 1
-; - Character $05: Body (Horizontal) Frame 2 - Walking animation frame 2
-; - Character $1E: Body (Stationary) - Used for vertical/stationary movement
-; - Characters $06-$09: Death animation and final dead state sprites
-;
-; ANIMATION STATES:
-; 1. STATIONARY/VERTICAL: Character $04 (head) + Character $1E (body)
-; 2. HORIZONTAL FRAME 1:  Character $02 (head) + Character $03 (body)
-; 3. HORIZONTAL FRAME 2:  Character $02 (head) + Character $05 (body)
-; 4. DEATH ANIMATION:     Character $06 (top) + Character $07 (bottom)
-; 5. FINAL DEAD STATE:    Character $08 (left) + Character $09 (right)
-;
-; HARDWARE IMPLEMENTATION:
-; - Uses Atari 5200 PMG (Player/Missile Graphics) system
-; - $E804: Player sprite position register (X coordinate)
-; - $E805: Player sprite character register (loads character codes)
-; - Movement detection via collision registers $C004/$C00C and joystick input
-; - Real-time sprite character swapping based on movement state
-; ===============================================================================
 
 ; ===============================================================================
 ; MAIN_GAME_LOOP ($A332)
@@ -7394,7 +7327,7 @@ $BFDE: 0E D0 06 ASL $06D0        ; Arithmetic shift left on memory location $06D
 ; **SYSTEM RESET INITIALIZATION** - Main system startup sequence
 $BFE1: A2 FF    LDX #$FF         ; Load X register with $FF (initialize stack pointer)
 $BFE3: 9A       TXS              ; Transfer X to stack pointer (set stack to $01FF)
-$BFE4: 4C C8 A2 JMP $A2C8        ; Jump to main initialization routine at $A2C8
+$BFE4: 4C C8 A2 JMP cartridge_init ; Jump to main initialization routine at $A2C8
 
 ; **INPUT HANDLING** - Check for specific input conditions
 $BFE7: C9 0C    CMP #$0C         ; Compare accumulator with $0C
@@ -7417,4 +7350,4 @@ $BFFB: 00       .byte $00        ; Reset vector continuation
 $BFFC: 00       .byte $00        ; Reset vector continuation  
 $BFFD: FF       .byte $FF        ; Reset vector high byte
 $BFFE: C8       .byte $C8        ; **NMI VECTOR LOW** - Non-maskable interrupt vector low byte
-$BFFF: A2       .byte $A2        ; **NMI VECTOR HIGH** - Non-maskable interrupt vector high byte (points to $A2C8)
+$BFFF: A2       .byte $A2        ; **NMI VECTOR HIGH** - Non-maskable interrupt vector high byte (points to cartridge_init)
