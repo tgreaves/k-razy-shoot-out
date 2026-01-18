@@ -1,0 +1,24 @@
+K-Razy Shoot-Out Explosion Sound - Technical Specifications
+======================================================================
+
+ROM ANALYSIS:
+Explosion sounds are triggered when enemies are destroyed and set to inactive.
+The ROM code at $B50D uses hardware random register for noise generation:
+
+$B50D: LDA $E80A  ; Load hardware random register (noise source)
+$B510: AND #$F0   ; Keep upper 4 bits
+$B512: ORA #$08   ; Set bit 3
+$B514: STA $08,X  ; Store processed random value
+
+SOUND CHARACTERISTICS:
+- White noise style explosion effects
+- Duration: 0.2-0.3 seconds
+- Fast attack, exponential decay envelope
+- Multiple frequency bands (high/mid/low)
+- POKEY-style square wave noise generation
+- Based on hardware random register bit manipulation
+
+TRIGGER CONDITIONS:
+- Enemy destruction (when set to inactive $FF)
+- Player missile hits enemy
+- Collision detection confirms hit

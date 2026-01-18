@@ -16,50 +16,66 @@ def pokey_frequency_to_hz(pokey_value):
     return 1789773 / (2 * (pokey_value + 1))
 
 def generate_descending_pew():
-    """Generate the descending 'pewwwwwww' weapon sound"""
+    """Generate the player weapon sound based on actual ROM implementation"""
     
-    print("Generating CORRECTED K-Razy Shoot-Out Player Weapon Sound...")
-    print("Creating descending 'pewwwwwww' sound based on user feedback")
+    print("Generating ACCURATE K-Razy Shoot-Out Player Weapon Sound...")
+    print("Based on actual ROM code at $B23D-$B2B2")
     print()
     
-    # Sound parameters from ROM analysis - but used differently!
-    # The countdown system likely creates a frequency sweep
-    start_freq_pokey = 0x1F  # 31 - starts high
-    end_freq_pokey = 0x12    # 18 - ends even higher (but we'll reverse this)
+    # Actual ROM parameters
+    phase1_freq_pokey = 0x1F  # 31 - Attack phase
+    phase2_freq_pokey = 0x12  # 18 - Sustain phase  
+    control_value = 0xAC      # 172 - Audio control for sustain
     
-    # Actually, let's think about this differently
-    # If it's descending, it probably starts high and goes low
-    # The $BD countdown from $4F (79) to 0 might control the frequency sweep
+    # Convert to Hz (lowered by 3 octaves as requested)
+    phase1_freq_hz = pokey_frequency_to_hz(phase1_freq_pokey) / 8  # Divide by 8 for 3 octaves down
+    phase2_freq_hz = pokey_frequency_to_hz(phase2_freq_pokey) / 8  # Divide by 8 for 3 octaves down
     
-    # Let's create a descending frequency sweep
-    start_freq_hz = 2000  # Start at 2kHz
-    end_freq_hz = 80      # End at 80Hz (much lower for deeper sweep)
-    duration = 0.6        # Even longer duration for extended "pewwwwwww" effect
-    
-    print(f"Frequency sweep: {start_freq_hz:.0f} Hz → {end_freq_hz:.0f} Hz")
-    print(f"Duration: {duration:.2f} seconds")
+    print(f"Phase 1 (Attack): POKEY ${phase1_freq_pokey:02X} = {phase1_freq_hz:.1f} Hz")
+    print(f"Phase 2 (Sustain): POKEY ${phase2_freq_pokey:02X} = {phase2_freq_hz:.1f} Hz")
+    print(f"Control value: ${control_value:02X} ({control_value})")
     print()
     
-    # Generate time array
-    samples = int(duration * SAMPLE_RATE)
-    t = np.linspace(0, duration, samples, False)
+    # ROM uses two distinct phases, not a sweep
+    # Phase 1: Short attack at higher frequency
+    # Phase 2: Longer sustain at lower frequency
     
-    # Create exponential frequency sweep (sounds more natural)
-    # Exponential decay from start to end frequency
-    freq_sweep = start_freq_hz * np.exp(-t * np.log(start_freq_hz / end_freq_hz) / duration)
+    phase1_duration = 0.05  # Short attack
+    phase2_duration = 0.4   # Longer sustain
+    gap_duration = 0.01     # Brief gap between phases
     
-    # Generate the swept tone
-    # We need to integrate the frequency to get the phase
-    phase = 2 * np.pi * np.cumsum(freq_sweep) / SAMPLE_RATE
+    print(f"Phase 1 duration: {phase1_duration:.2f} seconds")
+    print(f"Phase 2 duration: {phase2_duration:.2f} seconds")
+    print()
     
-    # Generate square wave (POKEY characteristic)
-    weapon_wave = np.sign(np.sin(phase))
+    # Generate Phase 1 (Attack)
+    samples1 = int(phase1_duration * SAMPLE_RATE)
+    t1 = np.linspace(0, phase1_duration, samples1, False)
     
-    # Apply envelope - starts strong, fades out
-    envelope = np.exp(-t * 3)  # Exponential decay
+    # Generate square wave for attack
+    phase1_wave = np.sign(np.sin(2 * np.pi * phase1_freq_hz * t1))
     
-    # Combine wave and envelope
-    weapon_audio = weapon_wave * envelope * AMPLITUDE
+    # Sharp attack envelope
+    envelope1 = np.exp(-t1 * 10)  # Fast decay
+    phase1_audio = phase1_wave * envelope1 * AMPLITUDE
+    
+    # Brief gap
+    gap_samples = int(gap_duration * SAMPLE_RATE)
+    gap_audio = np.zeros(gap_samples)
+    
+    # Generate Phase 2 (Sustain)
+    samples2 = int(phase2_duration * SAMPLE_RATE)
+    t2 = np.linspace(0, phase2_duration, samples2, False)
+    
+    # Generate square wave for sustain (lower frequency)
+    phase2_wave = np.sign(np.sin(2 * np.pi * phase2_freq_hz * t2))
+    
+    # Sustain envelope with gradual decay
+    envelope2 = np.exp(-t2 * 3)  # Slower decay for sustain
+    phase2_audio = phase2_wave * envelope2 * AMPLITUDE * 0.8  # Slightly quieter
+    
+    # Combine phases
+    weapon_audio = np.concatenate([phase1_audio, gap_audio, phase2_audio])
     
     return weapon_audio
 
@@ -70,7 +86,7 @@ def generate_alternative_pew():
     
     # The $BD parameter counts down from $4F (79) to 0
     # This could control frequency in a descending sweep
-    duration = 0.3
+    duration = 0.6  # Double the duration for slower sweep
     samples = int(duration * SAMPLE_RATE)
     t = np.linspace(0, duration, samples, False)
     
@@ -78,9 +94,9 @@ def generate_alternative_pew():
     # Start high, descend as countdown progresses
     countdown_progress = t / duration  # 0 to 1
     
-    # Frequency descends from high to low
-    start_freq = 1500
-    end_freq = 150
+    # Frequency descends from high to low (lowered by 1 octave total)
+    start_freq = 1500 / 2  # Divide by 2 for 1 octave down
+    end_freq = 150 / 2     # Divide by 2 for 1 octave down
     freq_sweep = start_freq - (start_freq - end_freq) * countdown_progress
     
     # Generate phase for frequency sweep
@@ -135,7 +151,7 @@ if __name__ == "__main__":
     pew_sound = generate_descending_pew()
     
     # Save main version
-    filename1 = "krazy_shootout_weapon_pew_v1.wav"
+    filename1 = "sound/krazy_shootout_weapon_pew_v1.wav"
     save_wav(pew_sound, filename1)
     
     duration1 = len(pew_sound) / SAMPLE_RATE
@@ -147,7 +163,7 @@ if __name__ == "__main__":
     alt_pew_sound = generate_alternative_pew()
     
     # Save alternative version
-    filename2 = "krazy_shootout_weapon_pew_v2.wav"
+    filename2 = "sound/krazy_shootout_weapon_pew_v2.wav"
     save_wav(alt_pew_sound, filename2)
     
     duration2 = len(alt_pew_sound) / SAMPLE_RATE
@@ -167,7 +183,7 @@ if __name__ == "__main__":
             sequence.extend(gap_audio)
     
     sequence_audio = np.array(sequence)
-    filename_seq = "krazy_shootout_weapon_pew_sequence.wav"
+    filename_seq = "sound/krazy_shootout_weapon_pew_sequence.wav"
     save_wav(sequence_audio, filename_seq)
     
     seq_duration = len(sequence_audio) / SAMPLE_RATE
