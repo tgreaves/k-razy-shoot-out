@@ -8,21 +8,6 @@
 ; Memory Map: $A000-$BFFF
 ;
 ; Disassembly by: Tristan Greaves <tristan@extricate.org>
-;
-; ===============================================================================
-; NAVIGATION TABLE OF CONTENTS (Use Ctrl+F to search for these labels)
-; ===============================================================================
-; CHARACTER_DATA              - Character set data ($A000)
-; GAME_CODE_START             - Main game code ($A2C8)
-; MAIN_GAME_LOOP              - Core game loop ($A332)
-; TITLE_SCREEN_DATA           - CBS logo pattern ($A78C)
-; TITLE_SCREEN_TEXT           - Title screen text ($A7D4)
-; SECTOR_INIT                 - Sector initialization ($A9B6)
-; INPUT_HANDLING_SYSTEM       - Player input processing ($AD05)
-; COLLISION_DETECTION_SYSTEM  - Collision detection ($B14F)
-; ENEMY_FIRING_SYSTEM         - Enemy firing logic ($B46B)
-; PLAYER_SPRITE_DATA          - Player sprite data ($BE20)
-; HARDWARE_VECTORS            - System vectors ($BFFA)
 ; ===============================================================================
 
         .org $A000
@@ -30,7 +15,6 @@
 ; ===============================================================================
 ; GRAPHICS DATA SECTION ($A000-$A2C7)
 ; ===============================================================================
-CHARACTER_DATA:
 ; Character set data - 89 characters total (712 bytes)
 ; Each character is 8x8 pixels, stored as 8 bytes
 ; Bit 1 = pixel on (#), Bit 0 = pixel off (.)
@@ -4092,7 +4076,7 @@ $AF31: A9 00    LDA #$00        ; Set sprite orientation flag (vertical)
 $AF33: F0 02    BEQ $AF37       ; Branch to store orientation
 $AF35: A9 01    LDA #$01        ; Set sprite orientation flag (horizontal)
 $AF37: 85 73    STA $73         ; Store orientation flag
-$AF39: 20 7C BC JSR $BC7C       ; Call sprite rendering routine
+$AF39: 20 7C BC JSR copy_sprite_data ; Copy sprite data to PMG memory
 $AF3C: A5 77    LDA $77         ; Load sprite position parameter
 $AF3E: 85 84    STA $84         ; Store as Y position
 $AF40: 60       RTS             ; Return from vertical sprite handling
@@ -4120,7 +4104,7 @@ $AF69: A9 00    LDA #$00        ; Set sprite orientation flag (horizontal)
 $AF6B: F0 02    BEQ $AF6F       ; Branch to store orientation
 $AF6D: A9 01    LDA #$01        ; Set sprite orientation flag (vertical)
 $AF6F: 85 73    STA $73         ; Store orientation flag
-$AF71: 20 7C BC JSR $BC7C       ; Call sprite rendering routine
+$AF71: 20 7C BC JSR copy_sprite_data ; Copy sprite data to PMG memory
 $AF74: A5 77    LDA $77         ; Load sprite position parameter
 $AF76: 85 84    STA $84         ; Store as Y position
 $AF78: 60       RTS             ; Return from horizontal sprite handling
@@ -4146,7 +4130,7 @@ $AF9D: A9 00    LDA #$00        ; Set sprite orientation flag (horizontal)
 $AF9F: F0 02    BEQ $AFA3       ; Branch to store orientation
 $AFA1: A9 01    LDA #$01        ; Set sprite orientation flag (vertical)
 $AFA3: 85 73    STA $73         ; Store orientation flag
-$AFA5: 20 7C BC JSR $BC7C       ; Call sprite rendering routine
+$AFA5: 20 7C BC JSR copy_sprite_data ; Copy sprite data to PMG memory
 $AFA8: A5 77    LDA $77         ; Load sprite position parameter
 $AFAA: 85 84    STA $84         ; Store as Y position
 $AFAC: 60       RTS             ; Return from alternative sprite handling
@@ -5383,7 +5367,7 @@ $B55A: 60       RTS             ; Return with random 0-2 in A and Y
 ;
 ; 5. UPDATE SPRITE DISPLAY:
 ;    - Calls $BD30 to update display hardware
-;    - Calls $BC7C twice for display updates
+;    - Calls copy_sprite_data twice to render sprite graphics to PMG memory
 ;    - Stores updated positions back to enemy tables
 ;
 ; 6. LOOP MANAGEMENT:
@@ -5582,8 +5566,8 @@ $B6C5: 85 64    STA $64
 $B6C7: 95 8C    STA $8C
 $B6C9: 20 30 BD JSR $BD30
 $B6CC: A6 67    LDX $67
-$B6CE: 20 7C BC JSR $BC7C
-$B6D1: 20 7C BC JSR $BC7C
+$B6CE: 20 7C BC JSR copy_sprite_data ; Copy sprite data to PMG memory
+$B6D1: 20 7C BC JSR copy_sprite_data ; Copy sprite data to PMG memory (second pass)
 $B6D4: A6 67    LDX $67
 $B6D6: A5 77    LDA $77
 $B6D8: 95 84    STA $84
@@ -6763,41 +6747,72 @@ $BC78: 88       DEY             ; **DECREMENT COUNTER** - One less pixel to move
 $BC79: D0 F5    BNE $BC6E       ; **LOOP** - Continue until all pixels moved
 $BC7B: 60       RTS             ; **RETURN** - Exit with updated position
 
-$BC7C: A5 65    LDA $65
-$BC7E: 85 66    STA $66
-$BC80: A9 FF    LDA #$FF
-$BC82: 85 75    STA $75
-$BC84: A4 7A    LDY $7A
-$BC86: 88       DEY
-$BC87: 84 76    STY $76
-$BC89: A5 73    LDA $73
-$BC8B: D0 13    BNE $BCA0 ; Loop back if not zero
-$BC8D: A4 77    LDY $77
-$BC8F: A6 71    LDX $71
-$BC91: B1 79    LDA #$79
-$BC93: 91 75    STA $75
-$BC95: C8       INY
-$BC96: CA       DEX
-$BC97: 10 F8    BPL $BC91
-$BC99: C6 77    DEC $77
-$BC9B: C6 66    DEC $66
-$BC9D: D0 EE    BNE $BC8D ; Loop back if not zero
-$BC9F: 60       RTS
+; ===============================================================================
+; COPY_SPRITE_DATA ($BC7C-$BCB6)
+; ===============================================================================
+; **SPRITE DATA COPY/RENDERING ROUTINE**
+; This routine copies sprite graphics data from source to destination memory,
+; used for rendering sprites to PMG (Player/Missile Graphics) memory.
+; The direction of copying is controlled by the orientation flag in $73.
+;
+; **INPUT PARAMETERS**:
+; - $65: Number of rows to copy (outer loop counter)
+; - $71: Number of bytes per row (inner loop counter, width)
+; - $73: Orientation/direction flag (0=decrement Y, 1=increment Y)
+; - $75/$76: Destination pointer (high/low bytes, $75 initialized to $FF)
+; - $77: Starting Y position/offset
+; - $79/$7A: Source pointer (high/low bytes)
+;
+; **FUNCTION**:
+; - Copies sprite data row by row from source ($79/$7A) to destination ($75/$76)
+; - If $73 = 0: Copies while decrementing Y (moving up/left in memory)
+; - If $73 ≠ 0: Copies while incrementing Y (moving down/right in memory)
+; - Each row copies $71 bytes using indirect indexed addressing
+;
+; **CALLED FROM**:
+; - $AF39, $AF71, $AFA5: Player sprite rendering with orientation
+; - $B6CE, $B6D1: Enemy sprite updates (called twice)
+; ===============================================================================
 
-$BCA0: A5 77    LDA $77
-$BCA2: 18       CLC
-$BCA3: 65 71    ADC #$71
-$BCA5: A8       TAY
-$BCA6: A6 71    LDX $71
-$BCA8: B1 75    LDA #$75
-$BCAA: 91 79    STA $79
-$BCAC: 88       DEY
-$BCAD: CA       DEX
-$BCAE: 10 F8    BPL $BCA8
-$BCB0: E6 77    INC $77
-$BCB2: C6 66    DEC $66
-$BCB4: D0 EA    BNE $BCA0 ; Loop back if not zero
-$BCB6: 60       RTS
+copy_sprite_data:
+$BC7C: A5 65    LDA $65         ; **LOAD ROW COUNT** - Get number of rows to copy
+$BC7E: 85 66    STA $66         ; **STORE COUNTER** - Save as outer loop counter
+$BC80: A9 FF    LDA #$FF        ; **INIT DEST HIGH** - Load high byte for destination pointer
+$BC82: 85 75    STA $75         ; **STORE DEST HIGH** - Set destination pointer high byte
+$BC84: A4 7A    LDY $7A         ; **LOAD SOURCE HIGH** - Get source pointer high byte
+$BC86: 88       DEY             ; **DECREMENT** - Adjust source pointer
+$BC87: 84 76    STY $76         ; **STORE DEST LOW** - Set destination pointer low byte
+$BC89: A5 73    LDA $73         ; **LOAD DIRECTION** - Check orientation flag
+$BC8B: D0 13    BNE $BCA0       ; **BRANCH IF INCREMENT** - Jump to increment path if $73 ≠ 0
+
+; **DECREMENT PATH** (orientation = 0, moving up/left)
+$BC8D: A4 77    LDY $77         ; **LOAD Y OFFSET** - Get starting Y position
+$BC8F: A6 71    LDX $71         ; **LOAD WIDTH** - Get bytes per row counter
+$BC91: B1 79    LDA ($79),Y     ; **READ SOURCE** - Load byte from source pointer + Y
+$BC93: 91 75    STA ($75),Y     ; **WRITE DEST** - Store byte to destination pointer + Y
+$BC95: C8       INY             ; **INCREMENT Y** - Move to next byte in row
+$BC96: CA       DEX             ; **DECREMENT WIDTH** - One less byte to copy
+$BC97: 10 F8    BPL $BC91       ; **LOOP ROW** - Continue until row complete
+$BC99: C6 77    DEC $77         ; **DECREMENT Y POS** - Move to previous row (up/left)
+$BC9B: C6 66    DEC $66         ; **DECREMENT ROWS** - One less row to copy
+$BC9D: D0 EE    BNE $BC8D       ; **LOOP ROWS** - Continue until all rows copied
+$BC9F: 60       RTS             ; **RETURN** - Exit decrement path
+
+; **INCREMENT PATH** (orientation ≠ 0, moving down/right)
+$BCA0: A5 77    LDA $77         ; **LOAD Y OFFSET** - Get starting Y position
+$BCA2: 18       CLC             ; **CLEAR CARRY** - Prepare for addition
+$BCA3: 65 71    ADC $71         ; **ADD WIDTH** - Calculate ending Y position
+$BCA5: A8       TAY             ; **TRANSFER TO Y** - Use as Y index
+$BCA6: A6 71    LDX $71         ; **LOAD WIDTH** - Get bytes per row counter
+$BCA8: B1 75    LDA ($75),Y     ; **READ SOURCE** - Load byte from source pointer + Y
+$BCAA: 91 79    STA ($79),Y     ; **WRITE DEST** - Store byte to destination pointer + Y
+$BCAC: 88       DEY             ; **DECREMENT Y** - Move to previous byte in row
+$BCAD: CA       DEX             ; **DECREMENT WIDTH** - One less byte to copy
+$BCAE: 10 F8    BPL $BCA8       ; **LOOP ROW** - Continue until row complete
+$BCB0: E6 77    INC $77         ; **INCREMENT Y POS** - Move to next row (down/right)
+$BCB2: C6 66    DEC $66         ; **DECREMENT ROWS** - One less row to copy
+$BCB4: D0 EA    BNE $BCA0       ; **LOOP ROWS** - Continue until all rows copied
+$BCB6: 60       RTS             ; **RETURN** - Exit increment path
 
 ; ===============================================================================
 ; UPDATE_VPOS_WITH_MASKING ($BCB7-$BD08)
