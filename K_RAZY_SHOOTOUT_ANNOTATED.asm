@@ -1822,7 +1822,7 @@ $A343: 20 11 BC JSR position_player_and_activate_enemies ; Position player and a
 $A346: 20 4F B1 sector_game_loop:
                 JSR move_missiles_in_flight ; Move active player missiles
 $A349: 20 B3 B2 JSR $B2B3 ; Enemy AI/movement
-$A34C: 20 BF B4 JSR $B4BF ; Display updates
+$A34C: 20 BF B4 JSR spawn_enemies ; Enemy spawning and death detection
 $A34F: A5 DA    LDA $DA         ; Load death counter (0-3)
 $A351: C9 03    CMP #$03        ; Check if 3 deaths (all lives used)
 $A353: F0 2D    BEQ player_out_of_lives ; Branch if game over (3 deaths)
@@ -1831,7 +1831,7 @@ $A355: A5 A9    LDA $A9         ; Load player respawn check
 $A357: D0 E7    BNE $A340       ; Go back to re-init PMG, position player etc.
 
 $A359: 20 5B B5 JSR render_enemy_sprites ; Render all 3 enemy sprites
-$A35C: 20 3A A8 JSR collision_detection_and_input ; Process collisions and player input
+$A35C: 20 3A A8 JSR collision_detection ; Process all collision detection
 
 $A35F: A5 AD    LDA $AD         ; Is player moving horizontally right now?
 $A361: F0 0A    BEQ skip_player_escape_check      ; If not, skip ahead.
@@ -1853,7 +1853,7 @@ $A379: 20 77 BB JSR time_countdown_and_display
 $A37C: A5 D9    LDA $D9         ; Load time remaining counter
 $A37E: C9 02    CMP #$02        ; Check if time almost up (2 time units left)
 $A380: D0 C4    BNE sector_game_loop ; Loop back if time remaining > 2
-                                ; TIME UP! Level advances automatically
+                                ; TIME UP! This also ends the game.
 player_out_of_lives:
 $A382: A6 D5    LDX $D5         ; Load current level counter
 $A384: F6 C5    INC $C5,X       ; Increment level statistics
@@ -2827,12 +2827,12 @@ $A837: .byte $23, $2F           ; "CO" (C=23, O=2F)
 $A839: .byte $0E                ; "." (period)
 
 ; ===============================================================================
-; collision_detection_and_input ($A83A-$A99B)
+; collision_detection ($A83A-$A99B)
 ; Collision detection system with fire button processing
 ; 
 ; Called once per frame from main game loop after enemy sprite rendering.
-; Primarily handles collision detection between enemies, missiles, and playfield.
-; Also processes fire button input.
+; Handles all collision detection between enemies, missiles, playfield, and player.
+; Uses GTIA hardware collision registers to detect overlaps and trigger game events.
 ;
 ; MAIN SECTIONS:
 ;
@@ -2853,15 +2853,16 @@ $A839: .byte $0E                ; "." (period)
 ;    - Reads fire button state from $C008
 ;    - Calls missile creation routine ($A99C) when pressed
 ;
-; 4. ENEMY COLLISION CHECKS ($A941-$A967):
-;    - Checks enemy collision with playfield (P1PF, P2PF, P3PF)
-;    - Reads $C004 and checks for specific collision patterns
-;    - Sets $AD flag when certain conditions met
-;    - Sets $93 flag for collision detection
+; 4. PLAYER EXIT DETECTION ($A941-$A967):
+;    - Checks P0PF ($C004) - Player 0 to Playfield collision
+;    - Detects when player touches arena edges (exits)
+;    - Sets $AD flag when player at exit (triggers sector completion check)
+;    - Also checks for general player collisions (sets $93 flag)
 ;
-; 5. ADDITIONAL COLLISION PROCESSING ($A969-$A995):
-;    - Processes enemy collision registers with different masks
-;    - Calls missile creation routine with different parameters
+; 5. ENEMY MISSILE FIRING ($A969-$A995):
+;    - Checks enemy-to-playfield collisions (P1PF, P2PF, P3PF)
+;    - When enemy hits playfield, triggers missile creation
+;    - Calls create_missile with X=1,2,3 for each enemy
 ;
 ; 6. CLEANUP ($A996-$A99B):
 ;    - Clears all collision registers via $C01E (GTIA HITCLR)
@@ -2877,8 +2878,15 @@ $A839: .byte $0E                ; "." (period)
 ; - P1, P2, P3 = Three enemy sprites
 ; - M0 = Player's missile
 ; - M1, M2, M3 = Enemy missiles
+;
+; **COLLISION REGISTERS USED**:
+; - $C004 (P0PF): Player to playfield - detects exit attempts
+; - $C008 (M0PL): Player missile to enemies - detects hits
+; - $C009-$C00B (P1PF-P3PF): Enemies to playfield - triggers enemy firing
+; - $C00C (P0PL): Player to enemies - detects player death
+; - $C00D-$C00F (M1PF-M3PF): Enemy missiles to playfield
 ; ===============================================================================
-collision_detection_and_input:
+collision_detection:
 $A83A: A6 D5    LDX $D5         ; Load current level/sector number
 $A83C: B5 C5    LDA $C5,X       ; Load level statistics
 $A83E: 85 92    STA $92         ; Store to working register
@@ -3023,70 +3031,99 @@ $A932: AD 08 C0 LDA $C008       ; Read collision/fire button register
 $A935: 29 0E    AND #$0E        ; Mask bits 1,2,3
 $A937: 0D 00 C0 ORA $C000       ; Combine with base register
 $A93A: F0 05    BEQ $A941       ; Branch if no fire button pressed
-$A93C: A2 00    LDX #$00        ; Set parameter for missile creation
-$A93E: 20 9C A9 JSR create_missile ; Create player missile (M0)
-$A941: A5 93    LDA $93         ; Check collision flag
-$A943: D0 24    BNE $A969       ; Branch if flag set
-$A945: AD 09 C0 LDA $C009       ; Read P1PF - Enemy 1 collision register
-$A948: 0D 0A C0 ORA $C00A       ; OR with P2PF - Enemy 2 collision
-$A94B: 0D 0B C0 ORA $C00B       ; OR with P3PF - Enemy 3 collision
-$A94E: 29 01    AND #$01        ; Check collision bit
-$A950: D0 13    BNE $A965       ; Branch if collision detected
-$A952: AD 04 C0 LDA $C004       ; Read collision register $C004
-$A955: 29 04    AND #$04        ; Check specific bit
-$A957: F0 04    BEQ $A95D       ; Branch if bit not set
-$A959: A9 01    LDA #$01        ; Set flag value
-$A95B: 85 AD    STA $AD         ; Store to $AD flag
-$A95D: AD 04 C0 LDA $C004       ; Read collision register again
-$A960: 0D 0C C0 ORA $C00C       ; OR with register $C00C
+$A93C: A2 00    LDX #$00        ; Player missile slot (M0)
+$A93E: 20 9C A9 JSR clear_missile_graphics ; Clear player missile after hit
+; --- PLAYER EXIT DETECTION ($A941-$A967) ---
+; Checks if player is touching playfield edges (attempting to exit arena)
+$A941: A5 93    LDA $93         ; Check player collision flag
+$A943: D0 24    BNE $A969       ; Branch if collision already detected
+$A945: AD 09 C0 LDA $C009       ; Read P1PF - Enemy 1 to playfield collision
+$A948: 0D 0A C0 ORA $C00A       ; OR with P2PF - Enemy 2 to playfield collision
+$A94B: 0D 0B C0 ORA $C00B       ; OR with P3PF - Enemy 3 to playfield collision
+$A94E: 29 01    AND #$01        ; Check if any enemy hit playfield
+$A950: D0 13    BNE $A965       ; Branch if enemy-playfield collision detected
+; **PLAYER EXIT DETECTION** - Check if player touching arena edges
+$A952: AD 04 C0 LDA $C004       ; **P0PF** - Read Player 0 to Playfield collision
+$A955: 29 04    AND #$04        ; Check bit 2 (specific playfield color for exits)
+$A957: F0 04    BEQ $A95D       ; Branch if player not at exit
+$A959: A9 01    LDA #$01        ; Player is at exit!
+$A95B: 85 AD    STA $AD         ; **SET EXIT FLAG** - Triggers sector exit processing
+$A95D: AD 04 C0 LDA $C004       ; Read P0PF again
+$A960: 0D 0C C0 ORA $C00C       ; OR with P0PL - Player 0 to Player collision
 $A963: F0 04    BEQ $A969       ; Branch if no collision
-$A965: A9 01    LDA #$01        ; Set flag value
-$A967: 85 93    STA $93         ; Store to collision flag $93
-$A969: AD 09 C0 LDA $C009       ; Read P1PF collision register
-$A96C: 29 0D    AND #$0D        ; Mask specific bits
-$A96E: 0D 01 C0 ORA $C001       ; OR with register $C001
+$A965: A9 01    LDA #$01        ; Collision detected
+$A967: 85 93    STA $93         ; Set general collision flag
+; --- ENEMY MISSILE FIRING ($A969-$A995) ---
+; When enemies collide with playfield, they fire missiles
+$A969: AD 09 C0 LDA $C009       ; Read P1PF - Enemy 1 to playfield collision
+$A96C: 29 0D    AND #$0D        ; Mask specific playfield bits
+$A96E: 0D 01 C0 ORA $C001       ; OR with M1PF - Missile 1 to playfield
 $A971: F0 05    BEQ $A978       ; Branch if no collision
-$A973: A2 01    LDX #$01        ; Set parameter 1
-$A975: 20 9C A9 JSR create_missile ; Create enemy 1 missile (M1)
-$A978: AD 0A C0 LDA $C00A       ; Read P2PF collision register
-$A97B: 29 0B    AND #$0B        ; Mask specific bits
-$A97D: 0D 02 C0 ORA $C002       ; OR with register $C002
+$A973: A2 01    LDX #$01        ; Enemy 1 missile slot (M1)
+$A975: 20 9C A9 JSR clear_missile_graphics ; Clear enemy 1 missile after hit
+$A978: AD 0A C0 LDA $C00A       ; Read P2PF - Enemy 2 to playfield collision
+$A97B: 29 0B    AND #$0B        ; Mask specific playfield bits
+$A97D: 0D 02 C0 ORA $C002       ; OR with M2PF - Missile 2 to playfield
 $A980: F0 05    BEQ $A987       ; Branch if no collision
-$A982: A2 02    LDX #$02        ; Set parameter 2
-$A984: 20 9C A9 JSR create_missile ; Create enemy 2 missile (M2)
-$A987: AD 0B C0 LDA $C00B       ; Read P3PF collision register
-$A98A: 29 07    AND #$07        ; Mask specific bits
-$A98C: 0D 03 C0 ORA $C003       ; OR with register $C003
+$A982: A2 02    LDX #$02        ; Enemy 2 missile slot (M2)
+$A984: 20 9C A9 JSR clear_missile_graphics ; Clear enemy 2 missile after hit
+$A987: AD 0B C0 LDA $C00B       ; Read P3PF - Enemy 3 to playfield collision
+$A98A: 29 07    AND #$07        ; Mask specific playfield bits
+$A98C: 0D 03 C0 ORA $C003       ; OR with M3PF - Missile 3 to playfield
 $A98F: F0 05    BEQ $A996       ; Branch if no collision
-$A991: A2 03    LDX #$03        ; Set parameter 3
-$A993: 20 9C A9 JSR create_missile ; Create enemy 3 missile (M3)
+$A991: A2 03    LDX #$03        ; Enemy 3 missile slot (M3)
+$A993: 20 9C A9 JSR clear_missile_graphics ; Clear enemy 3 missile after hit
 $A996: A9 00    LDA #$00        ; Clear accumulator
 $A998: 8D 1E C0 STA $C01E       ; GTIA HITCLR - Clear all collision registers
-$A99B: 60       RTS             ; Return from collision_detection_and_input
+$A99B: 60       RTS             ; Return from collision_detection
 ; ===============================================================================
-; MISSILE_CREATION_PROCESSING ($A99C)
-; **GENERAL MISSILE CREATION ROUTINE**
-; Creates missiles for both player and enemies based on X register parameter:
-; - X=#$00: Create player missile (M0) when fire button pressed
-; - X=#$01: Create enemy 1 missile (M1) when enemy collides with playfield
-; - X=#$02: Create enemy 2 missile (M2) when enemy collides with playfield
-; - X=#$03: Create enemy 3 missile (M3) when enemy collides with playfield
+; CLEAR_MISSILE_GRAPHICS ($A99C-$A9B5)
+; **MISSILE GRAPHICS ERASING ROUTINE**
+; 
+; Clears missile graphics from PMG memory after collisions. Uses bit masks to
+; clear specific horizontal pixel columns where missiles are drawn.
 ;
-; Uses hardware PMG (Player-Missile Graphics) system to create and position missiles.
+; **PARAMETERS**:
+; - X: Missile slot (0-3)
+;   * 0 = Player missile (M0) - clears bits 0-1
+;   * 1 = Enemy 1 missile (M1) - clears bits 2-3
+;   * 2 = Enemy 2 missile (M2) - clears bits 4-5
+;   * 3 = Enemy 3 missile (M3) - clears bits 6-7
+;
+; **BIT MASK TABLE ($BF7C)**:
+; - $BF7C: $03 (00000011) - Player missile column
+; - $BF7D: $0C (00001100) - Enemy 1 missile column
+; - $BF7E: $30 (00110000) - Enemy 2 missile column
+; - $BF7F: $C0 (11000000) - Enemy 3 missile column
+;
+; **FUNCTION**:
+; 1. Loads missile Y position from $E2+X
+; 2. Clears position slot ($E2+X = 0) to deactivate missile
+; 3. Decrements Y position
+; 4. Calls erase subroutine twice (clears 2 scanlines)
+; 5. Erase subroutine:
+;    - Loads bit mask from $BF7C+X
+;    - Inverts mask (EOR #$FF) to preserve other pixels
+;    - ANDs with PMG memory at $1300+Y to clear missile pixels
+;    - Stores result back to PMG memory
+;
+; **CONTEXT**:
+; Called after collision detection when missiles hit targets. Removes the
+; missile graphics from screen and frees the missile slot for reuse.
 ; ===============================================================================
-create_missile:
-$A99C: B4 E2    LDY $E2,X ; Process missile creation (X = missile slot 0-3)
-$A99E: A9 00    LDA #$00
-$A9A0: 95 E2    STA $E2
-$A9A2: 88       DEY ; Decrement missile timer
-$A9A3: 20 A9 A9 JSR $A9A9
-$A9A6: 20 A9 A9 JSR $A9A9
-$A9A9: BD 7C BF LDA $BF7C
-$A9AC: 49 FF    EOR #$FF ; Invert input bits
-$A9AE: 39 00 13 AND $1300 ; Process missile creation
-$A9B1: 99 00 13 STA $1300
-$A9B4: C8       INY ; Return from missile processing
-$A9B5: 60       RTS
+clear_missile_graphics:
+$A99C: B4 E2    LDY $E2,X       ; Load missile Y position from array ($E2-$E5)
+$A99E: A9 00    LDA #$00        ; Clear accumulator
+$A9A0: 95 E2    STA $E2,X       ; Clear missile position slot (deactivate missile)
+$A9A2: 88       DEY             ; Decrement Y position
+$A9A3: 20 A9 A9 JSR $A9A9       ; Call erase subroutine (clear scanline 1)
+$A9A6: 20 A9 A9 JSR $A9A9       ; Call erase subroutine (clear scanline 2)
+$A9A9: BD 7C BF LDA $BF7C,X     ; Load bit mask from table
+$A9AC: 49 FF    EOR #$FF        ; Invert mask to preserve other pixels
+$A9AE: 39 00 13 AND $1300,Y     ; AND with PMG memory (clears missile pixels)
+$A9B1: 99 00 13 STA $1300,Y     ; Store cleared graphics back to PMG memory
+$A9B4: C8       INY             ; Increment Y (next scanline)
+$A9B5: 60       RTS             ; Return
 ; ===============================================================================
 ; SECTOR INITIALIZATION ($A9B6) - PROCEDURAL ARENA GENERATOR
 ; ===============================================================================
@@ -3125,7 +3162,7 @@ $A9D7: B5 C5    LDA $C5,X       ; Load level-specific configuration data
 $A9D9: C9 02    CMP #$02        ; Check configuration threshold
 $A9DB: 90 03    BCC $A9E0       ; Branch to normal init if below threshold
 $A9DD: 4C 0D AB JMP $AB0D       ; Jump to final config for special levels
-$A9E0: 20 D6 AA JSR $AAD6       ; **PHASE 2: PLAYER SPRITE SYSTEM SETUP**
+$A9E0: 20 D6 AA JSR animated_screen_transition ; **ANIMATED TRANSITION** - Only for level > 0
 $A9E3: 20 0C AC JSR $AC0C       ; Screen update/refresh routine
 $A9E6: 20 0C AC JSR $AC0C       ; Double refresh for stability
 $A9E9: A5 0D    LDA $0D         ; Load system parameter
@@ -3258,32 +3295,51 @@ $AAD3: 4C 0D AB JMP $AB0D       ; **JUMP TO FINAL CONFIGURATION** - Complete are
 ; - Controls sprite visibility
 ; - Processes sprite movement
 ; ===============================================================================
-
-$AAD6: 48       PHA ; Update sprite positions and animations
-$AAD7: 98       TYA
-$AAD8: 48       PHA ; Load sprite X position
-$AAD9: 8A       TXA
-$AADA: 48       PHA ; Check sprite bounds
-$AADB: A9 00    LDA #$00
-$AADD: 8D 08 E8 STA $E808
-$AAE0: A9 AC    LDA #$AC
-$AAE2: 8D 01 E8 STA $E801
-$AAE5: A9 50    LDA #$50
-$AAE7: 8D 00 E8 STA $E800
-$AAEA: 20 02 AB JSR $AB02
-$AAED: 38       SEC ; Set carry for movement calculation
-$AAEE: E9 01    SBC #$01 ; Subtract movement speed
-$AAF0: 8D 00 E8 STA $E800
-$AAF3: C9 10    CMP #$10
-$AAF5: D0 F3    BNE $AAEA ; Loop back if not zero
-$AAF7: A9 00    LDA #$00
-$AAF9: 8D 01 E8 STA $E801
-$AAFC: 68       PLA ; Load return address
-$AAFD: AA       TAX
-$AAFE: 68       PLA ; Pull return address from stack
-$AAFF: A8       TAY
-$AB00: 68       PLA ; Pull Y register from stack
-$AB01: 60       RTS ; Return from sprite update
+; ANIMATED_SCREEN_TRANSITION ($AAD6-$AB01)
+; **CLEVER SCREEN CLEARING ANIMATION**
+; 
+; This routine creates a visual transition effect when advancing to a new sector.
+; Only called when level > 0 (not on first level).
+;
+; **ANIMATION EFFECT**:
+; - Counts down from $50 (80) to $10 (16) in $E800 register
+; - Each iteration calls delay routine at $AB02
+; - Creates smooth visual transition between sectors
+; - Provides player feedback that level is changing
+;
+; **FLOW**:
+; 1. Save registers (A, X, Y) on stack
+; 2. Initialize $E808 = $00, $E801 = $AC, $E800 = $50
+; 3. Loop: Decrement $E800, delay, repeat until $E800 = $10
+; 4. Clear $E801
+; 5. Restore registers and return
+; ===============================================================================
+animated_screen_transition:
+$AAD6: 48       PHA             ; Save accumulator
+$AAD7: 98       TYA             ; Transfer Y to A
+$AAD8: 48       PHA             ; Save Y register
+$AAD9: 8A       TXA             ; Transfer X to A
+$AADA: 48       PHA             ; Save X register
+$AADB: A9 00    LDA #$00        ; Clear value
+$AADD: 8D 08 E8 STA $E808       ; Initialize register $E808
+$AAE0: A9 AC    LDA #$AC        ; Load animation parameter
+$AAE2: 8D 01 E8 STA $E801       ; Set register $E801 (audio/visual control)
+$AAE5: A9 50    LDA #$50        ; **START ANIMATION** - Load $50 (80 decimal)
+$AAE7: 8D 00 E8 STA $E800       ; Store to animation register
+$AAEA: 20 02 AB JSR $AB02       ; **DELAY ROUTINE** - Creates visible animation timing
+$AAED: 38       SEC             ; Set carry for subtraction
+$AAEE: E9 01    SBC #$01        ; **DECREMENT ANIMATION** - Subtract 1
+$AAF0: 8D 00 E8 STA $E800       ; Update animation register
+$AAF3: C9 10    CMP #$10        ; Check if reached $10 (16 decimal)
+$AAF5: D0 F3    BNE $AAEA       ; **LOOP** - Continue animation until $10
+$AAF7: A9 00    LDA #$00        ; Clear value
+$AAF9: 8D 01 E8 STA $E801       ; Clear control register
+$AAFC: 68       PLA             ; Restore X register
+$AAFD: AA       TAX             ; Transfer to X
+$AAFE: 68       PLA             ; Restore Y register
+$AAFF: A8       TAY             ; Transfer to Y
+$AB00: 68       PLA             ; Restore accumulator
+$AB01: 60       RTS             ; Return from animation
 ; ===============================================================================
 ; LEVEL_PROGRESSION ($AB02)
 ; Level advancement and difficulty management
@@ -5141,71 +5197,114 @@ $B4BC: 86 A7    STX $A7         ; Store updated counter
 ; - Timing synchronized to Vertical Blank Interrupt (59.92 Hz)
 $B4BE: 60       RTS
 ; ===============================================================================
-; DISPLAY_UPDATE ($B4BF)
-; Screen and graphics updates with ESCAPE DETECTION
-; This routine:
-; - Updates score display
-; - Refreshes screen areas
-; - Handles screen transitions
-; - Updates text displays
-; - Processes screen effects
-; - **CRITICAL**: Detects player escape through wall gaps!
 ; ===============================================================================
-
+; ENEMY_SPAWN_AND_STATUS_UPDATE ($B4BF-$B51B)
+; **ENEMY SPAWNING AND STATE MANAGEMENT**
+; 
+; Handles player death detection and enemy spawning/respawning logic.
+; Processes 3 enemy slots (X=1,2,3) each frame.
+;
+; **DEATH CHECK ($B4BF-$B4CA)**:
+; - Checks $97 (death detection flag)
+; - If player died: calls player_death_and_respawn, sets $A9=1, returns
+;
+; **ENEMY SLOT PROCESSING ($B4CB-$B51B)**:
+; For each enemy slot (X=1 to 3):
+; 1. Checks $97,X (enemy status flag)
+; 2. If inactive ($97,X = 0): skips to next slot
+; 3. If active: compares $D4 (enemies defeated) with $D1 (spawn limit)
+;    - If $D4 >= $D1: Sets $93,X = $C0 (no more spawns - limit reached)
+;    - If $D4 < $D1: Spawns/respawns enemy:
+;      * Clears $97,X and $93,X
+;      * Sets $8C,X = $FF
+;      * Generates random spawn position using $B51C and $B531
+;      * Loads position from spawn tables $BFD4 (X) and $BFDA (Y)
+;      * Sets enemy X position ($80,X) and Y position ($84,X)
+;      * Sets enemy color ($C000,X)
+;      * Updates display register ($08,X)
+;
+; **SPAWN LIMIT SYSTEM**:
+; $D1 is loaded from sector difficulty table ($BBE4). It controls how many
+; enemies can spawn in a sector. Once player defeats $D1 enemies, no more
+; spawn, allowing player to clear the sector and exit.
+;
+; **VARIABLES**:
+; - $97: Death detection flag (player)
+; - $97,X ($98-$9A): Enemy status flags
+; - $93,X ($94-$96): Enemy slot states
+; - $80,X ($81-$83): Enemy X positions
+; - $84,X ($85-$87): Enemy Y positions
+; - $8C,X ($8D-$8F): Enemy sprite characters
+; - $D4: Enemies defeated by player (incremented on player missile hits)
+; - $D1: Enemy spawn limit (from sector difficulty table)
+; - $A9: Respawn flag
+; - $92: Working register
+; ===============================================================================
+spawn_enemies:
 $B4BF: A5 97    LDA $97         ; Check death detection flag
 $B4C1: F0 08    BEQ $B4CB       ; Branch if no death detected
-$B4C3: 20 5E B7 JSR $B75E       ; **PLAYER DEATH!** Process player death and respawn
-$B4C6: A9 01    LDA #$01
-$B4C8: 85 A9    STA $A9
-$B4CA: 60       RTS
+$B4C3: 20 5E B7 JSR player_death_and_respawn ; **PLAYER DEATH!** Process player death and respawn
+$B4C6: A9 01    LDA #$01        ; Set respawn flag
+$B4C8: 85 A9    STA $A9         ; Store respawn flag
+$B4CA: 60       RTS             ; Return (skip enemy processing this frame)
 
-$B4CB: A9 FF    LDA #$FF
-$B4CD: 85 92    STA $92
-$B4CF: A2 01    LDX #$01 ; Update color palettes
-$B4D1: 86 67    STX $67 ; Process screen effects
-$B4D3: B5 97    LDA $97,X
-$B4D5: F0 3F    BEQ $B516 ; Branch if equal/zero
-$B4D7: A5 D4    LDA $D4
-$B4D9: C5 D1    CMP #$D1
-$B4DB: 90 06    BCC $B4E3 ; Branch if carry clear
-$B4DD: A9 C0    LDA #$C0
-$B4DF: 95 93    STA $93
-$B4E1: D0 33    BNE $B516 ; Loop back if not zero
-$B4E3: A9 00    LDA #$00
-$B4E5: 95 97    STA $97
-$B4E7: 95 93    STA $93
-$B4E9: A9 FF    LDA #$FF
-$B4EB: 95 8C    STA $8C
-$B4ED: 20 1C B5 JSR $B51C
-$B4F0: 20 31 B5 JSR $B531
-$B4F3: 8A       TXA
-$B4F4: 48       PHA
-$B4F5: BD D4 BF LDA $BFD4
-$B4F8: 48       PHA
-$B4F9: B9 DA BF LDA $BFDA
-$B4FC: A6 67    LDX $67
-$B4FE: 95 84    STA $84
-$B500: 68       PLA
-$B501: 95 80    STA $80
-$B503: 9D 00 C0 STA $C000
-$B506: 68       PLA
-$B507: E0 01    CPX #$01
-$B509: D0 02    BNE $B50D ; Loop back if not zero
-$B50B: 85 92    STA $92
-$B50D: AD 0A E8 LDA $E80A
-$B510: 29 F0    AND #$F0
-$B512: 09 08    ORA #$08
-$B514: 95 08    STA $08
-$B516: E8       INX
-$B517: E0 04    CPX #$04
-$B519: D0 B6    BNE $B4D1 ; Loop back if not zero
-$B51B: 60       RTS
+; --- ENEMY SLOT PROCESSING LOOP ---
+$B4CB: A9 FF    LDA #$FF        ; Load $FF
+$B4CD: 85 92    STA $92         ; Store to working register
+$B4CF: A2 01    LDX #$01        ; Start with enemy slot 1
+$B4D1: 86 67    STX $67         ; Store current slot index
+$B4D3: B5 97    LDA $97,X       ; Load enemy status flag ($98-$9A)
+$B4D5: F0 3F    BEQ $B516       ; Branch if enemy inactive (skip to next)
+; Enemy is active - check spawn limit
+$B4D7: A5 D4    LDA $D4         ; Load enemies defeated count
+$B4D9: C5 D1    CMP $D1         ; Compare with spawn limit
+$B4DB: 90 06    BCC $B4E3       ; Branch if $D4 < $D1 (can still spawn)
+; Spawn limit reached - no more enemies
+$B4DD: A9 C0    LDA #$C0        ; Load "limit reached" marker
+$B4DF: 95 93    STA $93,X       ; Store to enemy slot ($94-$96)
+$B4E1: D0 33    BNE $B516       ; Branch to next slot (always taken)
+; --- ENEMY SPAWN/RESPAWN ---
+$B4E3: A9 00    LDA #$00        ; Clear value
+$B4E5: 95 97    STA $97,X       ; Clear enemy status flag
+$B4E7: 95 93    STA $93,X       ; Clear enemy slot state
+$B4E9: A9 FF    LDA #$FF        ; Load $FF
+$B4EB: 95 8C    STA $8C,X       ; Set enemy sprite character to $FF
+$B4ED: 20 1C B5 JSR random_spawn_x ; Generate random X spawn position (0-5)
+$B4F0: 20 31 B5 JSR random_spawn_y ; Generate random Y spawn position (0-2)
+$B4F3: 8A       TXA             ; Transfer X to A
+$B4F4: 48       PHA             ; Save X on stack
+$B4F5: BD D4 BF LDA $BFD4,X     ; Load X position from spawn table
+$B4F8: 48       PHA             ; Save X position on stack
+$B4F9: B9 DA BF LDA $BFDA,Y     ; Load Y position from spawn table
+$B4FC: A6 67    LDX $67         ; Restore current slot index
+$B4FE: 95 84    STA $84,X       ; Store Y position to enemy array
+$B500: 68       PLA             ; Restore X position from stack
+$B501: 95 80    STA $80,X       ; Store X position to enemy array
+$B503: 9D 00 C0 STA $C000,X     ; Store to color register (COLPM0+X)
+$B506: 68       PLA             ; Restore X from stack
+$B507: E0 01    CPX #$01        ; Check if slot 1
+$B509: D0 02    BNE $B50D       ; Branch if not slot 1
+$B50B: 85 92    STA $92         ; Store to working register (slot 1 only)
+$B50D: AD 0A E8 LDA $E80A       ; Load hardware register
+$B510: 29 F0    AND #$F0        ; Mask upper nibble
+$B512: 09 08    ORA #$08        ; Set bit 3
+$B514: 95 08    STA $08,X       ; Store to display register
+; --- LOOP CONTROL ---
+$B516: E8       INX             ; Next enemy slot
+$B517: E0 04    CPX #$04        ; Check if processed all 3 slots
+$B519: D0 B6    BNE $B4D1       ; Loop back if more slots to process
+$B51B: 60       RTS             ; Return
 ; ===============================================================================
-; RANDOM_NUMBER_GENERATORS ($B51C, $B54A)
+; RANDOM NUMBER GENERATORS ($B51C, $B531, $B54A)
 ; Hardware-based random number generation using $E80A register
-; Used for enemy AI, spawning, and potentially arena generation
+; Used for enemy spawning to select random positions from spawn tables
 ; ===============================================================================
 
+; **RANDOM_SPAWN_X ($B51C-$B530)**
+; Generates random X coordinate index (0-5) for enemy spawn position
+; Returns: A and X = random value 0-5 (indexes into $BFD4 X position table)
+; Avoids repeating previous values stored in $B0 and $92
+random_spawn_x:
 $B51C: AD 0A E8 LDA $E80A       ; Load hardware random register
 $B51F: 29 07    AND #$07        ; Mask to get 0-7 range
 $B521: C9 06    CMP #$06        ; Check if >= 6
@@ -5218,10 +5317,16 @@ $B52D: 85 B0    STA $B0         ; Store new random value
 $B52F: AA       TAX             ; Transfer to X register
 $B530: 60       RTS             ; Return with random 0-5 in A and X
 
+; **RANDOM_SPAWN_Y ($B531-$B549)**
+; Generates random Y coordinate index (0-2) for enemy spawn position
+; Returns: A and Y = random value 0, 2, or 0-2 (indexes into $BFDA Y position table)
+; Special handling: If X=0 or X=5, calls random_spawn_y_full for 0-2 range
+;                   Otherwise returns 0 or 2 only (avoids middle Y position)
+random_spawn_y:
 $B531: E0 00    CPX #$00        ; Check X register value
-$B533: F0 15    BEQ $B54A       ; Branch to different random routine if 0
+$B533: F0 15    BEQ $B54A       ; Branch to full range if X=0
 $B535: E0 05    CPX #$05        ; Check if X is 5
-$B537: F0 11    BEQ $B54A       ; Branch to different random routine if 5
+$B537: F0 11    BEQ $B54A       ; Branch to full range if X=5
 $B539: AD 0A E8 LDA $E80A       ; Load hardware random register
 $B53C: 29 01    AND #$01        ; Mask to get 0-1 range
 $B53E: D0 04    BNE $B544       ; Branch if 1
@@ -5233,15 +5338,21 @@ $B546: 85 B1    STA $B1         ; Store 2
 $B548: A8       TAY             ; Transfer to Y
 $B549: 60       RTS             ; Return with 2
 
+; **RANDOM_SPAWN_Y_FULL ($B54A-$B55A)**
+; Generates random Y coordinate index (0-2) with full range
+; Returns: A and Y = random value 0-2 (indexes into $BFDA Y position table)
+; Called when X=0 or X=5 to allow spawning at any Y position
+; Avoids repeating previous value stored in $B1
+random_spawn_y_full:
 $B54A: AD 0A E8 LDA $E80A       ; Load hardware random register
 $B54D: 29 03    AND #$03        ; Mask to get 0-3 range
 $B54F: C9 03    CMP #$03        ; Check if 3
 $B551: B0 F7    BCS $B54A       ; Loop if 3 (reject to get 0-2)
 $B553: C5 B1    CMP $B1         ; Compare with previous value
 $B555: F0 F3    BEQ $B54A       ; Loop if same (avoid repeats)
-$B557: 85 B1    STA $B1
-$B559: A8       TAY
-$B55A: 60       RTS
+$B557: 85 B1    STA $B1         ; Store new random value
+$B559: A8       TAY             ; Transfer to Y
+$B55A: 60       RTS             ; Return with random 0-2 in A and Y
 ; ===============================================================================
 ; render_enemy_sprites ($B55B-$B708)
 ; Enemy sprite positioning and display rendering system
@@ -6474,15 +6585,20 @@ $BBDE: BD E6 BB LDA $BBE6,X     ; Load parameter 2 from sector table
 $BBE1: 85 D6    STA $D6         ; Store game speed parameter
 $BBE3: 60       RTS             ; Return
 ; ===============================================================================
-; SECTOR DIFFICULTY PARAMETER TABLES ($BBE4-$BC10)
+; SECTOR DIFFICULTY PARAMETER TABLES ($BBE4-$BC03)
 ; ===============================================================================
 ; **ENEMY FIRING FREQUENCY AND DIFFICULTY DATA**
 ; Format: 4 bytes per sector (D1, D7, D6, D8)
-; - D1 = Enemy accuracy/difficulty parameter  
+; - D1 = Enemy spawn limit (enemies that must be defeated to clear sector)
 ; - D7 = FIRING FREQUENCY (frames between shots - lower = more frequent)
 ; - D6 = Game speed parameter
 ; - D8 = Timing parameter
 ; 
+; **GAME HAS 8 SECTORS (0-7)**:
+; - Sector 0: Tutorial (no enemy firing)
+; - Sectors 1-7: Progressive difficulty
+; - Data at $BC04-$BC0F appears to be unused/leftover development data
+;
 ; FIRING FREQUENCY ANALYSIS (Atari 5200 NTSC @ 59.92 Hz):
 ; **THEORETICAL RATES** (if fired every opportunity):
 ; Sector 0: D7=$00 (0)   = NO FIRING (tutorial sector)
@@ -6493,9 +6609,6 @@ $BBE3: 60       RTS             ; Return
 ; Sector 5: D7=$13 (19)  = 3.15 shots/sec (every 317ms)
 ; Sector 6: D7=$06 (6)   = 9.99 shots/sec (every 100ms)
 ; Sector 7: D7=$04 (4)   = 14.98 shots/sec (every 67ms)
-; Sector 8: D7=$FF (255) = 0.23 shots/sec (every 4256ms) - Extended difficulty
-; Sector 9: D7=$3A (58)  = 1.03 shots/sec (every 968ms)
-; Sector 10: D7=$36 (54) = 1.11 shots/sec (every 901ms)
 ;
 ; **ACTUAL RATES** (accounting for randomization and conditions):
 ; - ~25% of theoretical due to hardware randomization ($E80A & #$03 ≠ 0)
@@ -6507,21 +6620,21 @@ $BBE3: 60       RTS             ; Return
 ; - Sector 5: ~0.79 shots/sec (every ~1.3 seconds)
 ; - Sector 6: ~2.50 shots/sec (every ~0.4 seconds)
 ; - Sector 7: ~3.75 shots/sec (every ~0.27 seconds)
-; - Sector 8: ~0.06 shots/sec (every ~17 seconds) - Very slow extended level
-; - Sector 9: ~0.26 shots/sec (every ~3.9 seconds)
-; - Sector 10: ~0.28 shots/sec (every ~3.6 seconds)
 ; ===============================================================================
-$BBE4: .byte $0E, $00, $02, $15    ; Sector 0: No firing (D7=$00)
-$BBE8: .byte $14, $60, $02, $12    ; Sector 1: 0.6 shots/sec (D7=$60=96)
-$BBEC: .byte $1A, $40, $03, $08    ; Sector 2: 0.9 shots/sec (D7=$40=64)
-$BBF0: .byte $1D, $30, $04, $06    ; Sector 3: 1.2 shots/sec (D7=$30=48)
-$BBF4: .byte $20, $25, $0A, $04    ; Sector 4: 1.6 shots/sec (D7=$25=37)
-$BBF8: .byte $24, $13, $50, $03    ; Sector 5: 3.2 shots/sec (D7=$13=19)
-$BBFC: .byte $36, $06, $FF, $01    ; Sector 6: 10.0 shots/sec (D7=$06=6)
-$BC00: .byte $75, $04, $FF, $01    ; Sector 7: 15.0 shots/sec (D7=$04=4)
-$BC04: .byte $01, $FF, $01, $3C    ; Sector 8: 0.23 shots/sec (D7=$FF=255) - Extended level
-$BC08: .byte $3A, $38, $36, $34    ; Sector 9: 1.03 shots/sec (D7=$38=56)
-$BC0C: .byte $32, $30, $2E, $2C    ; Sector 10: 1.11 shots/sec (D7=$30=48)
+;           D1   D7   D6   D8
+$BBE4: .byte $0E, $00, $02, $15    ; Sector 0:  D1=14,  D7=0,    D6=2,   D8=21  (No firing)
+$BBE8: .byte $14, $60, $02, $12    ; Sector 1:  D1=20,  D7=96,   D6=2,   D8=18
+$BBEC: .byte $1A, $40, $03, $08    ; Sector 2:  D1=26,  D7=64,   D6=3,   D8=8
+$BBF0: .byte $1D, $30, $04, $06    ; Sector 3:  D1=29,  D7=48,   D6=4,   D8=6
+$BBF4: .byte $20, $25, $0A, $04    ; Sector 4:  D1=32,  D7=37,   D6=10,  D8=4
+$BBF8: .byte $24, $13, $50, $03    ; Sector 5:  D1=36,  D7=19,   D6=80,  D8=3
+$BBFC: .byte $36, $06, $FF, $01    ; Sector 6:  D1=54,  D7=6,    D6=255, D8=1
+$BC00: .byte $75, $04, $FF, $01    ; Sector 7:  D1=117, D7=4,    D6=255, D8=1
+
+; Unused/leftover data (beyond 8 valid sectors)
+$BC04: .byte $01, $FF, $01, $3C    ; Unused:    D1=1,   D7=255,  D6=1,   D8=60
+$BC08: .byte $3A, $38, $36, $34    ; Unused:    D1=58,  D7=56,   D6=54,  D8=52
+$BC0C: .byte $32, $30, $2E, $2C    ; Unused:    D1=50,  D7=48,   D6=46,  D8=44
 
 ; ===============================================================================
 ; PLAYER_RESET_AND_INITIALIZATION ($BC11-$BC3E)
@@ -6877,7 +6990,7 @@ $BD65: 60       RTS
 ;   * Used for iterative bonus point awards
 ;
 ; - $BD6C (enemy_hit_scoring): Combat scoring (value already in accumulator)
-;   * Called from collision_detection_and_input
+;   * Called from collision_detection
 ;   * Adds accumulator value (1 or 5) to score digit at $060B+3 (tens place)
 ;   * 5 points: Enemy-to-enemy collision (strategic bonus)
 ;   * 1 point: Player missile hits enemy (standard kill)
@@ -7624,16 +7737,34 @@ $BFD6: 6E       .byte $6E        ; Starting position 2: X=110 (commonly used)
 $BFD7: 87       .byte $87        ; Starting position 3: X=135 (commonly used)
 
 ; ===============================================================================
-; SYSTEM INITIALIZATION AND RESET VECTORS ($BFD8-$BFFF)
+; ENEMY SPAWN POSITION TABLES ($BFD8-$BFDF)
+; ===============================================================================
+; **ENEMY SPAWN COORDINATES**
+; These tables contain spawn positions for enemies at the arena perimeter/edges.
+; Enemies always spawn at the edges as documented in the manual.
+;
+; **NO COLLISION CHECKING**: The spawn routine does NOT check for walls, player,
+; or other enemies at spawn positions. Relies on edge positions being relatively
+; safe and collision detection handling any overlaps after spawning.
+;
+; Used by:
+; - $B4F5: Enemy spawn X position (indexed by random 0-5 from random_spawn_x)
+; - $B4F9: Enemy spawn Y position (indexed by random 0-2 from random_spawn_y)
+; ===============================================================================
+$BFD8: A0       .byte $A0        ; X position 4: X=160 (right edge)
+$BFD9: BB       .byte $BB        ; X position 5: X=187 (far right edge)
+$BFDA: 30       .byte $30        ; Y position 0: Y=48  (top edge)
+$BFDB: 66       .byte $66        ; Y position 1: Y=102 (middle)
+$BFDC: A6       .byte $A6        ; Y position 2: Y=166 (bottom edge)
+$BFDD: C9       .byte $C9        ; Unused/padding
+$BFDE: 0E       .byte $0E        ; Unused/padding
+$BFDF: D0       .byte $D0        ; Unused/padding
+
+; ===============================================================================
+; SYSTEM INITIALIZATION AND RESET VECTORS ($BFE0-$BFFF)
 ; **SYSTEM STARTUP CODE** - Reset vector handling and initialization
 ; This section contains the system reset and initialization code
 ; ===============================================================================
-$BFD8: A0 BB    LDY #$BB         ; Load Y register with immediate value $BB
-$BFDA: 30 66    BMI $C042        ; Branch if minus (negative flag set) to $C042
-$BFDC: A6 C9    LDX $C9          ; Load X register from memory location $C9
-$BFDE: 0E D0 06 ASL $06D0        ; Arithmetic shift left on memory location $06D0
-
-; **SYSTEM RESET INITIALIZATION** - Main system startup sequence
 $BFE1: A2 FF    LDX #$FF         ; Load X register with $FF (initialize stack pointer)
 $BFE3: 9A       TXS              ; Transfer X to stack pointer (set stack to $01FF)
 $BFE4: 4C C8 A2 JMP cartridge_init ; Jump to main initialization routine at $A2C8
