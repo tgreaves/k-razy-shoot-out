@@ -8,6 +8,19 @@ K-Razy Shoot-Out is a single-player action game where Space Commanders must esca
 ### Starting Lives
 - **3 Space Commanders** at game start
 - Only one Commander active per Sector at a time
+- **Lives tracked by death counter $DA** (starts at 0)
+
+### Death Counter ($DA)
+- **$DA = 0**: No deaths yet (3 lives remaining)
+- **$DA = 1**: 1 death (2 lives remaining)
+- **$DA = 2**: 2 deaths (1 life remaining)
+- **$DA = 3**: 3 deaths (0 lives remaining) → **GAME OVER**
+
+### Code Locations
+- **$A57A**: Death counter initialized to 0 at game start
+- **$B768**: Death counter incremented on each death
+- **$A34F-$A353**: Main game loop checks if $DA == 3 for game over
+- **$B75E**: Player death and respawn routine (player_death_and_respawn)
 
 ### Extra Lives
 - **Awarded every 10,000 points**
@@ -20,6 +33,14 @@ A Space Commander is lost when:
 2. Hit by enemy fire
 3. Contact with a Droid
 4. Contact with radioactive debris (remains after Droid elimination)
+5. Going out of bounds (detected by boundary check at $BD47)
+
+### Death Detection
+- **$97**: Death detection flag (set to 1 when death condition occurs)
+- **$BD47**: Boundary check routine that sets $97 when player goes out of bounds
+- **$B4C3**: Death routine called when $97 is set
+- **$B765**: Death music played ($B097)
+- **$B768**: Death counter $DA incremented
 
 ### Special Death Rule
 If you eliminate all but 1-2 Droids and then die:
@@ -160,18 +181,38 @@ If player exits Sector before eliminating all Droids:
 
 ## Code Analysis Notes
 
-### Lives Counter Location
-- **Unknown** - needs to be located in code
-- Should initialize to 3 at game start
-- Should decrement on death
-- Should increment every 10,000 points (max 4 reserve)
-- Game over when reaches 0
+### Lives System Implementation
+- **$DA (death counter)**: Tracks number of deaths (0-3)
+  - Initialized to 0 at $A57A (3 lives remaining)
+  - Incremented at $B768 on each death
+  - Checked at $A34F for game over condition
+- **$97 (death flag)**: Set to 1 when death condition detected
+  - Set by boundary check at $BD57
+  - Checked at $B4C1 to trigger death routine
+- **$B75E (player_death_and_respawn)**: Main death handling routine
+  - Plays death music
+  - Increments death counter
+  - Handles respawn animation
+  - Returns to game if lives remaining
+
+### Extra Life System
+- **Award threshold**: Every 10,000 points
+- **Maximum reserve**: 4 Commanders in reserve
+- **Implementation**: NOT YET FOUND in code
+  - Should check ten-thousands digit ($060B) for changes
+  - Should increment lives counter (or decrement death counter?)
+  - May not be fully implemented in this version
+
+### Key Memory Locations Found
+- **$DA**: Death counter (0-3, game over at 3)
+- **$97**: Death detection flag
+- **$060B-$060F**: Score (5 BCD digits)
+- **$7B**: Previous ten-thousands digit (for extra life detection?)
+- **$D5**: Current level/sector number
+- **$D9**: Time remaining counter
 
 ### Key Memory Locations to Find
-- Lives counter (starts at 3)
-- Extra life award threshold (10,000 points)
-- Maximum reserve lives check (4)
+- Extra life award mechanism (10,000 point check)
 - Droid count per Sector
-- Countdown bar timer
 - Power-pack casing counter (50 rounds each)
 - Rank/Classification calculation
