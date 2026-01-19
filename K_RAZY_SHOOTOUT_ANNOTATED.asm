@@ -1834,15 +1834,19 @@ $A359: 20 5B B5 JSR render_enemy_sprites ; Render all 3 enemy sprites
 $A35C: 20 3A A8 JSR collision_detection_and_input ; Process collisions and player input
 
 $A35F: A5 AD    LDA $AD         ; Is player moving horizontally right now?
-$A361: F0 0A    BEQ $A36D       ; Then check if they might have escaped the sector
+$A361: F0 0A    BEQ skip_player_escape_check      ; If not, skip ahead.
 
+; Player has escaped.
+; 'check_sector_cleared' will increase level ONLY if all enemies were defeated.
+; This means a player 'chickening out' just plays the same level again.
 $A363: A6 D5    LDX $D5
 $A365: F6 C5    INC $C5
-$A367: 20 FF A4 JSR $A4FF
+$A367: 20 FF A4 JSR check_sector_cleared
 $A36A: 4C 2F A3 JMP back_to_init_sector
 
+skip_player_escape_check:
 $A36D: 20 3D B2 JSR $B23D
-$A370: 20 1A B3 JSR $B31A
+$A370: 20 1A B3 JSR enemy_firing
 $A373: 20 05 AD JSR process_player_input
 $A376: 20 26 B7 JSR update_elapsed_game_time
 $A379: 20 77 BB JSR time_countdown_and_display
@@ -2215,7 +2219,7 @@ $A4FC: 41       .byte $41        ; Display mode 1 with flags
 $A4FD: 00       .byte $00        ; Padding/end marker
 $A4FE: 38       .byte $38        ; Display mode 8
 ; ===============================================================================
-; ENEMY_WAVE_CHECK ($A4FF)
+; check_sector_cleared ($A4FF)
 ; Enemy wave completion and exit activation system
 ; This routine:
 ; - Checks if all 3 enemy slots are defeated ($94 AND $95 AND $96)
@@ -2223,8 +2227,10 @@ $A4FE: 38       .byte $38        ; Display mode 8
 ; - Manages wave completion and new enemy spawning from $A6 pool
 ; - Updates scoring based on enemy defeats and shot accuracy
 ; - Integrates with time system ($D9) and total enemy count ($A6 = 24)
+; - Called when player moves horizontally ($AD set) to check for sector completion
 ; ===============================================================================
 
+check_sector_cleared:
 $A4FF: A5 94    LDA $94         ; Load enemy slot 1 state (0=empty, 1=defeated)
 $A501: 25 95    AND $95         ; AND with enemy slot 2 state  
 $A503: 25 96    AND $96         ; AND with enemy slot 3 state
@@ -2822,83 +2828,55 @@ $A839: .byte $0E                ; "." (period)
 
 ; ===============================================================================
 ; collision_detection_and_input ($A83A-$A99B)
-; Collision detection and player input processing system
+; Collision detection system with fire button processing
 ; 
 ; Called once per frame from main game loop after enemy sprite rendering.
-; Handles all collision detection between player, enemies, and missiles,
-; processes player input, and manages game state updates.
+; Primarily handles collision detection between enemies, missiles, and playfield.
+; Also processes fire button input.
 ;
-; MAIN FUNCTIONS:
+; MAIN SECTIONS:
 ;
 ; 1. ENEMY-TO-ENEMY COLLISION DETECTION ($A844-$A8DD):
-;    - Checks hardware collision registers for enemies colliding with each other
-;    - Processes 3 enemy slots independently ($94, $95, $96)
-;    - Reads GTIA collision registers:
-;      * $C00A (P2PF) - Enemy 2 (P2) collision register
-;      * $C009 (P1PF) - Enemy 1 (P1) collision register  
-;      * $C00B (P3PF) - Enemy 3 (P3) collision register
-;    - Each slot checks if OTHER enemies collided:
-;      * Slot 1: checks P2PF & P3PF (enemies 2&3 colliding)
-;      * Slot 2: checks P1PF & P3PF (enemies 1&3 colliding)
-;      * Slot 3: checks P1PF & P2PF (enemies 1&2 colliding)
-;    - When collision detected:
-;      * Awards 5 POINTS (strategic bonus for enemy manipulation)
-;      * Plays hit sound effect (JSR $BD6C)
-;      * Increments hit counters ($D2, $D3)
-;      * Marks enemy slot as DEFEATED (sets $94/$95/$96 = 1)
+;    - Checks if enemies collided with each other (P1-P3 collision registers)
+;    - Awards 5 POINTS for enemy-to-enemy collisions
+;    - Checks if enemy missiles hit anything (M1-M3 collision registers)
+;    - Awards 1 POINT for enemy missile hits
+;    - Marks enemy slots as DEFEATED when hit
 ;
 ; 2. PLAYER MISSILE HIT DETECTION ($A8F6-$A930):
-;    - Checks if player's missile (M0) hit any of 3 enemies (P1-P3)
-;    - Reads $C008 collision register with bit masks:
-;      * Bit 1 ($02): Player missile hit Enemy 1 (P1)
-;      * Bit 2 ($04): Player missile hit Enemy 2 (P2)
-;      * Bit 3 ($08): Player missile hit Enemy 3 (P3)
-;    - When hit detected:
-;      * Marks enemy as defeated ($94/$95/$96 = 1)
-;      * Awards 1 POINT (standard ranged kill)
-;      * Plays hit sound (JSR player_bonus_score_increase)
-;      * Increments shot counter $D4 (for accuracy tracking)
+;    - Checks if player's missile (M0) hit any enemies (P1-P3)
+;    - Reads $C008 collision register with bit masks
+;    - Awards 1 POINT for each enemy hit
+;    - Increments shot counter $D4 (for accuracy tracking)
 ;
-; **SCORING SYSTEM**:
-; - Enemy-to-Enemy Collision: 5 POINTS (BONUS)
-;   * Strategic gameplay - maneuver enemies into each other
-;   * Detected when enemy sprites collide (P1-P3 collision registers)
-;   * Rewards tactical positioning and enemy manipulation
-; - Ranged kills (player missile hits enemy): 1 POINT
-;   * Standard gameplay - shoot enemies from distance
-;   * Uses Missile-to-Playfield collision (M0 hitting P1-P3 via $C008)
-; - Risk/reward: 5x bonus points for causing enemy collisions vs shooting
-;
-; **SPRITE ASSIGNMENTS**:
-; - P0 = Player character (controlled by user)
-; - P1, P2, P3 = Three enemy sprites
-; - M0 = Player's missile
-; - M1, M2, M3 = Enemy missiles
-;
-; 3. FIRE BUTTON INPUT PROCESSING ($A932-$A940):
+; 3. FIRE BUTTON PROCESSING ($A932-$A93E):
 ;    - Reads fire button state from $C008
-;    - Masks bits $0E to check fire button
-;    - Combines with joystick register $C000
-;    - Calls missile creation routine ($A99C) when fire pressed
+;    - Calls missile creation routine ($A99C) when pressed
 ;
-; 4. JOYSTICK MOVEMENT DETECTION ($A941-$A967):
-;    - Checks player collision with playfield ($C009-$C00B)
-;    - Reads joystick X-axis input ($C004 bit 4)
-;    - Sets horizontal movement flag ($AD) when detected
-;    - Combines horizontal and vertical input ($C004 OR $C00C)
-;    - Sets input detection flag ($93) when joystick moved
+; 4. ENEMY COLLISION CHECKS ($A941-$A967):
+;    - Checks enemy collision with playfield (P1PF, P2PF, P3PF)
+;    - Reads $C004 and checks for specific collision patterns
+;    - Sets $AD flag when certain conditions met
+;    - Sets $93 flag for collision detection
 ;
-; 5. ADDITIONAL INPUT PROCESSING ($A969-$A995):
-;    - Processes multiple input registers ($C009-$C00B)
-;    - Calls missile creation routine for different input states
-;    - Handles 4 different input combinations (X=0,1,2,3)
+; 5. ADDITIONAL COLLISION PROCESSING ($A969-$A995):
+;    - Processes enemy collision registers with different masks
+;    - Calls missile creation routine with different parameters
 ;
 ; 6. CLEANUP ($A996-$A99B):
 ;    - Clears all collision registers via $C01E (GTIA HITCLR)
 ;    - Returns to main game loop
 ;
-; This routine is the core of the game's collision detection and input
-; handling, running 60 times per second to provide responsive gameplay.
+; **SCORING SYSTEM**:
+; - Enemy-to-Enemy Collision: 5 POINTS (strategic bonus)
+; - Enemy missile hits: 1 POINT
+; - Player missile hits enemy: 1 POINT
+;
+; **SPRITE ASSIGNMENTS**:
+; - P0 = Player character
+; - P1, P2, P3 = Three enemy sprites
+; - M0 = Player's missile
+; - M1, M2, M3 = Enemy missiles
 ; ===============================================================================
 collision_detection_and_input:
 $A83A: A6 D5    LDX $D5         ; Load current level/sector number
@@ -3041,62 +3019,63 @@ $A929: A9 01    LDA #$01        ; **1 POINT** - Standard ranged kill
 $A92B: 85 96    STA $96         ; Set enemy slot 3 to DEFEATED
 $A92D: 20 66 BD JSR player_bonus_score_increase ; Add to score and play hit sound
 $A930: E6 D4    INC $D4         ; Increment shot counter (accuracy tracking)
-$A932: AD 08 C0 LDA $C008       ; **FIRE BUTTON INPUT DETECTION** - Read fire button register
-$A935: 29 0E    AND #$0E        ; Mask fire button bits (1,2,3)
-$A937: 0D 00 C0 ORA $C000       ; Combine with base joystick input register
+$A932: AD 08 C0 LDA $C008       ; Read collision/fire button register
+$A935: 29 0E    AND #$0E        ; Mask bits 1,2,3
+$A937: 0D 00 C0 ORA $C000       ; Combine with base register
 $A93A: F0 05    BEQ $A941       ; Branch if no fire button pressed
-$A93C: A2 00    LDX #$00        ; **PROCESS FIRE BUTTON PRESS**
-$A93E: 20 9C A9 JSR $A99C       ; Call missile creation routine
-$A941: A5 93    LDA $93         ; **CHECK MISSILE CREATION FLAG**
-$A943: D0 24    BNE $A969       ; Branch if missile created
-$A945: AD 09 C0 LDA $C009       ; GTIA P1PF - Player 1/Playfield collision
-$A948: 0D 0A C0 ORA $C00A       ; OR with P2PF collision
-$A94B: 0D 0B C0 ORA $C00B       ; OR with P3PF collision  
+$A93C: A2 00    LDX #$00        ; Set parameter for missile creation
+$A93E: 20 9C A9 JSR create_missile ; Create player missile (M0)
+$A941: A5 93    LDA $93         ; Check collision flag
+$A943: D0 24    BNE $A969       ; Branch if flag set
+$A945: AD 09 C0 LDA $C009       ; Read P1PF - Enemy 1 collision register
+$A948: 0D 0A C0 ORA $C00A       ; OR with P2PF - Enemy 2 collision
+$A94B: 0D 0B C0 ORA $C00B       ; OR with P3PF - Enemy 3 collision
 $A94E: 29 01    AND #$01        ; Check collision bit
 $A950: D0 13    BNE $A965       ; Branch if collision detected
-$A952: AD 04 C0 LDA $C004       ; **JOYSTICK X-AXIS INPUT** - Read horizontal position
-$A955: 29 04    AND #$04        ; Check specific input bit
-$A957: F0 04    BEQ $A95D       ; Branch if no horizontal input
-$A959: A9 01    LDA #$01        ; **HORIZONTAL MOVEMENT DETECTED**
-$A95B: 85 AD    STA $AD         ; Set horizontal movement flag
-$A95D: AD 04 C0 LDA $C004       ; **RELOAD JOYSTICK INPUT** - Read position register again
-$A960: 0D 0C C0 ORA $C00C       ; **COMBINE WITH VERTICAL INPUT** - OR with Y-axis register
-                                ; This combines horizontal and vertical joystick input for missile direction
-$A963: F0 04    BEQ $A969       ; Branch if no joystick input detected
-$A965: A9 01    LDA #$01        ; **JOYSTICK INPUT CONFIRMED**
-$A967: 85 93    STA $93         ; Set joystick input detection flag
-$A969: AD 09 C0 LDA $C009 ; **JOYSTICK INPUT REGISTER** - Read additional input data
-$A96C: 29 0D    AND #$0D
-$A96E: 0D 01 C0 ORA $C001
-$A971: F0 05    BEQ $A978 ; Branch if equal/zero
-$A973: A2 01    LDX #$01
-$A975: 20 9C A9 JSR $A99C
-$A978: AD 0A C0 LDA $C00A ; **JOYSTICK INPUT REGISTER** - Read additional input data
-$A97B: 29 0B    AND #$0B
-$A97D: 0D 02 C0 ORA $C002
-$A980: F0 05    BEQ $A987 ; Branch if equal/zero
-$A982: A2 02    LDX #$02
-$A984: 20 9C A9 JSR $A99C
-$A987: AD 0B C0 LDA $C00B ; **JOYSTICK INPUT REGISTER** - Read additional input data
-$A98A: 29 07    AND #$07
-$A98C: 0D 03 C0 ORA $C003
-$A98F: F0 05    BEQ $A996 ; Branch if equal/zero
-$A991: A2 03    LDX #$03
-$A993: 20 9C A9 JSR $A99C
+$A952: AD 04 C0 LDA $C004       ; Read collision register $C004
+$A955: 29 04    AND #$04        ; Check specific bit
+$A957: F0 04    BEQ $A95D       ; Branch if bit not set
+$A959: A9 01    LDA #$01        ; Set flag value
+$A95B: 85 AD    STA $AD         ; Store to $AD flag
+$A95D: AD 04 C0 LDA $C004       ; Read collision register again
+$A960: 0D 0C C0 ORA $C00C       ; OR with register $C00C
+$A963: F0 04    BEQ $A969       ; Branch if no collision
+$A965: A9 01    LDA #$01        ; Set flag value
+$A967: 85 93    STA $93         ; Store to collision flag $93
+$A969: AD 09 C0 LDA $C009       ; Read P1PF collision register
+$A96C: 29 0D    AND #$0D        ; Mask specific bits
+$A96E: 0D 01 C0 ORA $C001       ; OR with register $C001
+$A971: F0 05    BEQ $A978       ; Branch if no collision
+$A973: A2 01    LDX #$01        ; Set parameter 1
+$A975: 20 9C A9 JSR create_missile ; Create enemy 1 missile (M1)
+$A978: AD 0A C0 LDA $C00A       ; Read P2PF collision register
+$A97B: 29 0B    AND #$0B        ; Mask specific bits
+$A97D: 0D 02 C0 ORA $C002       ; OR with register $C002
+$A980: F0 05    BEQ $A987       ; Branch if no collision
+$A982: A2 02    LDX #$02        ; Set parameter 2
+$A984: 20 9C A9 JSR create_missile ; Create enemy 2 missile (M2)
+$A987: AD 0B C0 LDA $C00B       ; Read P3PF collision register
+$A98A: 29 07    AND #$07        ; Mask specific bits
+$A98C: 0D 03 C0 ORA $C003       ; OR with register $C003
+$A98F: F0 05    BEQ $A996       ; Branch if no collision
+$A991: A2 03    LDX #$03        ; Set parameter 3
+$A993: 20 9C A9 JSR create_missile ; Create enemy 3 missile (M3)
 $A996: A9 00    LDA #$00        ; Clear accumulator
 $A998: 8D 1E C0 STA $C01E       ; GTIA HITCLR - Clear all collision registers
 $A99B: 60       RTS             ; Return from collision_detection_and_input
 ; ===============================================================================
 ; MISSILE_CREATION_PROCESSING ($A99C)
-; **PLAYER MISSILE CREATION AND JOYSTICK DIRECTION SAMPLING**
-; This routine processes fire button input and creates player missiles:
-; - Samples joystick direction from input registers $C000-$C00F
-; - Creates player missile using hardware PMG system  
-; - Sets missile trajectory based on joystick position at fire time
-; - Handles missile availability checking and hardware register setup
+; **GENERAL MISSILE CREATION ROUTINE**
+; Creates missiles for both player and enemies based on X register parameter:
+; - X=#$00: Create player missile (M0) when fire button pressed
+; - X=#$01: Create enemy 1 missile (M1) when enemy collides with playfield
+; - X=#$02: Create enemy 2 missile (M2) when enemy collides with playfield
+; - X=#$03: Create enemy 3 missile (M3) when enemy collides with playfield
+;
+; Uses hardware PMG (Player-Missile Graphics) system to create and position missiles.
 ; ===============================================================================
-
-$A99C: B4 E2    LDY $E2,X ; Process missile creation (X = input type)
+create_missile:
+$A99C: B4 E2    LDY $E2,X ; Process missile creation (X = missile slot 0-3)
 $A99E: A9 00    LDA #$00
 $A9A0: 95 E2    STA $E2
 $A9A2: 88       DEY ; Decrement missile timer
@@ -4608,97 +4587,131 @@ $B238: A9 00    LDA #$00        ; **RESET COUNTER** - Load zero
 $B23A: 85 A8    STA $A8         ; **STORE ZERO** - Reset timing counter
 $B23C: 60       RTS             ; **RETURN** - Exit routine
 ; ===============================================================================
-; PLAYER_WEAPON_SOUND_GENERATOR ($B23D-$B2B2)
 ; ===============================================================================
-; **PLAYER FIRING SOUND EFFECT SYSTEM**
-; This routine generates the distinctive "zap" sound when the player fires their
-; weapon. It creates a two-phase audio envelope with synchronized visual effects.
+; SOUND_PROCESSING_ROUTINE ($B23D-$B2B2)
+; **GENERAL SOUND EFFECT PROCESSOR**
+; 
+; Processes sound effects using $D0 as the primary sound timer/control value.
+; Different $D0 values trigger different sound behaviors.
 ;
-; **SOUND GENERATION PROCESS**:
-; 1. **Trigger**: $BD66 sets $D0=$4F and $BD=$4F when player fires
-; 2. **Detection**: $B23D checks for $4F value to identify player fire sound
-; 3. **Visual Sync**: Coordinates with escape sequence visual effects
-; 4. **Audio Generation**: Two-phase envelope with frequency modulation
-; 5. **Duration Control**: Countdown timers for precise sound length
+; **ENTRY CONDITIONS**:
+; - $D0: Sound timer/control value (0 = no sound, $4F = special case)
+; - $BD: Sound envelope control timer
+; - $DA: Used for visual effect selection and timing in special case
 ;
-; **TWO-PHASE AUDIO ENVELOPE**:
-; - **Phase 1 (Attack)**: Frequency $1F (31) - Sharp attack tone
-; - **Phase 2 (Sustain)**: Frequency $12 (18) + Control $AC - Sustained tone
-; - **Phase Control**: Bit 2 of $BD determines which phase is active
-; - **Duration**: $D0 controls overall sound length, $BD controls envelope
+; **SPECIAL CASE ($D0 = $4F)**:
+; When $D0 = $4F (set by player_bonus_score_increase at $BD9D):
+; - Uses $DA value (0, 1, or 2) to select different visual effect locations
+; - Writes visual effect data to screen memory ($0617-$0619, $062B-$062D)
+; - Decrements both $DA and $D0 as timers
+; - Calls $B889 to copy visual effects to screen
 ;
-; **FREQUENCY ANALYSIS**:
-; Using POKEY formula: freq = 1.789773 MHz / (2 × (value + 1))
-; - Phase 1: $1F (31) = ~28,000 Hz - Very high pitched attack
-; - Phase 2: $12 (18) = ~47,100 Hz - Even higher sustained tone
-; - Creates distinctive "laser zap" sound characteristic of 1980s arcade games
+; **GENERAL CASE ($D0 ≠ $4F)**:
+; - Skips visual effect setup
+; - Proceeds directly to sound generation at $B284
+; - Decrements $D0 only
 ;
-; **VISUAL SYNCHRONIZATION**:
-; The sound system coordinates with visual effects based on escape state ($DA):
-; - Different escape states trigger different visual effect patterns
-; - Visual data staged in $06xx memory areas and transferred to screen
-; - Creates synchronized audio-visual feedback for weapon firing
-;
-; **INTEGRATION WITH GAME SYSTEMS**:
-; - Called from main sound update loop (part of $BC11 system)
-; - Triggered by player input processing and collision detection
-; - Coordinates with scoring system and visual effects
-; - Provides immediate audio feedback for player actions
+; **SOUND GENERATION**:
+; - Uses POKEY audio registers $E800 (AUDF1) and $E801 (AUDC1)
+; - Two-phase envelope controlled by $BD bit 2
+; - Phase 1: Frequency $1F (attack)
+; - Phase 2: Frequency $12 with control $AC (sustain)
 ; ===============================================================================
-$B23F: D0 01    BNE $B242       ; Branch if sound active (D0 ≠ 0)
-$B241: 60       RTS             ; Return if no sound to process
-$B242: C9 4F    CMP #$4F        ; **CHECK FOR PLAYER FIRE SOUND** - Compare with $4F
-$B244: D0 3E    BNE $B284       ; Branch to sound countdown if not player fire
-$B246: A5 DA    LDA $DA         ; **VISUAL EFFECT COORDINATION** - Load death counter
-$B248: D0 0D    BNE $B257       ; Branch based on death state
-$B24A: A9 20    LDA #$20        ; **VISUAL SYNC EFFECT 1** - Load visual parameter
-$B24C: 8D 19 06 STA $0619       ; Store visual effect data
-$B24F: A9 1E    LDA #$1E        ; Load secondary visual parameter
-$B251: 8D 2D 06 STA $062D       ; Store secondary visual effect
-$B254: 4C 76 B2 JMP $B276       ; Jump to sound countdown
-$B257: C9 01    CMP #$01        ; **DEATH STATE 1** - Check if first death
-$B259: D0 0D    BNE $B268       ; Branch if not first death
-$B25B: A9 20    LDA #$20        ; **VISUAL SYNC EFFECT 2** - Load visual parameter
-$B25D: 8D 18 06 STA $0618       ; Store visual effect data
-$B260: A9 1E    LDA #$1E        ; Load secondary visual parameter
-$B262: 8D 2C 06 STA $062C       ; Store secondary visual effect
-$B265: 4C 76 B2 JMP $B276       ; Jump to sound countdown
-$B268: C9 02    CMP #$02        ; **ESCAPE STATE 2** - Check if escape = 2
-$B26A: D0 0A    BNE $B276       ; Branch to countdown if not escape state 2
-$B26C: A9 20    LDA #$20        ; **VISUAL SYNC EFFECT 3** - Load visual parameter
-$B26E: 8D 17 06 STA $0617       ; Store visual effect data
-$B271: A9 1E    LDA #$1E        ; Load secondary visual parameter
-$B273: 8D 2B 06 STA $062B       ; Store secondary visual effect
-$B276: A5 DA    LDA $DA         ; **SOUND COUNTDOWN PROCESSING** - Load death counter
-$B278: C9 FF    CMP #$FF        ; Check for termination flag
+; ===============================================================================
+; SOUND_PROCESSING_ROUTINE ($B23D-$B2B2)
+; **GENERAL SOUND EFFECT PROCESSOR**
+; 
+; Processes sound effects using $D0 as the primary sound timer/control value.
+; Different $D0 values trigger different sound behaviors.
+;
+; **ENTRY CONDITIONS**:
+; - $D0: Sound timer/control value (0 = no sound, $4F = special case)
+; - $BD: Sound envelope control timer
+; - $DA: Used for visual effect selection and timing in special case
+;
+; **SPECIAL CASE ($D0 = $4F)**:
+; When $D0 = $4F (set by player_bonus_score_increase at $BD9D):
+; - Uses $DA value (0, 1, or 2) to select different visual effect locations
+; - Writes visual effect data to screen memory ($0617-$0619, $062B-$062D)
+; - Decrements both $DA and $D0 as timers
+; - Calls $B889 to copy visual effects to screen
+;
+; **GENERAL CASE ($D0 ≠ $4F)**:
+; - Skips visual effect setup
+; - Proceeds directly to sound generation at $B284
+; - Decrements $D0 only
+;
+; **SOUND GENERATION**:
+; - Uses POKEY audio registers $E800 (AUDF1) and $E801 (AUDC1)
+; - Two-phase envelope controlled by $BD bit 2
+; - Phase 1: Frequency $1F (attack)
+; - Phase 2: Frequency $12 with control $AC (sustain)
+; ===============================================================================
+$B23D: A5 D0    LDA $D0         ; Load sound timer
+$B23F: D0 01    BNE $B242       ; Branch if sound active
+$B241: 60       RTS             ; Return if no sound
+$B242: C9 4F    CMP #$4F        ; Check for special case value
+$B244: D0 3E    BNE $B284       ; Branch to general sound processing if not $4F
+; --- SPECIAL CASE: $D0 = $4F (Visual Effects + Sound) ---
+$B246: A5 DA    LDA $DA         ; Load visual effect selector
+$B248: D0 0D    BNE $B257       ; Branch if not zero
+; $DA = 0: Write to locations $0619 and $062D
+$B24A: A9 20    LDA #$20        ; Load visual data value
+$B24C: 8D 19 06 STA $0619       ; Store to screen memory
+$B24F: A9 1E    LDA #$1E        ; Load secondary visual value
+$B251: 8D 2D 06 STA $062D       ; Store to screen memory
+$B254: 4C 76 B2 JMP $B276       ; Jump to timer processing
+; $DA = 1: Write to locations $0618 and $062C
+$B257: C9 01    CMP #$01        ; Check if $DA = 1
+$B259: D0 0D    BNE $B268       ; Branch if not 1
+$B25B: A9 20    LDA #$20        ; Load visual data value
+$B25D: 8D 18 06 STA $0618       ; Store to screen memory
+$B260: A9 1E    LDA #$1E        ; Load secondary visual value
+$B262: 8D 2C 06 STA $062C       ; Store to screen memory
+$B265: 4C 76 B2 JMP $B276       ; Jump to timer processing
+; $DA = 2: Write to locations $0617 and $062B
+$B268: C9 02    CMP #$02        ; Check if $DA = 2
+$B26A: D0 0A    BNE $B276       ; Branch if not 2 (skip visual setup)
+$B26C: A9 20    LDA #$20        ; Load visual data value
+$B26E: 8D 17 06 STA $0617       ; Store to screen memory
+$B271: A9 1E    LDA #$1E        ; Load secondary visual value
+$B273: 8D 2B 06 STA $062B       ; Store to screen memory
+; Timer processing for special case
+$B276: A5 DA    LDA $DA         ; Load $DA timer
+$B278: C9 FF    CMP #$FF        ; Check for termination value
 $B27A: D0 01    BNE $B27D       ; Branch if not terminated
-$B27C: 60       RTS             ; Return if sound terminated
-$B27D: C6 DA    DEC $DA         ; **DECREMENT VISUAL COUNTER** - Reduce visual effect timer
-$B27F: 20 89 B8 JSR $B889       ; **COPY VISUAL EFFECTS** - Transfer visual data to screen
-$B282: C6 D0    DEC $D0         ; **DECREMENT SOUND DURATION** - Reduce sound timer
-$B284: A9 12    LDA #$12        ; **PLAYER FIRE FREQUENCY** - Load base frequency $12 (18 decimal)
-$B286: 8D 00 E8 STA $E800       ; **AUDF1** - Set POKEY audio frequency channel 1
-$B289: A5 BD    LDA $BD         ; **LOAD SOUND CONTROL PARAMETER** - Get sound envelope control
-$B28B: D0 08    BNE $B295       ; Branch if sound control active
-$B28D: 85 0E    STA $0E         ; **CLEAR SOUND EFFECTS** - Clear sound parameter 1
+$B27C: 60       RTS             ; Return if terminated
+$B27D: C6 DA    DEC $DA         ; Decrement $DA timer
+$B27F: 20 89 B8 JSR $B889       ; Call visual effect copy routine
+$B282: C6 D0    DEC $D0         ; Decrement sound timer
+; --- GENERAL SOUND GENERATION (all cases) ---
+$B284: A9 12    LDA #$12        ; Load base frequency $12
+$B286: 8D 00 E8 STA $E800       ; AUDF1 - Set POKEY frequency
+$B289: A5 BD    LDA $BD         ; Load sound envelope control
+$B28B: D0 08    BNE $B295       ; Branch if envelope active
+; Envelope finished - silence
+$B28D: 85 0E    STA $0E         ; Clear sound parameter 1
 $B28F: 85 10    STA $10         ; Clear sound parameter 2
-$B291: 8D 01 E8 STA $E801       ; **AUDC1** - Clear POKEY audio control (silence)
-$B294: 60       RTS             ; Return with sound off
-$B295: C6 BD    DEC $BD         ; **DECREMENT SOUND ENVELOPE** - Reduce envelope timer
-$B297: 29 04    AND #$04        ; **ENVELOPE PHASE CHECK** - Test bit 2 for phase
+$B291: 8D 01 E8 STA $E801       ; AUDC1 - Clear audio control (silence)
+$B294: 60       RTS             ; Return
+; Envelope active - process phases
+$B295: C6 BD    DEC $BD         ; Decrement envelope timer
+$B297: 29 04    AND #$04        ; Test bit 2 for phase
 $B299: D0 0C    BNE $B2A7       ; Branch to phase 2 if bit set
-$B29B: A9 1F    LDA #$1F        ; **PHASE 1: ATTACK** - Load attack frequency $1F (31 decimal)
-$B29D: 8D 00 E8 STA $E800       ; **AUDF1** - Set attack frequency
-$B2A0: A9 00    LDA #$00        ; **CLEAR SOUND PARAMETERS** - Load silence value
+; Phase 1: Attack
+$B29B: A9 1F    LDA #$1F        ; Load attack frequency
+$B29D: 8D 00 E8 STA $E800       ; AUDF1 - Set attack frequency
+$B2A0: A9 00    LDA #$00        ; Clear parameters
 $B2A2: 85 0E    STA $0E         ; Clear sound parameter 1
 $B2A4: 85 10    STA $10         ; Clear sound parameter 2
-$B2A6: 60       RTS             ; Return from attack phase
-$B2A7: A9 AC    LDA #$AC        ; **PHASE 2: SUSTAIN** - Load sustain control $AC (172 decimal)
-$B2A9: 8D 01 E8 STA $E801       ; **AUDC1** - Set POKEY audio control for sustain
-$B2AC: A9 32    LDA #$32        ; **SUSTAIN PARAMETERS** - Load sustain value $32 (50 decimal)
+$B2A6: 60       RTS             ; Return
+; Phase 2: Sustain
+$B2A7: A9 AC    LDA #$AC        ; Load sustain control value
+$B2A9: 8D 01 E8 STA $E801       ; AUDC1 - Set audio control
+$B2AC: A9 32    LDA #$32        ; Load sustain parameter
 $B2AE: 85 0E    STA $0E         ; Set sound parameter 1
 $B2B0: 85 10    STA $10         ; Set sound parameter 2
-$B2B2: 60       RTS             ; Return from sustain phase
+$B2B2: 60       RTS             ; Return
 ; ===============================================================================
 ; ENEMY_AI ($B2B3)
 ; Enemy movement and AI system with COMPLETE FIRING BEHAVIOR ANALYSIS
@@ -4800,6 +4813,7 @@ $B319: 60       RTS             ; **RETURN** - Exit routine
 ; **FIRING FREQUENCY PERMISSION CHECK**
 ; This routine checks if enemies are allowed to fire based on frame counter
 ; ===============================================================================
+enemy_firing:
 $B31A: A5 D5    LDA $D5         ; Load level counter (for debugging/state tracking)
 $B31C: D0 03    BNE $B321       ; Branch if level > 0 (continue processing)
 $B31E: 4C BE B4 JMP $B4BE       ; If level = 0, skip to frequency update
@@ -5144,6 +5158,7 @@ $B4C3: 20 5E B7 JSR $B75E       ; **PLAYER DEATH!** Process player death and res
 $B4C6: A9 01    LDA #$01
 $B4C8: 85 A9    STA $A9
 $B4CA: 60       RTS
+
 $B4CB: A9 FF    LDA #$FF
 $B4CD: 85 92    STA $92
 $B4CF: A2 01    LDX #$01 ; Update color palettes
