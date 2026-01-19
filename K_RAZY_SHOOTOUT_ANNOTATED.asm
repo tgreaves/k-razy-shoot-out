@@ -1790,8 +1790,11 @@ $A321: 8D 0A 02 STA $020A
 $A324: A9 22    LDA #$22
 $A326: 85 07    STA $07
 $A328: 20 D0 A6 JSR title_screen ; Display title screen and wait for trigger
+
+go_back_to_prepare_new_game:
 $A32B: 20 18 A5 JSR prepare_new_game ; Initialize game variables and text displays
 $A32E: 58       CLI
+back_to_init_sector:
 $A32F: 20 B6 A9 JSR init_sector ; Initialize first sector and generate arena
 
 ; ===============================================================================
@@ -1820,34 +1823,40 @@ $A346: 20 4F B1 sector_game_loop:
                 JSR move_missiles_in_flight ; Move active player missiles
 $A349: 20 B3 B2 JSR $B2B3 ; Enemy AI/movement
 $A34C: 20 BF B4 JSR $B4BF ; Display updates
-$A34F: A5 DA    LDA $DA
-$A351: C9 03    CMP #$03
-$A353: F0 2D    BEQ $A382 ; Branch if equal/zero
-$A355: A5 A9    LDA $A9
-$A357: D0 E7    BNE $A340 ; Loop back if not zero
+$A34F: A5 DA    LDA $DA         ; Load death counter (0-3)
+$A351: C9 03    CMP #$03        ; Check if 3 deaths (all lives used)
+$A353: F0 2D    BEQ player_out_of_lives ; Branch if game over (3 deaths)
+
+$A355: A5 A9    LDA $A9         ; Load player respawn check
+$A357: D0 E7    BNE $A340       ; Go back to re-init PMG, position player etc.
+
 $A359: 20 5B B5 JSR render_enemy_sprites ; Render all 3 enemy sprites
 $A35C: 20 3A A8 JSR collision_detection_and_input ; Process collisions and player input
-$A35F: A5 AD    LDA $AD
-$A361: F0 0A    BEQ $A36D ; Branch if equal/zero
+
+$A35F: A5 AD    LDA $AD         ; Is player moving horizontally right now?
+$A361: F0 0A    BEQ $A36D       ; Then check if they might have escaped the sector
+
 $A363: A6 D5    LDX $D5
 $A365: F6 C5    INC $C5
 $A367: 20 FF A4 JSR $A4FF
-$A36A: 4C 2F A3 JMP $A32F
+$A36A: 4C 2F A3 JMP back_to_init_sector
+
 $A36D: 20 3D B2 JSR $B23D
 $A370: 20 1A B3 JSR $B31A
-$A373: 20 05 AD JSR $AD05
-$A376: 20 26 B7 JSR $B726
-$A379: 20 77 BB JSR $BB77
+$A373: 20 05 AD JSR process_player_input
+$A376: 20 26 B7 JSR update_elapsed_game_time
+$A379: 20 77 BB JSR time_countdown_and_display
 $A37C: A5 D9    LDA $D9         ; Load time remaining counter
 $A37E: C9 02    CMP #$02        ; Check if time almost up (2 time units left)
 $A380: D0 C4    BNE sector_game_loop ; Loop back if time remaining > 2
                                 ; TIME UP! Level advances automatically
+player_out_of_lives:
 $A382: A6 D5    LDX $D5         ; Load current level counter
 $A384: F6 C5    INC $C5,X       ; Increment level statistics
 $A386: E6 D5    INC $D5         ; INCREMENT LEVEL COUNTER - triggers new sector
 $A388: 20 B6 A9 JSR init_sector ; Initialize new sector and generate arena
 $A38B: 20 81 A5 JSR game_over_screen ; Display game over screen with skill ranking
-$A38E: 4C 2B A3 JMP $A32B       ; Jump to main game setup
+$A38E: 4C 2B A3 JMP go_back_to_prepare_new_game ; Jump to main game setup
 
 ; Miscellaneous game text.
 
@@ -2290,7 +2299,7 @@ $A572: 9D 36 06 STA $0636 ; Store to time display area
 $A575: CA       DEX ; Decrement digit counter
 $A576: 10 EF    BPL $A567 ; Continue setting up digits
 $A578: A9 00    LDA #$00 ; Clear final game state
-$A57A: 85 DA    STA $DA ; Clear game over flag $DA
+$A57A: 85 DA    STA $DA ; Clear death counter (start with 3 lives)
 $A57C: A9 30    LDA #$30 ; Set initial time/score value
 $A57E: 85 7B    STA $7B ; Store in time variable $7B
 $A580: 60       RTS ; Return from additional setup
@@ -2821,28 +2830,50 @@ $A839: .byte $0E                ; "." (period)
 ;
 ; MAIN FUNCTIONS:
 ;
-; 1. PLAYER-ENEMY COLLISION DETECTION ($A844-$A8DD):
-;    - Checks hardware collision registers for player hitting enemies
+; 1. ENEMY-TO-ENEMY COLLISION DETECTION ($A844-$A8DD):
+;    - Checks hardware collision registers for enemies colliding with each other
 ;    - Processes 3 enemy slots independently ($94, $95, $96)
 ;    - Reads GTIA collision registers:
-;      * $C00A (P2PF) - Player 2/Playfield collision
-;      * $C009 (P1PF) - Player 1/Playfield collision
-;      * $C00D-$C00F (M1PF-M3PF) - Missile/Playfield collisions
+;      * $C00A (P2PF) - Enemy 2 (P2) collision register
+;      * $C009 (P1PF) - Enemy 1 (P1) collision register  
+;      * $C00B (P3PF) - Enemy 3 (P3) collision register
+;    - Each slot checks if OTHER enemies collided:
+;      * Slot 1: checks P2PF & P3PF (enemies 2&3 colliding)
+;      * Slot 2: checks P1PF & P3PF (enemies 1&3 colliding)
+;      * Slot 3: checks P1PF & P2PF (enemies 1&2 colliding)
 ;    - When collision detected:
+;      * Awards 5 POINTS (strategic bonus for enemy manipulation)
 ;      * Plays hit sound effect (JSR $BD6C)
 ;      * Increments hit counters ($D2, $D3)
 ;      * Marks enemy slot as DEFEATED (sets $94/$95/$96 = 1)
 ;
 ; 2. PLAYER MISSILE HIT DETECTION ($A8F6-$A930):
-;    - Checks if player's missile hit any of 3 enemies
+;    - Checks if player's missile (M0) hit any of 3 enemies (P1-P3)
 ;    - Reads $C008 collision register with bit masks:
-;      * Bit 1 ($02): Missile hit enemy slot 1
-;      * Bit 2 ($04): Missile hit enemy slot 2
-;      * Bit 3 ($08): Missile hit enemy slot 3
+;      * Bit 1 ($02): Player missile hit Enemy 1 (P1)
+;      * Bit 2 ($04): Player missile hit Enemy 2 (P2)
+;      * Bit 3 ($08): Player missile hit Enemy 3 (P3)
 ;    - When hit detected:
 ;      * Marks enemy as defeated ($94/$95/$96 = 1)
-;      * Plays hit sound (JSR $BD66)
+;      * Awards 1 POINT (standard ranged kill)
+;      * Plays hit sound (JSR player_bonus_score_increase)
 ;      * Increments shot counter $D4 (for accuracy tracking)
+;
+; **SCORING SYSTEM**:
+; - Enemy-to-Enemy Collision: 5 POINTS (BONUS)
+;   * Strategic gameplay - maneuver enemies into each other
+;   * Detected when enemy sprites collide (P1-P3 collision registers)
+;   * Rewards tactical positioning and enemy manipulation
+; - Ranged kills (player missile hits enemy): 1 POINT
+;   * Standard gameplay - shoot enemies from distance
+;   * Uses Missile-to-Playfield collision (M0 hitting P1-P3 via $C008)
+; - Risk/reward: 5x bonus points for causing enemy collisions vs shooting
+;
+; **SPRITE ASSIGNMENTS**:
+; - P0 = Player character (controlled by user)
+; - P1, P2, P3 = Three enemy sprites
+; - M0 = Player's missile
+; - M1, M2, M3 = Enemy missiles
 ;
 ; 3. FIRE BUTTON INPUT PROCESSING ($A932-$A940):
 ;    - Reads fire button state from $C008
@@ -2875,74 +2906,80 @@ $A83C: B5 C5    LDA $C5,X       ; Load level statistics
 $A83E: 85 92    STA $92         ; Store to working register
 $A840: A5 94    LDA $94         ; Check enemy slot 1 status
 $A842: D0 30    BNE $A874       ; Skip if enemy already defeated
-$A844: AD 0A C0 LDA $C00A ; GTIA P2PF - Player 2/Playfield collision
-$A847: 0D 0B C0 ORA $C00B
-$A84A: 29 02    AND #$02
-$A84C: F0 0F    BEQ $A85D ; Branch if equal/zero
-$A84E: A5 92    LDA $92
-$A850: D0 05    BNE $A857 ; Loop back if not zero
-$A852: A9 05    LDA #$05
-$A854: 20 6C BD JSR $BD6C ; Hit/action sound effect
+; --- ENEMY SLOT 1: ENEMY-TO-ENEMY COLLISION (5 POINTS BONUS) ---
+$A844: AD 0A C0 LDA $C00A       ; GTIA P2PF - Enemy 2 (P2) collision register
+$A847: 0D 0B C0 ORA $C00B       ; OR with P3PF - Enemy 3 (P3) collision register
+$A84A: 29 02    AND #$02        ; Check if Enemy 2 or 3 collided with Enemy 1
+$A84C: F0 0F    BEQ $A85D       ; Branch if no collision
+$A84E: A5 92    LDA $92         ; Load level statistics flag
+$A850: D0 05    BNE $A857       ; Skip sound if already processed
+$A852: A9 05    LDA #$05        ; **5 POINTS BONUS** - Enemy-to-enemy collision!
+$A854: 20 6C BD JSR enemy_hit_scoring ; Add bonus to score and play hit sound
 $A857: E6 D3    INC $D3         ; Increment hit counter (enemy defeated)
 $A859: A9 01    LDA #$01
-$A85B: 85 94    STA $94         ; Set enemy slot 1 to DEFEATED (enables exit when all 3 defeated)
-$A85D: AD 0D C0 LDA $C00D ; GTIA M1PF - Missile 1/Playfield collision
-$A860: 0D 05 C0 ORA $C005
-$A863: F0 0F    BEQ $A874 ; Branch if equal/zero
-$A865: A5 92    LDA $92
-$A867: D0 05    BNE $A86E ; Loop back if not zero
-$A869: A9 01    LDA #$01
-$A86B: 20 6C BD JSR $BD6C ; Hit/action sound effect
-$A86E: E6 D2    INC $D2         ; Increment hit counter (enemy defeated)
+$A85B: 85 94    STA $94         ; Set enemy slot 1 to DEFEATED
+; --- ENEMY SLOT 1: ENEMY MISSILE COLLISION (1 POINT) ---
+$A85D: AD 0D C0 LDA $C00D       ; GTIA M1PF - Enemy 1 missile (M1) collision
+$A860: 0D 05 C0 ORA $C005       ; OR with additional collision register
+$A863: F0 0F    BEQ $A874       ; Branch if no collision
+$A865: A5 92    LDA $92         ; Load level statistics flag
+$A867: D0 05    BNE $A86E       ; Skip sound if already processed
+$A869: A9 01    LDA #$01        ; **1 POINT** - Enemy missile hit something
+$A86B: 20 6C BD JSR enemy_hit_scoring ; Add to score and play hit sound
+$A86E: E6 D2    INC $D2         ; Increment hit counter
 $A870: A9 01    LDA #$01
-$A872: 85 94    STA $94         ; Set enemy slot 1 to DEFEATED (enables exit when all 3 defeated)
-$A874: A5 95    LDA $95
-$A876: D0 32    BNE $A8AA ; Loop back if not zero
-$A878: AD 09 C0 LDA $C009 ; GTIA P1PF - Player 1/Playfield collision
-$A87B: 0D 0B C0 ORA $C00B
-$A87E: 29 04    AND #$04
-$A880: F0 0F    BEQ $A891 ; Branch if equal/zero
-$A882: A5 92    LDA $92
-$A884: D0 05    BNE $A88B ; Loop back if not zero
-$A886: A9 05    LDA #$05
-$A888: 20 6C BD JSR $BD6C ; Hit/action sound effect
+$A872: 85 94    STA $94         ; Set enemy slot 1 to DEFEATED
+$A874: A5 95    LDA $95         ; Check enemy slot 2 status
+$A876: D0 32    BNE $A8AA       ; Skip if enemy already defeated
+; --- ENEMY SLOT 2: ENEMY-TO-ENEMY COLLISION (5 POINTS BONUS) ---
+$A878: AD 09 C0 LDA $C009       ; GTIA P1PF - Enemy 1 (P1) collision register
+$A87B: 0D 0B C0 ORA $C00B       ; OR with P3PF - Enemy 3 (P3) collision register
+$A87E: 29 04    AND #$04        ; Check if Enemy 1 or 3 collided with Enemy 2
+$A880: F0 0F    BEQ $A891       ; Branch if no collision
+$A882: A5 92    LDA $92         ; Load level statistics flag
+$A884: D0 05    BNE $A88B       ; Skip sound if already processed
+$A886: A9 05    LDA #$05        ; **5 POINTS BONUS** - Enemy-to-enemy collision!
+$A888: 20 6C BD JSR enemy_hit_scoring ; Add bonus to score and play hit sound
 $A88B: E6 D3    INC $D3         ; Increment hit counter (enemy defeated)
 $A88D: A9 01    LDA #$01
-$A88F: 85 95    STA $95         ; Set enemy slot 2 to DEFEATED (enables exit when all 3 defeated)
-$A891: AD 0E C0 LDA $C00E ; GTIA M2PF - Missile 2/Playfield collision
-$A894: 0D 06 C0 ORA $C006
-$A897: F0 11    BEQ $A8AA ; Branch if equal/zero
-$A899: A5 92    LDA $92
-$A89B: D0 05    BNE $A8A2 ; Loop back if not zero
-$A89D: A9 01    LDA #$01
-$A89F: 20 6C BD JSR $BD6C ; Hit/action sound effect
-$A8A2: E6 D2    INC $D2         ; Increment hit counter (enemy defeated)
+$A88F: 85 95    STA $95         ; Set enemy slot 2 to DEFEATED
+; --- ENEMY SLOT 2: ENEMY MISSILE COLLISION (1 POINT) ---
+$A891: AD 0E C0 LDA $C00E       ; GTIA M2PF - Enemy 2 missile (M2) collision
+$A894: 0D 06 C0 ORA $C006       ; OR with additional collision register
+$A897: F0 11    BEQ $A8AA       ; Branch if no collision
+$A899: A5 92    LDA $92         ; Load level statistics flag
+$A89B: D0 05    BNE $A8A2       ; Skip sound if already processed
+$A89D: A9 01    LDA #$01        ; **1 POINT** - Enemy missile hit something
+$A89F: 20 6C BD JSR enemy_hit_scoring ; Add to score and play hit sound
+$A8A2: E6 D2    INC $D2         ; Increment hit counter
 $A8A4: A9 01    LDA #$01
-$A8A6: 85 95    STA $95         ; Set enemy slot 2 to DEFEATED (enables exit when all 3 defeated)
-$A8A8: A9 01    LDA #$01
-$A8AA: A5 96    LDA $96
-$A8AC: D0 30    BNE $A8DE ; Loop back if not zero
-$A8AE: AD 09 C0 LDA $C009 ; GTIA P1PF - Player 1/Playfield collision
-$A8B1: 0D 0A C0 ORA $C00A
-$A8B4: 29 08    AND #$08
-$A8B6: F0 0F    BEQ $A8C7 ; Branch if equal/zero
-$A8B8: A5 92    LDA $92
-$A8BA: D0 05    BNE $A8C1 ; Loop back if not zero
-$A8BC: A9 05    LDA #$05
-$A8BE: 20 6C BD JSR $BD6C ; Hit/action sound effect
+$A8A6: 85 95    STA $95         ; Set enemy slot 2 to DEFEATED
+$A8A8: A9 01    LDA #$01        ; (Redundant load)
+$A8AA: A5 96    LDA $96         ; Check enemy slot 3 status
+$A8AC: D0 30    BNE $A8DE       ; Skip if enemy already defeated
+; --- ENEMY SLOT 3: ENEMY-TO-ENEMY COLLISION (5 POINTS BONUS) ---
+$A8AE: AD 09 C0 LDA $C009       ; GTIA P1PF - Enemy 1 (P1) collision register
+$A8B1: 0D 0A C0 ORA $C00A       ; OR with P2PF - Enemy 2 (P2) collision register
+$A8B4: 29 08    AND #$08        ; Check if Enemy 1 or 2 collided with Enemy 3
+$A8B6: F0 0F    BEQ $A8C7       ; Branch if no collision
+$A8B8: A5 92    LDA $92         ; Load level statistics flag
+$A8BA: D0 05    BNE $A8C1       ; Skip sound if already processed
+$A8BC: A9 05    LDA #$05        ; **5 POINTS BONUS** - Enemy-to-enemy collision!
+$A8BE: 20 6C BD JSR enemy_hit_scoring ; Add bonus to score and play hit sound
 $A8C1: E6 D3    INC $D3         ; Increment hit counter (enemy defeated)
 $A8C3: A9 01    LDA #$01
-$A8C5: 85 96    STA $96         ; Set enemy slot 3 to DEFEATED (enables exit when all 3 defeated)
-$A8C7: AD 0F C0 LDA $C00F ; GTIA M3PF - Missile 3/Playfield collision
-$A8CA: 0D 07 C0 ORA $C007
-$A8CD: F0 0F    BEQ $A8DE ; Branch if equal/zero
-$A8CF: A5 92    LDA $92
-$A8D1: D0 05    BNE $A8D8 ; Loop back if not zero
-$A8D3: A9 01    LDA #$01
-$A8D5: 20 6C BD JSR $BD6C ; Hit/action sound effect
-$A8D8: E6 D2    INC $D2         ; Increment hit counter (enemy defeated)
+$A8C5: 85 96    STA $96         ; Set enemy slot 3 to DEFEATED
+; --- ENEMY SLOT 3: ENEMY MISSILE COLLISION (1 POINT) ---
+$A8C7: AD 0F C0 LDA $C00F       ; GTIA M3PF - Enemy 3 missile (M3) collision
+$A8CA: 0D 07 C0 ORA $C007       ; OR with additional collision register
+$A8CD: F0 0F    BEQ $A8DE       ; Branch if no collision
+$A8CF: A5 92    LDA $92         ; Load level statistics flag
+$A8D1: D0 05    BNE $A8D8       ; Skip sound if already processed
+$A8D3: A9 01    LDA #$01        ; **1 POINT** - Enemy missile hit something
+$A8D5: 20 6C BD JSR enemy_hit_scoring ; Add to score and play hit sound
+$A8D8: E6 D2    INC $D2         ; Increment hit counter
 $A8DA: A9 01    LDA #$01
-$A8DC: 85 96    STA $96         ; Set enemy slot 3 to DEFEATED (enables exit when all 3 defeated)
+$A8DC: 85 96    STA $96         ; Set enemy slot 3 to DEFEATED
 $A8DE: A9 00    LDA #$00
 $A8E0: A9 01    LDA #$01
 $A8E2: 85 AC    STA $AC
@@ -2959,49 +2996,50 @@ $A8F4: 85 AC    STA $AC
 ; PLAYER MISSILE vs ENEMY COLLISION DETECTION ($A8F6-$A930)
 ; **PLAYER MISSILE HIT DETECTION SYSTEM**
 ; 
-; This code checks for player missile collisions with each of the 3 possible
-; enemies on screen. The game uses hardware collision detection to determine
+; This code checks for player missile (M0) collisions with each of the 3 enemy
+; sprites (P1, P2, P3). The game uses hardware collision detection to determine
 ; when the player's missile hits an enemy.
 ;
 ; **COLLISION DETECTION SYSTEM**:
-; - Player missile (Missile 0) collision with enemies detected via hardware
-; - Hardware collision register $C008 detects missile/enemy collisions
-; - Each bit represents collision with a different enemy slot:
-;   * Bit 1 ($02): Player missile hit enemy slot 1
-;   * Bit 2 ($04): Player missile hit enemy slot 2  
-;   * Bit 3 ($08): Player missile hit enemy slot 3
+; - Player missile (M0) collision with enemies (P1-P3) detected via hardware
+; - Hardware collision register $C008 detects M0 hitting enemy sprites
+; - Each bit represents collision with a different enemy:
+;   * Bit 1 ($02): Player missile (M0) hit Enemy 1 (P1)
+;   * Bit 2 ($04): Player missile (M0) hit Enemy 2 (P2)
+;   * Bit 3 ($08): Player missile (M0) hit Enemy 3 (P3)
 ;
 ; **HIT PROCESSING**:
 ; - When collision detected, enemy slot flag ($94/$95/$96) is set
+; - Awards 1 POINT for standard ranged kill
 ; - Sound effect played and shot counter incremented
 ; - Enemy is marked as defeated, enabling level progression
 ; ===============================================================================
 $A8F6: A5 94    LDA $94         ; Check enemy slot 1 status
 $A8F8: D0 10    BNE $A90A       ; Skip if enemy already defeated
-$A8FA: AD 08 C0 LDA $C008       ; **COLLISION DETECTION** - Read collision register
-$A8FD: 29 02    AND #$02        ; Check bit 1: Player missile hit enemy 1
+$A8FA: AD 08 C0 LDA $C008       ; **M0 COLLISION** - Read player missile collision register
+$A8FD: 29 02    AND #$02        ; Check bit 1: Player missile (M0) hit Enemy 1 (P1)
 $A8FF: F0 09    BEQ $A90A       ; Branch if no collision
-$A901: A9 01    LDA #$01        ; **ENEMY 1 DEFEATED**
+$A901: A9 01    LDA #$01        ; **1 POINT** - Standard ranged kill
 $A903: 85 94    STA $94         ; Set enemy slot 1 to DEFEATED
-$A905: 20 66 BD JSR $BD66       ; Hit sound effect and scoring
+$A905: 20 66 BD JSR player_bonus_score_increase ; Add to score and play hit sound
 $A908: E6 D4    INC $D4         ; Increment shot counter (accuracy tracking)
 $A90A: A5 95    LDA $95         ; Check enemy slot 2 status
 $A90C: D0 10    BNE $A91E       ; Skip if enemy already defeated
-$A90E: AD 08 C0 LDA $C008       ; **COLLISION DETECTION** - Read collision register
-$A911: 29 04    AND #$04        ; Check bit 2: Player missile hit enemy 2
+$A90E: AD 08 C0 LDA $C008       ; **M0 COLLISION** - Read player missile collision register
+$A911: 29 04    AND #$04        ; Check bit 2: Player missile (M0) hit Enemy 2 (P2)
 $A913: F0 09    BEQ $A91E       ; Branch if no collision
-$A915: A9 01    LDA #$01        ; **ENEMY 2 DEFEATED**
+$A915: A9 01    LDA #$01        ; **1 POINT** - Standard ranged kill
 $A917: 85 95    STA $95         ; Set enemy slot 2 to DEFEATED
-$A919: 20 66 BD JSR $BD66       ; Hit sound effect and scoring
+$A919: 20 66 BD JSR player_bonus_score_increase ; Add to score and play hit sound
 $A91C: E6 D4    INC $D4         ; Increment shot counter (accuracy tracking)
 $A91E: A5 96    LDA $96         ; Check enemy slot 3 status
 $A920: D0 10    BNE $A932       ; Skip if enemy already defeated
-$A922: AD 08 C0 LDA $C008       ; **COLLISION DETECTION** - Read collision register
-$A925: 29 08    AND #$08        ; Check bit 3: Player missile hit enemy 3
+$A922: AD 08 C0 LDA $C008       ; **M0 COLLISION** - Read player missile collision register
+$A925: 29 08    AND #$08        ; Check bit 3: Player missile (M0) hit Enemy 3 (P3)
 $A927: F0 09    BEQ $A932       ; Branch if no collision
-$A929: A9 01    LDA #$01        ; **ENEMY 3 DEFEATED**
+$A929: A9 01    LDA #$01        ; **1 POINT** - Standard ranged kill
 $A92B: 85 96    STA $96         ; Set enemy slot 3 to DEFEATED
-$A92D: 20 66 BD JSR $BD66       ; Hit sound effect and scoring
+$A92D: 20 66 BD JSR player_bonus_score_increase ; Add to score and play hit sound
 $A930: E6 D4    INC $D4         ; Increment shot counter (accuracy tracking)
 $A932: AD 08 C0 LDA $C008       ; **FIRE BUTTON INPUT DETECTION** - Read fire button register
 $A935: 29 0E    AND #$0E        ; Mask fire button bits (1,2,3)
@@ -3074,9 +3112,8 @@ $A9B5: 60       RTS
 ; SECTOR INITIALIZATION ($A9B6) - PROCEDURAL ARENA GENERATOR
 ; ===============================================================================
 ; Initializes a new sector/level with procedurally generated arena
-;
 ; This routine is called:
-; - At game start ($A32F) for the initial sector
+; - At game start (back_to_init_sector at $A32F) for the initial sector
 ; - When advancing to new sectors ($A388) after completing a level
 ;
 ; PHASES:
@@ -3286,6 +3323,7 @@ $AB07: D0 FD    BNE $AB06 ; Loop back if not zero
 $AB09: 88       DEY
 $AB0A: D0 FA    BNE $AB06 ; Loop back if not zero
 $AB0C: 60       RTS ; Check maximum level reached
+
 $AB0D: A5 DA    LDA $DA
 $AB0F: C9 03    CMP #$03
 $AB11: D0 03    BNE $AB16 ; Loop back if not zero
@@ -3367,7 +3405,7 @@ $AB9D: 85 AC    STA $AC         ; Store sound parameter
 ; **FLASHING BONUS POINTS LOOP** ($AB9F-$ABA7):
 ; Each iteration flashes the text, plays sound, and adds points to score
 $AB9F: 20 66 BD JSR $BD66       ; **FIRE SOUND + ADD POINTS TO SCORE**
-$ABA2: 20 17 B1 JSR $B117       ; **FLASHING EFFECT** - toggles text visibility
+$ABA2: 20 17 B1 JSR play_audio_tone ; **FLASHING EFFECT** - toggles text visibility
 $ABA5: C6 92    DEC $92         ; **DECREMENT BONUS COUNTER** (10 or 3 times)
 $ABA7: D0 F6    BNE $AB9F       ; **LOOP** until all bonus points awarded
 
@@ -3598,7 +3636,6 @@ $ACBD: 30       .byte $30        ; '0'
 $ACBE: 20       .byte $20        ; ' ' (space)
 $ACBF: 58       .byte $58        ; 'X'
 $ACC0: 31       .byte $31        ; '1'
-$ACC1: A2 00    LDX #$00
 
 ; ===============================================================================
 ; SCREEN_MEMORY_MANAGEMENT ($ACC1-$AD04)
@@ -3608,6 +3645,7 @@ $ACC1: A2 00    LDX #$00
 ; - Complex screen positioning calculations using indirect addressing
 ; - Character placement and screen coordinate management
 ; ===============================================================================
+$ACC1: A2 00    LDX #$00
 $ACC3: 8A       TXA
 $ACC4: 9D 00 24 STA $2400
 $ACC7: CA       DEX
@@ -3708,9 +3746,10 @@ INPUT_HANDLING_SYSTEM:
 ; - Managing sprite visibility and collision detection
 ; ===============================================================================
 
+process_player_input:
 $AD05: A5 84    LDA $84         ; Load current player Y position
 $AD07: 85 77    STA $77         ; Store for sprite positioning
-$AD09: 20 EB BD JSR $BDEB       ; Call sprite update routine
+$AD09: 20 EB BD JSR process_joystick_input ; Call sprite update routine
 $AD0C: A2 13    LDX #$13        ; Initialize PMG system
 $AD0E: E8       INX             ; Increment counter
 $AD0F: 8A       TXA             ; Transfer to accumulator
@@ -4301,40 +4340,40 @@ $B096: 60       RTS             ; Return from timing routine
 $B097: A9 5B    LDA #$5B        ; **START COMPLEX SOUND** - Load initial frequency
 $B099: 8D 00 E8 STA $E800       ; Set audio frequency channel 1
 $B09C: 20 0A B1 JSR $B10A       ; **CALL SOUND SETUP 1** - Configure sound parameters
-$B09F: 20 17 B1 JSR $B117       ; **PLAY AUDIO TONE** - Create timed audio output
-$B0A2: 20 17 B1 JSR $B117       ; **PLAY AUDIO TONE** - Repeat for emphasis
+$B09F: 20 17 B1 JSR play_audio_tone ; **PLAY AUDIO TONE** - Create timed audio output
+$B0A2: 20 17 B1 JSR play_audio_tone ; **PLAY AUDIO TONE** - Repeat for emphasis
 $B0A5: 20 FD B0 JSR $B0FD       ; **CALL SOUND SETUP 2** - Configure alternate parameters
-$B0A8: 20 17 B1 JSR $B117       ; **PLAY AUDIO TONE** - Create timed audio output
+$B0A8: 20 17 B1 JSR play_audio_tone ; **PLAY AUDIO TONE** - Create timed audio output
 $B0AB: 20 0A B1 JSR $B10A       ; Call sound setup 1 (return to original)
 $B0AE: A9 60    LDA #$60        ; **CHANGE FREQUENCY** - Load new frequency
 $B0B0: 85 BC    STA $BC         ; Store frequency parameter
-$B0B2: 20 17 B1 JSR $B117       ; **PLAY AUDIO TONE** - Create timed audio output with new frequency
+$B0B2: 20 17 B1 JSR play_audio_tone ; **PLAY AUDIO TONE** - Create timed audio output with new frequency
 $B0B5: A9 4C    LDA #$4C        ; **FREQUENCY TRANSITION** - Load transition frequency
 $B0B7: 8D 00 E8 STA $E800       ; Set audio frequency channel 1
 $B0BA: 20 0A B1 JSR $B10A       ; Call sound setup 1
-$B0BD: 20 17 B1 JSR $B117       ; **PLAY AUDIO TONE** - Create timed audio output
+$B0BD: 20 17 B1 JSR play_audio_tone ; **PLAY AUDIO TONE** - Create timed audio output
 $B0C0: A9 51    LDA #$51        ; **CONTINUE SEQUENCE** - Load next frequency
 $B0C2: 8D 00 E8 STA $E800       ; Set audio frequency channel 1
 $B0C5: 20 FD B0 JSR $B0FD       ; Call sound setup 2
-$B0C8: 20 17 B1 JSR $B117       ; Call flashing effect
+$B0C8: 20 17 B1 JSR play_audio_tone ; Call flashing effect
 $B0CB: 20 0A B1 JSR $B10A       ; Call sound setup 1
-$B0CE: 20 17 B1 JSR $B117       ; Call flashing effect
+$B0CE: 20 17 B1 JSR play_audio_tone ; Call flashing effect
 $B0D1: A9 5B    LDA #$5B        ; **RETURN TO START** - Load original frequency
 $B0D3: 8D 00 E8 STA $E800       ; Set audio frequency channel 1
 $B0D6: 20 FD B0 JSR $B0FD       ; Call sound setup 2
-$B0D9: 20 17 B1 JSR $B117       ; Call flashing effect
+$B0D9: 20 17 B1 JSR play_audio_tone ; Call flashing effect
 $B0DC: 20 0A B1 JSR $B10A       ; Call sound setup 1
-$B0DF: 20 17 B1 JSR $B117       ; Call flashing effect
+$B0DF: 20 17 B1 JSR play_audio_tone ; Call flashing effect
 $B0E2: A9 60    LDA #$60        ; **FINAL FREQUENCY** - Load ending frequency
 $B0E4: 8D 00 E8 STA $E800       ; Set audio frequency channel 1
 $B0E7: 20 FD B0 JSR $B0FD       ; Call sound setup 2
-$B0EA: 20 17 B1 JSR $B117       ; Call flashing effect
+$B0EA: 20 17 B1 JSR play_audio_tone ; Call flashing effect
 $B0ED: A9 5B    LDA #$5B        ; **SEQUENCE END** - Load final frequency
 $B0EF: 8D 00 E8 STA $E800       ; Set audio frequency channel 1
 $B0F2: 20 0A B1 JSR $B10A       ; Call sound setup 1
 $B0F5: A9 FF    LDA #$FF        ; **SET END FLAG** - Load completion flag
 $B0F7: 85 BC    STA $BC         ; Store completion flag
-$B0F9: 20 17 B1 JSR $B117       ; Call flashing effect (final)
+$B0F9: 20 17 B1 JSR play_audio_tone ; Call flashing effect (final)
 $B0FC: 60       RTS             ; **RETURN** - Complex sound sequence complete
 
 ; **SOUND PARAMETER SETUP ROUTINES**:
@@ -4383,6 +4422,7 @@ $B116: 60       RTS             ; Return from setup 1
 ; the current sound setup parameters (Setup 1 = longer notes, Setup 2 = shorter notes)
 ; ===============================================================================
 
+play_audio_tone:
 $B117: A9 A0    LDA #$A0        ; **PHASE A: INITIAL TONE** - Load audio control value
 $B119: 8D 01 E8 STA $E801       ; **AUDC1** - Set audio control register (tone characteristics)
 $B11C: A6 BA    LDX $BA         ; **LOAD PHASE A DURATION** - Get timing parameter from sound setup
@@ -4609,15 +4649,15 @@ $B23F: D0 01    BNE $B242       ; Branch if sound active (D0 ≠ 0)
 $B241: 60       RTS             ; Return if no sound to process
 $B242: C9 4F    CMP #$4F        ; **CHECK FOR PLAYER FIRE SOUND** - Compare with $4F
 $B244: D0 3E    BNE $B284       ; Branch to sound countdown if not player fire
-$B246: A5 DA    LDA $DA         ; **VISUAL EFFECT COORDINATION** - Load escape counter
-$B248: D0 0D    BNE $B257       ; Branch based on escape state
+$B246: A5 DA    LDA $DA         ; **VISUAL EFFECT COORDINATION** - Load death counter
+$B248: D0 0D    BNE $B257       ; Branch based on death state
 $B24A: A9 20    LDA #$20        ; **VISUAL SYNC EFFECT 1** - Load visual parameter
 $B24C: 8D 19 06 STA $0619       ; Store visual effect data
 $B24F: A9 1E    LDA #$1E        ; Load secondary visual parameter
 $B251: 8D 2D 06 STA $062D       ; Store secondary visual effect
 $B254: 4C 76 B2 JMP $B276       ; Jump to sound countdown
-$B257: C9 01    CMP #$01        ; **ESCAPE STATE 1** - Check if escape = 1
-$B259: D0 0D    BNE $B268       ; Branch if not escape state 1
+$B257: C9 01    CMP #$01        ; **DEATH STATE 1** - Check if first death
+$B259: D0 0D    BNE $B268       ; Branch if not first death
 $B25B: A9 20    LDA #$20        ; **VISUAL SYNC EFFECT 2** - Load visual parameter
 $B25D: 8D 18 06 STA $0618       ; Store visual effect data
 $B260: A9 1E    LDA #$1E        ; Load secondary visual parameter
@@ -4629,7 +4669,7 @@ $B26C: A9 20    LDA #$20        ; **VISUAL SYNC EFFECT 3** - Load visual paramet
 $B26E: 8D 17 06 STA $0617       ; Store visual effect data
 $B271: A9 1E    LDA #$1E        ; Load secondary visual parameter
 $B273: 8D 2B 06 STA $062B       ; Store secondary visual effect
-$B276: A5 DA    LDA $DA         ; **SOUND COUNTDOWN PROCESSING** - Load escape counter
+$B276: A5 DA    LDA $DA         ; **SOUND COUNTDOWN PROCESSING** - Load death counter
 $B278: C9 FF    CMP #$FF        ; Check for termination flag
 $B27A: D0 01    BNE $B27D       ; Branch if not terminated
 $B27C: 60       RTS             ; Return if sound terminated
@@ -5098,9 +5138,9 @@ $B4BE: 60       RTS
 ; - **CRITICAL**: Detects player escape through wall gaps!
 ; ===============================================================================
 
-$B4BF: A5 97    LDA $97         ; Check escape detection flag
-$B4C1: F0 08    BEQ $B4CB       ; Branch if no escape detected
-$B4C3: 20 5E B7 JSR $B75E       ; **ESCAPE DETECTED!** Process player escape
+$B4BF: A5 97    LDA $97         ; Check death detection flag
+$B4C1: F0 08    BEQ $B4CB       ; Branch if no death detected
+$B4C3: 20 5E B7 JSR $B75E       ; **PLAYER DEATH!** Process player death and respawn
 $B4C6: A9 01    LDA #$01
 $B4C8: 85 A9    STA $A9
 $B4CA: 60       RTS
@@ -5464,6 +5504,8 @@ $B720: 18       CLC
 $B721: 65 70    ADC #$70
 $B723: 85 70    STA $70
 $B725: 60       RTS
+
+update_elapsed_game_time:
 $B726: E6 AA    INC $AA
 $B728: A6 AA    LDX $AA
 $B72A: E0 06    CPX #$06
@@ -5484,6 +5526,7 @@ $B747: 20 4F B7 JSR $B74F
 $B74A: A9 00    LDA #$00
 $B74C: 85 AA    STA $AA
 $B74E: 60       RTS
+
 $B74F: A2 04    LDX #$04
 $B751: BD 36 06 LDA $0636
 $B754: 18       CLC
@@ -5493,18 +5536,24 @@ $B75A: CA       DEX
 $B75B: 10 F4    BPL $B751
 $B75D: 60       RTS
 ; ===============================================================================
-; ESCAPE_PROCESSING ($B75E) - COMPLETE ANALYSIS
-; Player escape through wall gaps - Level completion trigger
+; PLAYER_DEATH_AND_RESPAWN ($B75E) - COMPLETE ANALYSIS
+; Player death sequence - Handles death animation, music, and respawn
 ; 
-; This routine creates a complex visual and audio escape sequence when the player
-; successfully exits through wall gaps. It's a multi-stage animation that provides
-; dramatic feedback for level completion.
+; This routine creates a complex visual and audio death sequence when the player
+; dies (hits enemy, barrier, or goes out of bounds). It manages the lives system
+; and triggers game over when all lives are exhausted.
 ;
-; ESCAPE SEQUENCE BREAKDOWN:
-; 1. Initialize escape effects ($B760-$B765)
-; 2. Increment escape counter $DA (0→1→2→3)
+; DEATH SEQUENCE BREAKDOWN:
+; 1. Initialize death effects ($B760-$B765)
+; 2. Increment death counter $DA (0→1→2→3)
 ; 3. Multi-stage visual effects loop ($B76C-$B794)
-; 4. Final escape effects and cleanup ($B796-$B82E)
+; 4. Final death effects and cleanup ($B796-$B82E)
+;
+; LIVES SYSTEM:
+; - Player starts with 3 lives ($DA = 0)
+; - Each death increments $DA
+; - When $DA reaches 3, all lives exhausted → game over
+; - Death counter checked in main game loop at $A34F
 ;
 ; TECHNICAL DETAILS:
 ; - Uses $06xx memory as staging area for screen effects
@@ -5513,33 +5562,34 @@ $B75D: 60       RTS
 ; - Creates timed delays via $B82F routine (nested countdown loops)
 ; - Processes multiple animation frames with different effect patterns
 ; ===============================================================================
-$B75E: A2 40    LDX #$40        ; Initialize escape effects
+player_death_and_respawn:
+$B75E: A2 40    LDX #$40        ; Initialize death effects
 $B760: 20 BD BD JSR clear_game_state ; Clear game state variables ($E800-$E807)
 $B763: A0 FF    LDY #$FF        ; Set maximum delay counter
 $B765: 20 97 B0 JSR $B097       ; **PLAYER DEATH MUSIC** - Play death music sequence
-$B768: E6 DA    INC $DA         ; **INCREMENT ESCAPE COUNTER** (0→1→2→3)
-$B76A: A5 DA    LDA $DA         ; Load escape counter
-$B76C: 48       PHA             ; Save escape counter on stack
-$B76D: 49 03    EOR #$03        ; XOR with 3 (when $DA=3, result=0 → level ends)
+$B768: E6 DA    INC $DA         ; **INCREMENT DEATH COUNTER** (0→1→2→3, tracks lives used)
+$B76A: A5 DA    LDA $DA         ; Load death counter
+$B76C: 48       PHA             ; Save death counter on stack
+$B76D: 49 03    EOR #$03        ; XOR with 3 (when $DA=3, result=0 → game over)
 $B76F: AA       TAX             ; Use result as index for effect variation
 $B770: A9 00    LDA #$00        ; Clear effect staging areas
 $B772: 9D 16 06 STA $0616,X     ; Clear primary effect buffer
 $B775: 9D 2A 06 STA $062A,X     ; Clear secondary effect buffer
 $B778: A9 02    LDA #$02        ; Load base effect value
-$B77A: E0 01    CPX #$01        ; Check if escape counter = 2
-$B77C: D0 02    BNE $B780       ; Branch if not escape #2
-$B77E: A9 04    LDA #$04        ; Use enhanced effect for escape #2
+$B77A: E0 01    CPX #$01        ; Check if death counter = 2 (second death)
+$B77C: D0 02    BNE $B780       ; Branch if not second death
+$B77E: A9 04    LDA #$04        ; Use enhanced effect for second death
 $B780: 9D 17 06 STA $0617,X     ; Store effect pattern to staging area
 $B783: 09 01    ORA #$01        ; Add effect modifier
 $B785: 9D 2B 06 STA $062B,X     ; Store modified effect pattern
 $B788: A0 FF    LDY #$FF        ; Set delay counter
 $B78A: 20 2F B8 JSR $B82F       ; **TIMED DELAY** - creates visual timing
 $B78D: 20 89 B8 JSR $B889       ; **COPY EFFECTS TO SCREEN** - $06xx → $2Exx
-$B790: 68       PLA             ; Restore escape counter from stack
+$B790: 68       PLA             ; Restore death counter from stack
 $B791: 38       SEC             ; Set carry for subtraction
 $B792: E9 01    SBC #$01        ; Decrement loop counter
 $B794: 10 D6    BPL $B76C       ; Loop back for multiple effect frames
-$B796: A9 00    LDA #$00        ; **FINAL ESCAPE EFFECTS PHASE**
+$B796: A9 00    LDA #$00        ; **FINAL DEATH EFFECTS PHASE**
 $B798: 8D 19 06 STA $0619       ; Clear effect staging areas
 $B79B: 8D 2D 06 STA $062D
 $B79E: A9 04    LDA #$04        ; Set up final effect pattern
@@ -6331,6 +6381,7 @@ $BB76: 60       RTS             ; Return from calculation
 ; - Integrates with enemy system and exit activation
 ; ===============================================================================
 
+time_countdown_and_display:
 $BB77: A5 AF    LDA $AF         ; Load time interval counter
 $BB79: D0 3B    BNE $BBB6       ; Branch if not time to decrement
 $BB7B: C6 D9    DEC $D9         ; DECREMENT TIME REMAINING (77 → 2 for level end)
@@ -6742,11 +6793,12 @@ $BD44: D0 F5    BNE $BD3B ; Loop back if not zero
 $BD46: 60       RTS
 ; ===============================================================================
 ; BOUNDARY_CHECK ($BD47)
-; Player position boundary detection for escape through wall gaps
+; Player position boundary detection for death trigger
 ; This routine:
 ; - Checks if player position ($69 + $0E) exceeds boundary ($C0)
-; - Sets escape detection flag $97 when boundary exceeded
-; - Triggers escape processing in display update routine
+; - Sets death detection flag $97 when boundary exceeded
+; - Triggers death processing in display update routine
+; - Boundary check likely detects player going off-screen or into deadly areas
 ; ===============================================================================
 $BD47: A5 69    LDA $69         ; Load player position variable
 $BD49: AA       TAX             ; Save original position
@@ -6757,8 +6809,8 @@ $BD4F: C9 C0    CMP #$C0        ; Check if position >= $C0 (boundary exceeded)
 $BD51: 90 07    BCC $BD5A       ; Branch if still within boundary
 $BD53: A6 67    LDX $67         ; **BOUNDARY EXCEEDED!** Load index
 $BD55: A9 01    LDA #$01
-$BD57: 95 97    STA $97,X       ; Set escape detection flag $97 = 1
-$BD59: 60       RTS             ; Return - escape will be processed next frame
+$BD57: 95 97    STA $97,X       ; Set death detection flag $97 = 1
+$BD59: 60       RTS             ; Return - death will be processed next frame
 $BD5A: BD C4 BE LDA $BEC4
 $BD5D: 91 79    STA $79
 $BD5F: E8       INX
@@ -6777,15 +6829,50 @@ $BD65: 60       RTS
 ; 4. **Visual Effects**: Triggers hit indicators and enemy destruction
 ;
 ; **MISSILE HIT PROCESSING**:
-; - Called when hardware collision detection confirms hit ($C008 bits)
-; - Adds points to score based on enemy type/value
-; - Plays hit sound effect for audio feedback
-; - Updates accuracy statistics (hits vs shots fired)
 ; ===============================================================================
-$BD66: A5 AC    LDA $AC         ; **PLAYER FIRE SOUND PARAMETER**
-$BD68: A2 02    LDX #$02        ; Set sound channel/duration
-$BD6A: D0 02    BNE $BD6E       ; Branch to sound processing
-$BD6C: A2 03    LDX #$03        ; Alternative sound parameter
+; PLAYER_BONUS_SCORE_INCREASE ($BD66-$BDA1)
+; Player bonus scoring and enemy hit scoring system
+; 
+; Two entry points:
+; - $BD66: Called when player fires weapon (with $AC parameter)
+; - $BD6C: Called when enemy is hit (with X=#$03 parameter)
+;
+; FUNCTIONS:
+; 1. SCORE UPDATE ($BD6E-$BD82):
+;    - Adds hit value (in accumulator) to score at $060B,X
+;    - Handles BCD digit overflow (wraps at $3A = '9'+1)
+;    - Carries overflow to next higher digit
+;    - Processes all 5 score digits
+;
+; 2. SCORE DISPLAY UPDATE ($BD83-$BD8F):
+;    - Converts score digits to screen codes (subtract $20)
+;    - Updates score display on screen at $2E0B
+;    - Refreshes all 5 digits
+;
+; 3. SOUND EFFECT TRIGGER ($BD91-$BDA1):
+;    - Compares new score with previous value ($7B)
+;    - If score changed, triggers hit sound effect
+;    - Sets sound parameters: $D0 and $BD = $4F
+;    - Sound frequency/duration creates "hit" audio feedback
+;
+; **ENTRY POINTS**:
+; - $BD66 (player_bonus_score_increase): Bonus point awards (loads value from $AC)
+;   * Called from bonus routines (e.g., sector completion at $AB9F)
+;   * Adds $AC value to score digit at $060B+2 (hundreds place)
+;   * Used for iterative bonus point awards
+;
+; - $BD6C (enemy_hit_scoring): Combat scoring (value already in accumulator)
+;   * Called from collision_detection_and_input
+;   * Adds accumulator value (1 or 5) to score digit at $060B+3 (tens place)
+;   * 5 points: Enemy-to-enemy collision (strategic bonus)
+;   * 1 point: Player missile hits enemy (standard kill)
+; ===============================================================================
+player_bonus_score_increase:
+$BD66: A5 AC    LDA $AC         ; **BONUS ENTRY** - Load bonus value from $AC
+$BD68: A2 02    LDX #$02        ; Set score digit index (hundreds place)
+$BD6A: D0 02    BNE $BD6E       ; Branch to score processing
+enemy_hit_scoring:
+$BD6C: A2 03    LDX #$03        ; **COMBAT ENTRY** - Set score digit index (tens place)
 $BD6E: 18       CLC             ; **SCORE UPDATE PROCESSING**
 $BD6F: 7D 0B 06 ADC $060B,X     ; Add to score (instant-hit bonus)
 $BD72: 9D 0B 06 STA $060B,X     ; Store updated score
@@ -6803,15 +6890,15 @@ $BD89: E9 20    SBC #$20        ; Convert to screen code
 $BD8B: 9D 0B 2E STA $2E0B,X     ; Update score display on screen
 $BD8E: CA       DEX             ; Next digit
 $BD8F: 10 F4    BPL $BD85       ; Continue until all digits updated
-$BD91: AD 0B 06 LDA $060B       ; **SOUND EFFECT PROCESSING**
-$BD94: C5 7B    CMP $7B         ; Compare with previous value
-$BD96: D0 01    BNE $BD99       ; Branch if changed
-$BD98: 60       RTS             ; Return if no change
-$BD99: 85 7B    STA $7B         ; Store new sound value
-$BD9B: A9 4F    LDA #$4F        ; **PLAYER FIRE SOUND PARAMETERS**
-$BD9D: 85 D0    STA $D0         ; Set sound frequency/duration
-$BD9F: 85 BD    STA $BD         ; Set sound control
-$BDA1: 60       RTS             ; Return from player fire processing
+$BD91: AD 0B 06 LDA $060B       ; Load updated score digit
+$BD94: C5 7B    $060CMP $7B         ; Compare with previous score value
+$BD96: D0 01    BNE $BD99       ; Branch if score changed
+$BD98: 60       RTS             ; Return if no score change (no sound)
+$BD99: 85 7B    STA $7B         ; Store new score value
+$BD9B: A9 4F    LDA #$4F        ; Load hit sound frequency/duration
+$BD9D: 85 D0    STA $D0         ; Set sound frequency register
+$BD9F: 85 BD    STA $BD         ; Set sound control register
+$BDA1: 60       RTS             ; Return from player_bonus_score_increase
 
 ; ===============================================================================
 ; CLEAR COLLISION REGISTERS ($BDA2)
@@ -6955,6 +7042,7 @@ $BDE6: 98       TYA             ; **TRANSFER Y PARAMETER** - Move Y to accumulat
 $BDE7: 8D 04 02 STA $0204       ; **DISPLAY LIST UPDATE** - Write Y to DL during safe timing window
 $BDEA: 60       RTS             ; Return with display list safely modified
 
+process_joystick_input:
 $BDEB: A9 FF    LDA #$FF
 $BDED: 85 60    STA $60
 $BDEF: A5 12    LDA $12
@@ -7538,7 +7626,7 @@ $BFE4: 4C C8 A2 JMP cartridge_init ; Jump to main initialization routine at $A2C
 ; **INPUT HANDLING** - Check for specific input conditions
 $BFE7: C9 0C    CMP #$0C         ; Compare accumulator with $0C
 $BFE9: D0 03    BNE $BFEE        ; Branch if not equal to $BFEE
-$BFEB: 4C 2B A3 JMP $A32B        ; Jump to routine at $A32B if equal to $0C
+$BFEB: 4C 2B A3 JMP go_back_to_prepare_new_game ; Jump to routine at $A32B if equal to $0C
 
 $BFEE: C9 0D    CMP #$0D         ; Compare accumulator with $0D  
 $BFF0: D0 05    BNE $BFF7        ; Branch if not equal to $BFF7
