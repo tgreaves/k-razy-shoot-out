@@ -20,1697 +20,985 @@
 ; Bit 1 = pixel on (#), Bit 0 = pixel off (.)
 
 ; Character $00 - Space/blank character
-;   ........
-;   ........
-;   ........
-;   ........
-;   ........
-;   ........
-;   ........
-;   ........
 
-        .byte $00        ; $A000 - Row 0
-        .byte $00        ; $A001 - Row 1
-        .byte $00        ; $A002 - Row 2
-        .byte $00        ; $A003 - Row 3
-        .byte $00        ; $A004 - Row 4
-        .byte $00        ; $A005 - Row 5
-        .byte $00        ; $A006 - Row 6
-        .byte $00        ; $A007 - Row 7
+        .byte $00        ; ........
+        .byte $00        ; ........
+        .byte $00        ; ........
+        .byte $00        ; ........
+        .byte $00        ; ........
+        .byte $00        ; ........
+        .byte $00        ; ........
+        .byte $00        ; ........
 
 ; Character $01 - UNKNOWN usage
-;   ..###...
-;   ..###...
-;   ..###...
-;   ..###...
-;   ...##...
-;   ........
-;   ...##...
-;   ........
 
-        .byte $38        ; $A008 - Row 0
-        .byte $38        ; $A009 - Row 1
-        .byte $38        ; $A00A - Row 2
-        .byte $38        ; $A00B - Row 3
-        .byte $18        ; $A00C - Row 4
-        .byte $00        ; $A00D - Row 5
-        .byte $18        ; $A00E - Row 6
-        .byte $00        ; $A00F - Row 7
+        .byte $38        ; ..###...
+        .byte $38        ; ..###...
+        .byte $38        ; ..###...
+        .byte $38        ; ..###...
+        .byte $18        ; ...##...
+        .byte $00        ; ........
+        .byte $18        ; ...##...
+        .byte $00        ; ........
 
 ; Character $02 - HUD Player sprite: Head - Sideways
-;   ........
-;   ........
-;   ........
-;   ........
-;   ...#....
-;   ..#.#...
-;   ..#.#...
-;   ...#....
 
-        .byte $00        ; $A010 - Row 0
-        .byte $00        ; $A011 - Row 1
-        .byte $00        ; $A012 - Row 2
-        .byte $00        ; $A013 - Row 3
-        .byte $10        ; $A014 - Row 4
-        .byte $28        ; $A015 - Row 5
-        .byte $28        ; $A016 - Row 6
-        .byte $10        ; $A017 - Row 7
+        .byte $00        ; ........
+        .byte $00        ; ........
+        .byte $00        ; ........
+        .byte $00        ; ........
+        .byte $10        ; ...#....
+        .byte $28        ; ..#.#...
+        .byte $28        ; ..#.#...
+        .byte $10        ; ...#....
 
 ; Character $03 - HUD Player sprite: Walking 1
-;   ..###.#.
-;   .#.#.#..
-;   #..#....
-;   .#.#....
-;   ...##...
-;   ..#..#..
-;   ###..#..
-;   #....##.
 
-        .byte $3A        ; $A018 - Row 0
-        .byte $54        ; $A019 - Row 1
-        .byte $90        ; $A01A - Row 2
-        .byte $50        ; $A01B - Row 3
-        .byte $18        ; $A01C - Row 4
-        .byte $24        ; $A01D - Row 5
-        .byte $E4        ; $A01E - Row 6
-        .byte $86        ; $A01F - Row 7
+        .byte $3A        ; ..###.#.
+        .byte $54        ; .#.#.#..
+        .byte $90        ; #..#....
+        .byte $50        ; .#.#....
+        .byte $18        ; ...##...
+        .byte $24        ; ..#..#..
+        .byte $E4        ; ###..#..
+        .byte $86        ; #....##.
 
 ; Character $04 - HUD Player sprite: Head - Stationary
-;   ........
-;   ........
-;   ........
-;   ........
-;   ....#...
-;   ...#.#..
-;   ...#.#..
-;   ....#...
 
-        .byte $00        ; $A020 - Row 0
-        .byte $00        ; $A021 - Row 1
-        .byte $00        ; $A022 - Row 2
-        .byte $00        ; $A023 - Row 3
-        .byte $08        ; $A024 - Row 4
-        .byte $14        ; $A025 - Row 5
-        .byte $14        ; $A026 - Row 6
-        .byte $08        ; $A027 - Row 7
+        .byte $00        ; ........
+        .byte $00        ; ........
+        .byte $00        ; ........
+        .byte $00        ; ........
+        .byte $08        ; ....#...
+        .byte $14        ; ...#.#..
+        .byte $14        ; ...#.#..
+        .byte $08        ; ....#...
 
 ; Character $05 - HUD Player sprite: Walking 2
-;   ...##...
-;   ...##...
-;   ...####.
-;   ....#...
-;   ....#...
-;   ...##...
-;   ..#.#...
-;   ...###..
 
-        .byte $18        ; $A028 - Row 0
-        .byte $18        ; $A029 - Row 1
-        .byte $1E        ; $A02A - Row 2
-        .byte $08        ; $A02B - Row 3
-        .byte $08        ; $A02C - Row 4
-        .byte $18        ; $A02D - Row 5
-        .byte $28        ; $A02E - Row 6
-        .byte $1C        ; $A02F - Row 7
+        .byte $18        ; ...##...
+        .byte $18        ; ...##...
+        .byte $1E        ; ...####.
+        .byte $08        ; ....#...
+        .byte $08        ; ....#...
+        .byte $18        ; ...##...
+        .byte $28        ; ..#.#...
+        .byte $1C        ; ...###..
 
 ; Character $06 - HUD Player sprite: Dying Top
 ; Positioned up and to the right of the bottom half.
-;   ........
-;   ........
-;   #...##..
-;   #..#.#..
-;   .#.##...
-;   ..#.....
-;   .#.#....
-;   #...##..
 
-        .byte $00        ; $A030 - Row 0
-        .byte $00        ; $A031 - Row 1
-        .byte $8C        ; $A032 - Row 2
-        .byte $94        ; $A033 - Row 3
-        .byte $58        ; $A034 - Row 4
-        .byte $20        ; $A035 - Row 5
-        .byte $50        ; $A036 - Row 6
-        .byte $8C        ; $A037 - Row 7
+        .byte $00        ; ........
+        .byte $00        ; ........
+        .byte $8C        ; #...##..
+        .byte $94        ; #..#.#..
+        .byte $58        ; .#.##...
+        .byte $20        ; ..#.....
+        .byte $50        ; .#.#....
+        .byte $8C        ; #...##..
 
 ; Character $07 - HUD Player sprite: Dying Bottom
-;   .....###
-;   ....#..#
-;   ...#...#
-;   #.#...#.
-;   .#...#..
-;   ....#...
-;   ...#....
-;   ....#...
 
-        .byte $07        ; $A038 - Row 0
-        .byte $09        ; $A039 - Row 1
-        .byte $11        ; $A03A - Row 2
-        .byte $A2        ; $A03B - Row 3
-        .byte $44        ; $A03C - Row 4
-        .byte $08        ; $A03D - Row 5
-        .byte $10        ; $A03E - Row 6
-        .byte $08        ; $A03F - Row 7
+        .byte $07        ; .....###
+        .byte $09        ; ....#..#
+        .byte $11        ; ...#...#
+        .byte $A2        ; #.#...#.
+        .byte $44        ; .#...#..
+        .byte $08        ; ....#...
+        .byte $10        ; ...#....
+        .byte $08        ; ....#...
 
 ; Character $08 - HUD Player sprite: Dead (Left)
-;   ........
-;   ........
-;   ........
-;   ........
-;   .......#
-;   ##....##
-;   ##...###
-;   ########
 
-        .byte $00        ; $A040 - Row 0
-        .byte $00        ; $A041 - Row 1
-        .byte $00        ; $A042 - Row 2
-        .byte $00        ; $A043 - Row 3
-        .byte $01        ; $A044 - Row 4
-        .byte $C3        ; $A045 - Row 5
-        .byte $C7        ; $A046 - Row 6
-        .byte $FF        ; $A047 - Row 7
+        .byte $00        ; ........
+        .byte $00        ; ........
+        .byte $00        ; ........
+        .byte $00        ; ........
+        .byte $01        ; .......#
+        .byte $C3        ; ##....##
+        .byte $C7        ; ##...###
+        .byte $FF        ; ########
 
 ; Character $09 - HUD Player sprite: Dead (right)
-;   ........
-;   ........
-;   ........
-;   #.......
-;   ##...###
-;   ###..#.#
-;   ######.#
-;   ####.###
 
-        .byte $00        ; $A048 - Row 0
-        .byte $00        ; $A049 - Row 1
-        .byte $00        ; $A04A - Row 2
-        .byte $80        ; $A04B - Row 3
-        .byte $C7        ; $A04C - Row 4
-        .byte $E5        ; $A04D - Row 5
-        .byte $FD        ; $A04E - Row 6
-        .byte $F7        ; $A04F - Row 7
+        .byte $00        ; ........
+        .byte $00        ; ........
+        .byte $00        ; ........
+        .byte $80        ; #.......
+        .byte $C7        ; ##...###
+        .byte $E5        ; ###..#.#
+        .byte $FD        ; ######.#
+        .byte $F7        ; ####.###
 
 ; Character $0A - Font Character: * (Asterisk)
-;   ........
-;   .##..##.
-;   ..####..
-;   ########
-;   ..####..
-;   .##..##.
-;   ........
-;   ........
 
-        .byte $00        ; $A050 - Row 0
-        .byte $66        ; $A051 - Row 1
-        .byte $3C        ; $A052 - Row 2
-        .byte $FF        ; $A053 - Row 3
-        .byte $3C        ; $A054 - Row 4
-        .byte $66        ; $A055 - Row 5
-        .byte $00        ; $A056 - Row 6
-        .byte $00        ; $A057 - Row 7
+        .byte $00        ; ........
+        .byte $66        ; .##..##.
+        .byte $3C        ; ..####..
+        .byte $FF        ; ########
+        .byte $3C        ; ..####..
+        .byte $66        ; .##..##.
+        .byte $00        ; ........
+        .byte $00        ; ........
 
 ; Character $0B - Font Character: + (Plus)
-;   ........
-;   ...##...
-;   ...##...
-;   .######.
-;   ...##...
-;   ...##...
-;   ........
-;   ........
 
-        .byte $00        ; $A058 - Row 0
-        .byte $18        ; $A059 - Row 1
-        .byte $18        ; $A05A - Row 2
-        .byte $7E        ; $A05B - Row 3
-        .byte $18        ; $A05C - Row 4
-        .byte $18        ; $A05D - Row 5
-        .byte $00        ; $A05E - Row 6
-        .byte $00        ; $A05F - Row 7
+        .byte $00        ; ........
+        .byte $18        ; ...##...
+        .byte $18        ; ...##...
+        .byte $7E        ; .######.
+        .byte $18        ; ...##...
+        .byte $18        ; ...##...
+        .byte $00        ; ........
+        .byte $00        ; ........
 
 ; Character $0C - Font Character: , (Comma)
-;   ........
-;   ........
-;   ........
-;   ........
-;   ........
-;   ...##...
-;   ...##...
-;   ..##....
 
-        .byte $00        ; $A060 - Row 0
-        .byte $00        ; $A061 - Row 1
-        .byte $00        ; $A062 - Row 2
-        .byte $00        ; $A063 - Row 3
-        .byte $00        ; $A064 - Row 4
-        .byte $18        ; $A065 - Row 5
-        .byte $18        ; $A066 - Row 6
-        .byte $30        ; $A067 - Row 7
+        .byte $00        ; ........
+        .byte $00        ; ........
+        .byte $00        ; ........
+        .byte $00        ; ........
+        .byte $00        ; ........
+        .byte $18        ; ...##...
+        .byte $18        ; ...##...
+        .byte $30        ; ..##....
 
 ; Character $0D - Font Character: - (Hyphen)
-;   ........
-;   ........
-;   ........
-;   .######.
-;   ........
-;   ........
-;   ........
-;   ........
 
-        .byte $00        ; $A068 - Row 0
-        .byte $00        ; $A069 - Row 1
-        .byte $00        ; $A06A - Row 2
-        .byte $7E        ; $A06B - Row 3
-        .byte $00        ; $A06C - Row 4
-        .byte $00        ; $A06D - Row 5
-        .byte $00        ; $A06E - Row 6
-        .byte $00        ; $A06F - Row 7
+        .byte $00        ; ........
+        .byte $00        ; ........
+        .byte $00        ; ........
+        .byte $7E        ; .######.
+        .byte $00        ; ........
+        .byte $00        ; ........
+        .byte $00        ; ........
+        .byte $00        ; ........
 
 ; Character $0E - Font Character: . (Period)
-;   ........
-;   ........
-;   ........
-;   ........
-;   ........
-;   ...##...
-;   ...##...
-;   ........
 
-        .byte $00        ; $A070 - Row 0
-        .byte $00        ; $A071 - Row 1
-        .byte $00        ; $A072 - Row 2
-        .byte $00        ; $A073 - Row 3
-        .byte $00        ; $A074 - Row 4
-        .byte $18        ; $A075 - Row 5
-        .byte $18        ; $A076 - Row 6
-        .byte $00        ; $A077 - Row 7
+        .byte $00        ; ........
+        .byte $00        ; ........
+        .byte $00        ; ........
+        .byte $00        ; ........
+        .byte $00        ; ........
+        .byte $18        ; ...##...
+        .byte $18        ; ...##...
+        .byte $00        ; ........
 
 ; Character $0F - Font Character: / (Forward Slash)
-;   ......##
-;   .....##.
-;   ....##..
-;   ...##...
-;   ..##....
-;   .##.....
-;   .#......
-;   ........
 
-        .byte $03        ; $A078 - Row 0
-        .byte $06        ; $A079 - Row 1
-        .byte $0C        ; $A07A - Row 2
-        .byte $18        ; $A07B - Row 3
-        .byte $30        ; $A07C - Row 4
-        .byte $60        ; $A07D - Row 5
-        .byte $40        ; $A07E - Row 6
-        .byte $00        ; $A07F - Row 7
+        .byte $03        ; ......##
+        .byte $06        ; .....##.
+        .byte $0C        ; ....##..
+        .byte $18        ; ...##...
+        .byte $30        ; ..##....
+        .byte $60        ; .##.....
+        .byte $40        ; .#......
+        .byte $00        ; ........
 
 ; Character $10 - Number '0' for score display
-;   .#######
-;   .##...##
-;   .##...##
-;   .##...##
-;   .##...##
-;   .##...##
-;   .#######
-;   ........
 
-        .byte $7F        ; $A080 - Row 0
-        .byte $63        ; $A081 - Row 1
-        .byte $63        ; $A082 - Row 2
-        .byte $63        ; $A083 - Row 3
-        .byte $63        ; $A084 - Row 4
-        .byte $63        ; $A085 - Row 5
-        .byte $7F        ; $A086 - Row 6
-        .byte $00        ; $A087 - Row 7
+        .byte $7F        ; .#######
+        .byte $63        ; .##...##
+        .byte $63        ; .##...##
+        .byte $63        ; .##...##
+        .byte $63        ; .##...##
+        .byte $63        ; .##...##
+        .byte $7F        ; .#######
+        .byte $00        ; ........
 
 ; Character $11 - Number '1' for score display
-;   ..###...
-;   ...##...
-;   ...##...
-;   ...##...
-;   ..#####.
-;   ..#####.
-;   ..#####.
-;   ........
 
-        .byte $38        ; $A088 - Row 0
-        .byte $18        ; $A089 - Row 1
-        .byte $18        ; $A08A - Row 2
-        .byte $18        ; $A08B - Row 3
-        .byte $3E        ; $A08C - Row 4
-        .byte $3E        ; $A08D - Row 5
-        .byte $3E        ; $A08E - Row 6
-        .byte $00        ; $A08F - Row 7
+        .byte $38        ; ..###...
+        .byte $18        ; ...##...
+        .byte $18        ; ...##...
+        .byte $18        ; ...##...
+        .byte $3E        ; ..#####.
+        .byte $3E        ; ..#####.
+        .byte $3E        ; ..#####.
+        .byte $00        ; ........
 
 ; Character $12 - Number '2' for score display
-;   .#######
-;   ......##
-;   ......##
-;   .#######
-;   .##.....
-;   .##.....
-;   .#######
-;   ........
 
-        .byte $7F        ; $A090 - Row 0
-        .byte $03        ; $A091 - Row 1
-        .byte $03        ; $A092 - Row 2
-        .byte $7F        ; $A093 - Row 3
-        .byte $60        ; $A094 - Row 4
-        .byte $60        ; $A095 - Row 5
-        .byte $7F        ; $A096 - Row 6
-        .byte $00        ; $A097 - Row 7
+        .byte $7F        ; .#######
+        .byte $03        ; ......##
+        .byte $03        ; ......##
+        .byte $7F        ; .#######
+        .byte $60        ; .##.....
+        .byte $60        ; .##.....
+        .byte $7F        ; .#######
+        .byte $00        ; ........
 
 ; Character $13 - Number '3' for score display
-;   .######.
-;   .....##.
-;   .....##.
-;   .#######
-;   .....###
-;   .....###
-;   .#######
-;   ........
 
-        .byte $7E        ; $A098 - Row 0
-        .byte $06        ; $A099 - Row 1
-        .byte $06        ; $A09A - Row 2
-        .byte $7F        ; $A09B - Row 3
-        .byte $07        ; $A09C - Row 4
-        .byte $07        ; $A09D - Row 5
-        .byte $7F        ; $A09E - Row 6
-        .byte $00        ; $A09F - Row 7
+        .byte $7E        ; .######.
+        .byte $06        ; .....##.
+        .byte $06        ; .....##.
+        .byte $7F        ; .#######
+        .byte $07        ; .....###
+        .byte $07        ; .....###
+        .byte $7F        ; .#######
+        .byte $00        ; ........
 
 ; Character $14 - Number '4' for score display
-;   .###....
-;   .###....
-;   .###....
-;   .###.###
-;   .###.###
-;   .#######
-;   .....###
-;   ........
 
-        .byte $70        ; $A0A0 - Row 0
-        .byte $70        ; $A0A1 - Row 1
-        .byte $70        ; $A0A2 - Row 2
-        .byte $77        ; $A0A3 - Row 3
-        .byte $77        ; $A0A4 - Row 4
-        .byte $7F        ; $A0A5 - Row 5
-        .byte $07        ; $A0A6 - Row 6
-        .byte $00        ; $A0A7 - Row 7
+        .byte $70        ; .###....
+        .byte $70        ; .###....
+        .byte $70        ; .###....
+        .byte $77        ; .###.###
+        .byte $77        ; .###.###
+        .byte $7F        ; .#######
+        .byte $07        ; .....###
+        .byte $00        ; ........
 
 ; Character $15 - Number '5' for score display
-;   .#######
-;   .##.....
-;   .##.....
-;   .#######
-;   ......##
-;   ......##
-;   .#######
-;   ........
 
-        .byte $7F        ; $A0A8 - Row 0
-        .byte $60        ; $A0A9 - Row 1
-        .byte $60        ; $A0AA - Row 2
-        .byte $7F        ; $A0AB - Row 3
-        .byte $03        ; $A0AC - Row 4
-        .byte $03        ; $A0AD - Row 5
-        .byte $7F        ; $A0AE - Row 6
-        .byte $00        ; $A0AF - Row 7
+        .byte $7F        ; .#######
+        .byte $60        ; .##.....
+        .byte $60        ; .##.....
+        .byte $7F        ; .#######
+        .byte $03        ; ......##
+        .byte $03        ; ......##
+        .byte $7F        ; .#######
+        .byte $00        ; ........
 
 ; Character $16 - Number '6' for score display
-;   .#####..
-;   .##.##..
-;   .##.....
-;   .#######
-;   .##...##
-;   .##...##
-;   .#######
-;   ........
 
-        .byte $7C        ; $A0B0 - Row 0
-        .byte $6C        ; $A0B1 - Row 1
-        .byte $60        ; $A0B2 - Row 2
-        .byte $7F        ; $A0B3 - Row 3
-        .byte $63        ; $A0B4 - Row 4
-        .byte $63        ; $A0B5 - Row 5
-        .byte $7F        ; $A0B6 - Row 6
-        .byte $00        ; $A0B7 - Row 7
+        .byte $7C        ; .#####..
+        .byte $6C        ; .##.##..
+        .byte $60        ; .##.....
+        .byte $7F        ; .#######
+        .byte $63        ; .##...##
+        .byte $63        ; .##...##
+        .byte $7F        ; .#######
+        .byte $00        ; ........
 
 ; Character $17 - Number '7' for score display
-;   .#######
-;   ......##
-;   ......##
-;   ...#####
-;   ...##...
-;   ...##...
-;   ...##...
-;   ........
 
-        .byte $7F        ; $A0B8 - Row 0
-        .byte $03        ; $A0B9 - Row 1
-        .byte $03        ; $A0BA - Row 2
-        .byte $1F        ; $A0BB - Row 3
-        .byte $18        ; $A0BC - Row 4
-        .byte $18        ; $A0BD - Row 5
-        .byte $18        ; $A0BE - Row 6
-        .byte $00        ; $A0BF - Row 7
+        .byte $7F        ; .#######
+        .byte $03        ; ......##
+        .byte $03        ; ......##
+        .byte $1F        ; ...#####
+        .byte $18        ; ...##...
+        .byte $18        ; ...##...
+        .byte $18        ; ...##...
+        .byte $00        ; ........
 
 ; Character $18 - Number '8' for score display
-;   ..#####.
-;   ..##.##.
-;   ..##.##.
-;   .#######
-;   .###.###
-;   .###.###
-;   .#######
-;   ........
 
-        .byte $3E        ; $A0C0 - Row 0
-        .byte $36        ; $A0C1 - Row 1
-        .byte $36        ; $A0C2 - Row 2
-        .byte $7F        ; $A0C3 - Row 3
-        .byte $77        ; $A0C4 - Row 4
-        .byte $77        ; $A0C5 - Row 5
-        .byte $7F        ; $A0C6 - Row 6
-        .byte $00        ; $A0C7 - Row 7
+        .byte $3E        ; ..#####.
+        .byte $36        ; ..##.##.
+        .byte $36        ; ..##.##.
+        .byte $7F        ; .#######
+        .byte $77        ; .###.###
+        .byte $77        ; .###.###
+        .byte $7F        ; .#######
+        .byte $00        ; ........
 
 ; Character $19 - Number '9' for score display
-;   .#######
-;   .##...##
-;   .##...##
-;   .#######
-;   .....###
-;   .....###
-;   .....###
-;   ........
 
-        .byte $7F        ; $A0C8 - Row 0
-        .byte $63        ; $A0C9 - Row 1
-        .byte $63        ; $A0CA - Row 2
-        .byte $7F        ; $A0CB - Row 3
-        .byte $07        ; $A0CC - Row 4
-        .byte $07        ; $A0CD - Row 5
-        .byte $07        ; $A0CE - Row 6
-        .byte $00        ; $A0CF - Row 7
+        .byte $7F        ; .#######
+        .byte $63        ; .##...##
+        .byte $63        ; .##...##
+        .byte $7F        ; .#######
+        .byte $07        ; .....###
+        .byte $07        ; .....###
+        .byte $07        ; .....###
+        .byte $00        ; ........
 
 ; Character $1A - Font character: Colon (:)
-;   ........
-;   ...##...
-;   ...##...
-;   ........
-;   ...##...
-;   ...##...
-;   ........
-;   ........
 
-        .byte $00        ; $A0D0 - Row 0
-        .byte $18        ; $A0D1 - Row 1
-        .byte $18        ; $A0D2 - Row 2
-        .byte $00        ; $A0D3 - Row 3
-        .byte $18        ; $A0D4 - Row 4
-        .byte $18        ; $A0D5 - Row 5
-        .byte $00        ; $A0D6 - Row 6
-        .byte $00        ; $A0D7 - Row 7
+        .byte $00        ; ........
+        .byte $18        ; ...##...
+        .byte $18        ; ...##...
+        .byte $00        ; ........
+        .byte $18        ; ...##...
+        .byte $18        ; ...##...
+        .byte $00        ; ........
+        .byte $00        ; ........
 
 ; Character $1B - Font character: Semicolon (;)
-;   ........
-;   ...##...
-;   ...##...
-;   ........
-;   ...##...
-;   ...##...
-;   ..##....
-;   ........
 
-        .byte $00        ; $A0D8 - Row 0
-        .byte $18        ; $A0D9 - Row 1
-        .byte $18        ; $A0DA - Row 2
-        .byte $00        ; $A0DB - Row 3
-        .byte $18        ; $A0DC - Row 4
-        .byte $18        ; $A0DD - Row 5
-        .byte $30        ; $A0DE - Row 6
-        .byte $00        ; $A0DF - Row 7
+        .byte $00        ; ........
+        .byte $18        ; ...##...
+        .byte $18        ; ...##...
+        .byte $00        ; ........
+        .byte $18        ; ...##...
+        .byte $18        ; ...##...
+        .byte $30        ; ..##....
+        .byte $00        ; ........
 
 ; Character $1C - Enemy
 ; This version used between rounds when showing scoring.
-;   ........
-;   ..#####.
-;   ....#...
-;   .#######
-;   .#.###.#
-;   .#.###.#
-;   .#.###.#
-;   ...###..
 
-        .byte $00        ; $A0E0 - Row 0
-        .byte $3E        ; $A0E1 - Row 1
-        .byte $08        ; $A0E2 - Row 2
-        .byte $7F        ; $A0E3 - Row 3
-        .byte $5D        ; $A0E4 - Row 4
-        .byte $5D        ; $A0E5 - Row 5
-        .byte $5D        ; $A0E6 - Row 6
-        .byte $1C        ; $A0E7 - Row 7
+        .byte $00        ; ........
+        .byte $3E        ; ..#####.
+        .byte $08        ; ....#...
+        .byte $7F        ; .#######
+        .byte $5D        ; .#.###.#
+        .byte $5D        ; .#.###.#
+        .byte $5D        ; .#.###.#
+        .byte $1C        ; ...###..
 
 ; Character $1D - UNKNOWN usage
-;   ........
-;   .######.
-;   ........
-;   ........
-;   .######.
-;   ........
-;   ........
-;   ........
 
-        .byte $00        ; $A0E8 - Row 0
-        .byte $7E        ; $A0E9 - Row 1
-        .byte $00        ; $A0EA - Row 2
-        .byte $00        ; $A0EB - Row 3
-        .byte $7E        ; $A0EC - Row 4
-        .byte $00        ; $A0ED - Row 5
-        .byte $00        ; $A0EE - Row 6
-        .byte $00        ; $A0EF - Row 7
+        .byte $00        ; ........
+        .byte $7E        ; .######.
+        .byte $00        ; ........
+        .byte $00        ; ........
+        .byte $7E        ; .######.
+        .byte $00        ; ........
+        .byte $00        ; ........
+        .byte $00        ; ........
 
 ; Character $1E - HUD Player sprite: Body - Stationary
-;   ...###..
-;   ..#.#.#.
-;   ..#.#.#.
-;   ....#...
-;   ...#.#..
-;   ...#.#..
-;   ...#.#..
-;   ..##.##.
 
-        .byte $1C        ; $A0F0 - Row 0
-        .byte $2A        ; $A0F1 - Row 1
-        .byte $2A        ; $A0F2 - Row 2
-        .byte $08        ; $A0F3 - Row 3
-        .byte $14        ; $A0F4 - Row 4
-        .byte $14        ; $A0F5 - Row 5
-        .byte $14        ; $A0F6 - Row 6
-        .byte $36        ; $A0F7 - Row 7
+        .byte $1C        ; ...###..
+        .byte $2A        ; ..#.#.#.
+        .byte $2A        ; ..#.#.#.
+        .byte $08        ; ....#...
+        .byte $14        ; ...#.#..
+        .byte $14        ; ...#.#..
+        .byte $14        ; ...#.#..
+        .byte $36        ; ..##.##.
 
 ; Character $1F - Font character: Question mark (?)
-;   .#######
-;   .##...##
-;   ......##
-;   ...#####
-;   ...###..
-;   ........
-;   ...###..
-;   ........
 
-        .byte $7F        ; $A0F8 - Row 0
-        .byte $63        ; $A0F9 - Row 1
-        .byte $03        ; $A0FA - Row 2
-        .byte $1F        ; $A0FB - Row 3
-        .byte $1C        ; $A0FC - Row 4
-        .byte $00        ; $A0FD - Row 5
-        .byte $1C        ; $A0FE - Row 6
-        .byte $00        ; $A0FF - Row 7
+        .byte $7F        ; .#######
+        .byte $63        ; .##...##
+        .byte $03        ; ......##
+        .byte $1F        ; ...#####
+        .byte $1C        ; ...###..
+        .byte $00        ; ........
+        .byte $1C        ; ...###..
+        .byte $00        ; ........
 
 ; Character $20 - HUD Player sprite: Head - Stationary
-;   ........
-;   ........
-;   ........
-;   ........
-;   ....#...
-;   ...#.#..
-;   ...#.#..
-;   ....#...
 
-        .byte $00        ; $A100 - Row 0
-        .byte $00        ; $A101 - Row 1
-        .byte $00        ; $A102 - Row 2
-        .byte $00        ; $A103 - Row 3
-        .byte $08        ; $A104 - Row 4
-        .byte $14        ; $A105 - Row 5
-        .byte $14        ; $A106 - Row 6
-        .byte $08        ; $A107 - Row 7
+        .byte $00        ; ........
+        .byte $00        ; ........
+        .byte $00        ; ........
+        .byte $00        ; ........
+        .byte $08        ; ....#...
+        .byte $14        ; ...#.#..
+        .byte $14        ; ...#.#..
+        .byte $08        ; ....#...
 
 ; Character $21 - Letter 'A' for text display
-;   ..######
-;   ..##..##
-;   ..##..##
-;   .#######
-;   .###..##
-;   .###..##
-;   .###..##
-;   ........
 
-        .byte $3F        ; $A108 - Row 0
-        .byte $33        ; $A109 - Row 1
-        .byte $33        ; $A10A - Row 2
-        .byte $7F        ; $A10B - Row 3
-        .byte $73        ; $A10C - Row 4
-        .byte $73        ; $A10D - Row 5
-        .byte $73        ; $A10E - Row 6
-        .byte $00        ; $A10F - Row 7
+        .byte $3F        ; ..######
+        .byte $33        ; ..##..##
+        .byte $33        ; ..##..##
+        .byte $7F        ; .#######
+        .byte $73        ; .###..##
+        .byte $73        ; .###..##
+        .byte $73        ; .###..##
+        .byte $00        ; ........
 
 ; Character $22 - Letter 'B' for text display
-;   .######.
-;   .##..##.
-;   .##..##.
-;   .#######
-;   .##..###
-;   .##..###
-;   .#######
-;   ........
 
-        .byte $7E        ; $A110 - Row 0
-        .byte $66        ; $A111 - Row 1
-        .byte $66        ; $A112 - Row 2
-        .byte $7F        ; $A113 - Row 3
-        .byte $67        ; $A114 - Row 4
-        .byte $67        ; $A115 - Row 5
-        .byte $7F        ; $A116 - Row 6
-        .byte $00        ; $A117 - Row 7
+        .byte $7E        ; .######.
+        .byte $66        ; .##..##.
+        .byte $66        ; .##..##.
+        .byte $7F        ; .#######
+        .byte $67        ; .##..###
+        .byte $67        ; .##..###
+        .byte $7F        ; .#######
+        .byte $00        ; ........
 
 ; Character $23 - Letter 'C' for text display
-;   .#######
-;   .##..###
-;   .##..###
-;   .##.....
-;   .##...##
-;   .##...##
-;   .#######
-;   ........
 
-        .byte $7F        ; $A118 - Row 0
-        .byte $67        ; $A119 - Row 1
-        .byte $67        ; $A11A - Row 2
-        .byte $60        ; $A11B - Row 3
-        .byte $63        ; $A11C - Row 4
-        .byte $63        ; $A11D - Row 5
-        .byte $7F        ; $A11E - Row 6
-        .byte $00        ; $A11F - Row 7
+        .byte $7F        ; .#######
+        .byte $67        ; .##..###
+        .byte $67        ; .##..###
+        .byte $60        ; .##.....
+        .byte $63        ; .##...##
+        .byte $63        ; .##...##
+        .byte $7F        ; .#######
+        .byte $00        ; ........
 
 ; Character $24 - Letter 'D' for text display
-;   .######.
-;   .##..##.
-;   .##..##.
-;   .###.###
-;   .###.###
-;   .###.###
-;   .#######
-;   ........
 
-        .byte $7E        ; $A120 - Row 0
-        .byte $66        ; $A121 - Row 1
-        .byte $66        ; $A122 - Row 2
-        .byte $77        ; $A123 - Row 3
-        .byte $77        ; $A124 - Row 4
-        .byte $77        ; $A125 - Row 5
-        .byte $7F        ; $A126 - Row 6
-        .byte $00        ; $A127 - Row 7
+        .byte $7E        ; .######.
+        .byte $66        ; .##..##.
+        .byte $66        ; .##..##.
+        .byte $77        ; .###.###
+        .byte $77        ; .###.###
+        .byte $77        ; .###.###
+        .byte $7F        ; .#######
+        .byte $00        ; ........
 
 ; Character $25 - Letter 'E' for text display
-;   .#######
-;   .##.....
-;   .##.....
-;   .#######
-;   .###....
-;   .###....
-;   .#######
-;   ........
 
-        .byte $7F        ; $A128 - Row 0
-        .byte $60        ; $A129 - Row 1
-        .byte $60        ; $A12A - Row 2
-        .byte $7F        ; $A12B - Row 3
-        .byte $70        ; $A12C - Row 4
-        .byte $70        ; $A12D - Row 5
-        .byte $7F        ; $A12E - Row 6
-        .byte $00        ; $A12F - Row 7
+        .byte $7F        ; .#######
+        .byte $60        ; .##.....
+        .byte $60        ; .##.....
+        .byte $7F        ; .#######
+        .byte $70        ; .###....
+        .byte $70        ; .###....
+        .byte $7F        ; .#######
+        .byte $00        ; ........
 
 ; Character $26 - Letter 'F' for text display
-;   .#######
-;   .##.....
-;   .##.....
-;   .#######
-;   .###....
-;   .###....
-;   .###....
-;   ........
 
-        .byte $7F        ; $A130 - Row 0
-        .byte $60        ; $A131 - Row 1
-        .byte $60        ; $A132 - Row 2
-        .byte $7F        ; $A133 - Row 3
-        .byte $70        ; $A134 - Row 4
-        .byte $70        ; $A135 - Row 5
-        .byte $70        ; $A136 - Row 6
-        .byte $00        ; $A137 - Row 7
+        .byte $7F        ; .#######
+        .byte $60        ; .##.....
+        .byte $60        ; .##.....
+        .byte $7F        ; .#######
+        .byte $70        ; .###....
+        .byte $70        ; .###....
+        .byte $70        ; .###....
+        .byte $00        ; ........
 
 ; Character $27 - Letter 'G' for text display
-;   .#######
-;   .##...##
-;   .##.....
-;   .##.####
-;   .##..###
-;   .##..###
-;   .#######
-;   ........
 
-        .byte $7F        ; $A138 - Row 0
-        .byte $63        ; $A139 - Row 1
-        .byte $60        ; $A13A - Row 2
-        .byte $6F        ; $A13B - Row 3
-        .byte $67        ; $A13C - Row 4
-        .byte $67        ; $A13D - Row 5
-        .byte $7F        ; $A13E - Row 6
-        .byte $00        ; $A13F - Row 7
+        .byte $7F        ; .#######
+        .byte $63        ; .##...##
+        .byte $60        ; .##.....
+        .byte $6F        ; .##.####
+        .byte $67        ; .##..###
+        .byte $67        ; .##..###
+        .byte $7F        ; .#######
+        .byte $00        ; ........
 
 ; Character $28 - Letter 'H' for text display
-;   .###..##
-;   .###..##
-;   .###..##
-;   .#######
-;   .###..##
-;   .###..##
-;   .###..##
-;   ........
 
-        .byte $73        ; $A140 - Row 0
-        .byte $73        ; $A141 - Row 1
-        .byte $73        ; $A142 - Row 2
-        .byte $7F        ; $A143 - Row 3
-        .byte $73        ; $A144 - Row 4
-        .byte $73        ; $A145 - Row 5
-        .byte $73        ; $A146 - Row 6
-        .byte $00        ; $A147 - Row 7
+        .byte $73        ; .###..##
+        .byte $73        ; .###..##
+        .byte $73        ; .###..##
+        .byte $7F        ; .#######
+        .byte $73        ; .###..##
+        .byte $73        ; .###..##
+        .byte $73        ; .###..##
+        .byte $00        ; ........
 
 ; Character $29 - Letter 'I' for text display
-;   .#######
-;   ...###..
-;   ...###..
-;   ...###..
-;   ...###..
-;   ...###..
-;   .#######
-;   ........
 
-        .byte $7F        ; $A148 - Row 0
-        .byte $1C        ; $A149 - Row 1
-        .byte $1C        ; $A14A - Row 2
-        .byte $1C        ; $A14B - Row 3
-        .byte $1C        ; $A14C - Row 4
-        .byte $1C        ; $A14D - Row 5
-        .byte $7F        ; $A14E - Row 6
-        .byte $00        ; $A14F - Row 7
+        .byte $7F        ; .#######
+        .byte $1C        ; ...###..
+        .byte $1C        ; ...###..
+        .byte $1C        ; ...###..
+        .byte $1C        ; ...###..
+        .byte $1C        ; ...###..
+        .byte $7F        ; .#######
+        .byte $00        ; ........
 
 ; Character $2A - Letter 'J' for text display
-;   ....##..
-;   ....##..
-;   ....##..
-;   ....###.
-;   ....###.
-;   .##.###.
-;   .######.
-;   ........
 
-        .byte $0C        ; $A150 - Row 0
-        .byte $0C        ; $A151 - Row 1
-        .byte $0C        ; $A152 - Row 2
-        .byte $0E        ; $A153 - Row 3
-        .byte $0E        ; $A154 - Row 4
-        .byte $6E        ; $A155 - Row 5
-        .byte $7E        ; $A156 - Row 6
-        .byte $00        ; $A157 - Row 7
+        .byte $0C        ; ....##..
+        .byte $0C        ; ....##..
+        .byte $0C        ; ....##..
+        .byte $0E        ; ....###.
+        .byte $0E        ; ....###.
+        .byte $6E        ; .##.###.
+        .byte $7E        ; .######.
+        .byte $00        ; ........
 
 ; Character $2B - Letter 'K' for text display
-;   .##..##.
-;   .##..##.
-;   .##.##..
-;   .#######
-;   .##..###
-;   .##..###
-;   .##..###
-;   ........
 
-        .byte $66        ; $A158 - Row 0
-        .byte $66        ; $A159 - Row 1
-        .byte $6C        ; $A15A - Row 2
-        .byte $7F        ; $A15B - Row 3
-        .byte $67        ; $A15C - Row 4
-        .byte $67        ; $A15D - Row 5
-        .byte $67        ; $A15E - Row 6
-        .byte $00        ; $A15F - Row 7
+        .byte $66        ; .##..##.
+        .byte $66        ; .##..##.
+        .byte $6C        ; .##.##..
+        .byte $7F        ; .#######
+        .byte $67        ; .##..###
+        .byte $67        ; .##..###
+        .byte $67        ; .##..###
+        .byte $00        ; ........
 
 ; Character $2C - Letter 'L' for text display
-;   ..##....
-;   ..##....
-;   ..##....
-;   .###....
-;   .###....
-;   .###....
-;   .######.
-;   ........
 
-        .byte $30        ; $A160 - Row 0
-        .byte $30        ; $A161 - Row 1
-        .byte $30        ; $A162 - Row 2
-        .byte $70        ; $A163 - Row 3
-        .byte $70        ; $A164 - Row 4
-        .byte $70        ; $A165 - Row 5
-        .byte $7E        ; $A166 - Row 6
-        .byte $00        ; $A167 - Row 7
+        .byte $30        ; ..##....
+        .byte $30        ; ..##....
+        .byte $30        ; ..##....
+        .byte $70        ; .###....
+        .byte $70        ; .###....
+        .byte $70        ; .###....
+        .byte $7E        ; .######.
+        .byte $00        ; ........
 
 ; Character $2D - Letter 'M' for text display
-;   .##..###
-;   .#######
-;   .#######
-;   .###.###
-;   .##..###
-;   .##..###
-;   .##..###
-;   ........
 
-        .byte $67        ; $A168 - Row 0
-        .byte $7F        ; $A169 - Row 1
-        .byte $7F        ; $A16A - Row 2
-        .byte $77        ; $A16B - Row 3
-        .byte $67        ; $A16C - Row 4
-        .byte $67        ; $A16D - Row 5
-        .byte $67        ; $A16E - Row 6
-        .byte $00        ; $A16F - Row 7
+        .byte $67        ; .##..###
+        .byte $7F        ; .#######
+        .byte $7F        ; .#######
+        .byte $77        ; .###.###
+        .byte $67        ; .##..###
+        .byte $67        ; .##..###
+        .byte $67        ; .##..###
+        .byte $00        ; ........
 
 ; Character $2E - Letter 'N' for text display
-;   .##..###
-;   .###.###
-;   .#######
-;   .##.####
-;   .##..###
-;   .##..###
-;   .##..###
-;   ........
 
-        .byte $67        ; $A170 - Row 0
-        .byte $77        ; $A171 - Row 1
-        .byte $7F        ; $A172 - Row 2
-        .byte $6F        ; $A173 - Row 3
-        .byte $67        ; $A174 - Row 4
-        .byte $67        ; $A175 - Row 5
-        .byte $67        ; $A176 - Row 6
-        .byte $00        ; $A177 - Row 7
+        .byte $67        ; .##..###
+        .byte $77        ; .###.###
+        .byte $7F        ; .#######
+        .byte $6F        ; .##.####
+        .byte $67        ; .##..###
+        .byte $67        ; .##..###
+        .byte $67        ; .##..###
+        .byte $00        ; ........
 
 ; Character $2F - Letter 'O' for text display
-;   .#######
-;   .##...##
-;   .##...##
-;   .##..###
-;   .##..###
-;   .##..###
-;   .#######
-;   ........
 
-        .byte $7F        ; $A178 - Row 0
-        .byte $63        ; $A179 - Row 1
-        .byte $63        ; $A17A - Row 2
-        .byte $67        ; $A17B - Row 3
-        .byte $67        ; $A17C - Row 4
-        .byte $67        ; $A17D - Row 5
-        .byte $7F        ; $A17E - Row 6
-        .byte $00        ; $A17F - Row 7
+        .byte $7F        ; .#######
+        .byte $63        ; .##...##
+        .byte $63        ; .##...##
+        .byte $67        ; .##..###
+        .byte $67        ; .##..###
+        .byte $67        ; .##..###
+        .byte $7F        ; .#######
+        .byte $00        ; ........
 
 ; Character $30 - Letter 'P' for text display
-;   .#######
-;   .##...##
-;   .##...##
-;   .#######
-;   .###....
-;   .###....
-;   .###....
-;   ........
 
-        .byte $7F        ; $A180 - Row 0
-        .byte $63        ; $A181 - Row 1
-        .byte $63        ; $A182 - Row 2
-        .byte $7F        ; $A183 - Row 3
-        .byte $70        ; $A184 - Row 4
-        .byte $70        ; $A185 - Row 5
-        .byte $70        ; $A186 - Row 6
-        .byte $00        ; $A187 - Row 7
+        .byte $7F        ; .#######
+        .byte $63        ; .##...##
+        .byte $63        ; .##...##
+        .byte $7F        ; .#######
+        .byte $70        ; .###....
+        .byte $70        ; .###....
+        .byte $70        ; .###....
+        .byte $00        ; ........
 
 ; Character $31 - Letter 'Q' for text display
-;   .#######
-;   .##...##
-;   .##...##
-;   .##..###
-;   .##..###
-;   .##..###
-;   .#######
-;   .....###
 
-        .byte $7F        ; $A188 - Row 0
-        .byte $63        ; $A189 - Row 1
-        .byte $63        ; $A18A - Row 2
-        .byte $67        ; $A18B - Row 3
-        .byte $67        ; $A18C - Row 4
-        .byte $67        ; $A18D - Row 5
-        .byte $7F        ; $A18E - Row 6
-        .byte $07        ; $A18F - Row 7
+        .byte $7F        ; .#######
+        .byte $63        ; .##...##
+        .byte $63        ; .##...##
+        .byte $67        ; .##..###
+        .byte $67        ; .##..###
+        .byte $67        ; .##..###
+        .byte $7F        ; .#######
+        .byte $07        ; .....###
 
 ; Character $32 - Letter 'R' for text display
-;   .######.
-;   .##..##.
-;   .##..##.
-;   .#######
-;   .###.###
-;   .###.###
-;   .###.###
-;   ........
 
-        .byte $7E        ; $A190 - Row 0
-        .byte $66        ; $A191 - Row 1
-        .byte $66        ; $A192 - Row 2
-        .byte $7F        ; $A193 - Row 3
-        .byte $77        ; $A194 - Row 4
-        .byte $77        ; $A195 - Row 5
-        .byte $77        ; $A196 - Row 6
-        .byte $00        ; $A197 - Row 7
+        .byte $7E        ; .######.
+        .byte $66        ; .##..##.
+        .byte $66        ; .##..##.
+        .byte $7F        ; .#######
+        .byte $77        ; .###.###
+        .byte $77        ; .###.###
+        .byte $77        ; .###.###
+        .byte $00        ; ........
 
 ; Character $33 - Letter 'S' for text display
-;   .#######
-;   .##.....
-;   .#######
-;   ......##
-;   .###..##
-;   .###..##
-;   .#######
-;   ........
 
-        .byte $7F        ; $A198 - Row 0
-        .byte $60        ; $A199 - Row 1
-        .byte $7F        ; $A19A - Row 2
-        .byte $03        ; $A19B - Row 3
-        .byte $73        ; $A19C - Row 4
-        .byte $73        ; $A19D - Row 5
-        .byte $7F        ; $A19E - Row 6
-        .byte $00        ; $A19F - Row 7
+        .byte $7F        ; .#######
+        .byte $60        ; .##.....
+        .byte $7F        ; .#######
+        .byte $03        ; ......##
+        .byte $73        ; .###..##
+        .byte $73        ; .###..##
+        .byte $7F        ; .#######
+        .byte $00        ; ........
 
 ; Character $34 - Letter 'T' for text display
-;   .#######
-;   ...###..
-;   ...###..
-;   ...###..
-;   ...###..
-;   ...###..
-;   ...###..
-;   ........
 
-        .byte $7F        ; $A1A0 - Row 0
-        .byte $1C        ; $A1A1 - Row 1
-        .byte $1C        ; $A1A2 - Row 2
-        .byte $1C        ; $A1A3 - Row 3
-        .byte $1C        ; $A1A4 - Row 4
-        .byte $1C        ; $A1A5 - Row 5
-        .byte $1C        ; $A1A6 - Row 6
-        .byte $00        ; $A1A7 - Row 7
+        .byte $7F        ; .#######
+        .byte $1C        ; ...###..
+        .byte $1C        ; ...###..
+        .byte $1C        ; ...###..
+        .byte $1C        ; ...###..
+        .byte $1C        ; ...###..
+        .byte $1C        ; ...###..
+        .byte $00        ; ........
 
 ; Character $35 - Letter 'U' / Player sprite: Static player character (lives display)
-;   .##..###
-;   .##..###
-;   .##..###
-;   .##..###
-;   .##..###
-;   .##..###
-;   .#######
-;   ........
 
-        .byte $67        ; $A1A8 - Row 0
-        .byte $67        ; $A1A9 - Row 1
-        .byte $67        ; $A1AA - Row 2
-        .byte $67        ; $A1AB - Row 3
-        .byte $67        ; $A1AC - Row 4
-        .byte $67        ; $A1AD - Row 5
-        .byte $7F        ; $A1AE - Row 6
-        .byte $00        ; $A1AF - Row 7
+        .byte $67        ; .##..###
+        .byte $67        ; .##..###
+        .byte $67        ; .##..###
+        .byte $67        ; .##..###
+        .byte $67        ; .##..###
+        .byte $67        ; .##..###
+        .byte $7F        ; .#######
+        .byte $00        ; ........
 
 ; Character $36 - Letter 'V' for text display
-;   .##..###
-;   .##..###
-;   .##..###
-;   .##..###
-;   .##.####
-;   ..#####.
-;   ...###..
-;   ........
 
-        .byte $67        ; $A1B0 - Row 0
-        .byte $67        ; $A1B1 - Row 1
-        .byte $67        ; $A1B2 - Row 2
-        .byte $67        ; $A1B3 - Row 3
-        .byte $6F        ; $A1B4 - Row 4
-        .byte $3E        ; $A1B5 - Row 5
-        .byte $1C        ; $A1B6 - Row 6
-        .byte $00        ; $A1B7 - Row 7
+        .byte $67        ; .##..###
+        .byte $67        ; .##..###
+        .byte $67        ; .##..###
+        .byte $67        ; .##..###
+        .byte $6F        ; .##.####
+        .byte $3E        ; ..#####.
+        .byte $1C        ; ...###..
+        .byte $00        ; ........
 
 ; Character $37 - Letter 'W' for text display
-;   .##..###
-;   .##..###
-;   .##..###
-;   .##.####
-;   .#######
-;   .#######
-;   .##..###
-;   ........
 
-        .byte $67        ; $A1B8 - Row 0
-        .byte $67        ; $A1B9 - Row 1
-        .byte $67        ; $A1BA - Row 2
-        .byte $6F        ; $A1BB - Row 3
-        .byte $7F        ; $A1BC - Row 4
-        .byte $7F        ; $A1BD - Row 5
-        .byte $67        ; $A1BE - Row 6
-        .byte $00        ; $A1BF - Row 7
+        .byte $67        ; .##..###
+        .byte $67        ; .##..###
+        .byte $67        ; .##..###
+        .byte $6F        ; .##.####
+        .byte $7F        ; .#######
+        .byte $7F        ; .#######
+        .byte $67        ; .##..###
+        .byte $00        ; ........
 
 ; Character $38 - Letter 'X' for text display
-;   ........
-;   ##....##
-;   .##..##.
-;   ..####..
-;   ...##...
-;   ..####..
-;   .##..##.
-;   ##....##
 
-        .byte $00        ; $A1C0 - Row 0
-        .byte $C3        ; $A1C1 - Row 1
-        .byte $66        ; $A1C2 - Row 2
-        .byte $3C        ; $A1C3 - Row 3
-        .byte $18        ; $A1C4 - Row 4
-        .byte $3C        ; $A1C5 - Row 5
-        .byte $66        ; $A1C6 - Row 6
-        .byte $C3        ; $A1C7 - Row 7
+        .byte $00        ; ........
+        .byte $C3        ; ##....##
+        .byte $66        ; .##..##.
+        .byte $3C        ; ..####..
+        .byte $18        ; ...##...
+        .byte $3C        ; ..####..
+        .byte $66        ; .##..##.
+        .byte $C3        ; ##....##
 
 ; Character $39 - Letter 'Y' for text display
-;   .##..###
-;   .##..###
-;   .##..###
-;   .#######
-;   ...###..
-;   ...###..
-;   ...###..
-;   ........
 
-        .byte $67        ; $A1C8 - Row 0
-        .byte $67        ; $A1C9 - Row 1
-        .byte $67        ; $A1CA - Row 2
-        .byte $7F        ; $A1CB - Row 3
-        .byte $1C        ; $A1CC - Row 4
-        .byte $1C        ; $A1CD - Row 5
-        .byte $1C        ; $A1CE - Row 6
-        .byte $00        ; $A1CF - Row 7
+        .byte $67        ; .##..###
+        .byte $67        ; .##..###
+        .byte $67        ; .##..###
+        .byte $7F        ; .#######
+        .byte $1C        ; ...###..
+        .byte $1C        ; ...###..
+        .byte $1C        ; ...###..
+        .byte $00        ; ........
 
 ; Character $3A - Letter 'Z' for text display
-;   .#######
-;   .##..##.
-;   .##.##..
-;   ...##...
-;   ..##.###
-;   .##..###
-;   .#######
-;   ........
 
-        .byte $7F        ; $A1D0 - Row 0
-        .byte $66        ; $A1D1 - Row 1
-        .byte $6C        ; $A1D2 - Row 2
-        .byte $18        ; $A1D3 - Row 3
-        .byte $37        ; $A1D4 - Row 4
-        .byte $67        ; $A1D5 - Row 5
-        .byte $7F        ; $A1D6 - Row 6
-        .byte $00        ; $A1D7 - Row 7
+        .byte $7F        ; .#######
+        .byte $66        ; .##..##.
+        .byte $6C        ; .##.##..
+        .byte $18        ; ...##...
+        .byte $37        ; ..##.###
+        .byte $67        ; .##..###
+        .byte $7F        ; .#######
+        .byte $00        ; ........
 
 ; Character $3B - UNKNOWN usage
-;   .###....
-;   .###....
-;   .###....
-;   .#....#.
-;   ........
-;   ..#.....
-;   ......#.
-;   ......#.
 
-        .byte $70        ; $A1D8 - Row 0
-        .byte $70        ; $A1D9 - Row 1
-        .byte $70        ; $A1DA - Row 2
-        .byte $42        ; $A1DB - Row 3
-        .byte $00        ; $A1DC - Row 4
-        .byte $20        ; $A1DD - Row 5
-        .byte $02        ; $A1DE - Row 6
-        .byte $02        ; $A1DF - Row 7
+        .byte $70        ; .###....
+        .byte $70        ; .###....
+        .byte $70        ; .###....
+        .byte $42        ; .#....#.
+        .byte $00        ; ........
+        .byte $20        ; ..#.....
+        .byte $02        ; ......#.
+        .byte $02        ; ......#.
 
 ; Character $3C - UNKNOWN usage
-;   ......#.
-;   ......#.
-;   ......#.
-;   .###....
-;   .....##.
-;   .###....
-;   .###....
-;   ......#.
 
-        .byte $02        ; $A1E0 - Row 0
-        .byte $02        ; $A1E1 - Row 1
-        .byte $02        ; $A1E2 - Row 2
-        .byte $70        ; $A1E3 - Row 3
-        .byte $06        ; $A1E4 - Row 4
-        .byte $70        ; $A1E5 - Row 5
-        .byte $70        ; $A1E6 - Row 6
-        .byte $02        ; $A1E7 - Row 7
+        .byte $02        ; ......#.
+        .byte $02        ; ......#.
+        .byte $02        ; ......#.
+        .byte $70        ; .###....
+        .byte $06        ; .....##.
+        .byte $70        ; .###....
+        .byte $70        ; .###....
+        .byte $02        ; ......#.
 
 ; Character $3D - UNKNOWN usage
-;   .###....
-;   .....###
-;   .###....
-;   ..##....
-;   .....##.
-;   .###....
-;   .....##.
-;   .###....
 
-        .byte $70        ; $A1E8 - Row 0
-        .byte $07        ; $A1E9 - Row 1
-        .byte $70        ; $A1EA - Row 2
-        .byte $30        ; $A1EB - Row 3
-        .byte $06        ; $A1EC - Row 4
-        .byte $70        ; $A1ED - Row 5
-        .byte $06        ; $A1EE - Row 6
-        .byte $70        ; $A1EF - Row 7
+        .byte $70        ; .###....
+        .byte $07        ; .....###
+        .byte $70        ; .###....
+        .byte $30        ; ..##....
+        .byte $06        ; .....##.
+        .byte $70        ; .###....
+        .byte $06        ; .....##.
+        .byte $70        ; .###....
 
 ; Character $3E - UNKNOWN usage
-;   ..##....
-;   .....##.
-;   .###....
-;   .###....
-;   ......#.
-;   .#.....#
-;   ##.##...
-;   #.#....#
 
-        .byte $30        ; $A1F0 - Row 0
-        .byte $06        ; $A1F1 - Row 1
-        .byte $70        ; $A1F2 - Row 2
-        .byte $70        ; $A1F3 - Row 3
-        .byte $02        ; $A1F4 - Row 4
-        .byte $41        ; $A1F5 - Row 5
-        .byte $D8        ; $A1F6 - Row 6
-        .byte $A1        ; $A1F7 - Row 7
+        .byte $30        ; ..##....
+        .byte $06        ; .....##.
+        .byte $70        ; .###....
+        .byte $70        ; .###....
+        .byte $02        ; ......#.
+        .byte $41        ; .#.....#
+        .byte $D8        ; ##.##...
+        .byte $A1        ; #.#....#
 
 ; Character $3F - UNKNOWN usage
-;   ........
-;   ........
-;   ........
-;   ........
-;   ........
-;   ........
-;   ........
-;   ........
 
-        .byte $00        ; $A1F8 - Row 0
-        .byte $00        ; $A1F9 - Row 1
-        .byte $00        ; $A1FA - Row 2
-        .byte $00        ; $A1FB - Row 3
-        .byte $00        ; $A1FC - Row 4
-        .byte $00        ; $A1FD - Row 5
-        .byte $00        ; $A1FE - Row 6
-        .byte $00        ; $A1FF - Row 7
+        .byte $00        ; ........
+        .byte $00        ; ........
+        .byte $00        ; ........
+        .byte $00        ; ........
+        .byte $00        ; ........
+        .byte $00        ; ........
+        .byte $00        ; ........
+        .byte $00        ; ........
 
 ; Character $40 - UNKNOWN usage
-;   ........
-;   ........
-;   ........
-;   ........
-;   ........
-;   ........
-;   ........
-;   ........
 
-        .byte $00        ; $A200 - Row 0
-        .byte $00        ; $A201 - Row 1
-        .byte $00        ; $A202 - Row 2
-        .byte $00        ; $A203 - Row 3
-        .byte $00        ; $A204 - Row 4
-        .byte $00        ; $A205 - Row 5
-        .byte $00        ; $A206 - Row 6
-        .byte $00        ; $A207 - Row 7
+        .byte $00        ; ........
+        .byte $00        ; ........
+        .byte $00        ; ........
+        .byte $00        ; ........
+        .byte $00        ; ........
+        .byte $00        ; ........
+        .byte $00        ; ........
+        .byte $00        ; ........
 
 ; Character $41 - CBS logo building block
-;   .###....
-;   .###....
-;   .###....
-;   ........
-;   ........
-;   ........
-;   ........
-;   ........
 
-        .byte $70        ; $A208 - Row 0
-        .byte $70        ; $A209 - Row 1
-        .byte $70        ; $A20A - Row 2
-        .byte $00        ; $A20B - Row 3
-        .byte $00        ; $A20C - Row 4
-        .byte $00        ; $A20D - Row 5
-        .byte $00        ; $A20E - Row 6
-        .byte $00        ; $A20F - Row 7
+        .byte $70        ; .###....
+        .byte $70        ; .###....
+        .byte $70        ; .###....
+        .byte $00        ; ........
+        .byte $00        ; ........
+        .byte $00        ; ........
+        .byte $00        ; ........
+        .byte $00        ; ........
 
 ; Character $42 - CBS logo building block
-;   .....###
-;   .....###
-;   .....###
-;   ........
-;   ........
-;   ........
-;   ........
-;   ........
 
-        .byte $07        ; $A210 - Row 0
-        .byte $07        ; $A211 - Row 1
-        .byte $07        ; $A212 - Row 2
-        .byte $00        ; $A213 - Row 3
-        .byte $00        ; $A214 - Row 4
-        .byte $00        ; $A215 - Row 5
-        .byte $00        ; $A216 - Row 6
-        .byte $00        ; $A217 - Row 7
+        .byte $07        ; .....###
+        .byte $07        ; .....###
+        .byte $07        ; .....###
+        .byte $00        ; ........
+        .byte $00        ; ........
+        .byte $00        ; ........
+        .byte $00        ; ........
+        .byte $00        ; ........
 
 ; Character $43 - CBS logo building block
-;   .###.###
-;   .###.###
-;   .###.###
-;   ........
-;   ........
-;   ........
-;   ........
-;   ........
 
-        .byte $77        ; $A218 - Row 0
-        .byte $77        ; $A219 - Row 1
-        .byte $77        ; $A21A - Row 2
-        .byte $00        ; $A21B - Row 3
-        .byte $00        ; $A21C - Row 4
-        .byte $00        ; $A21D - Row 5
-        .byte $00        ; $A21E - Row 6
-        .byte $00        ; $A21F - Row 7
+        .byte $77        ; .###.###
+        .byte $77        ; .###.###
+        .byte $77        ; .###.###
+        .byte $00        ; ........
+        .byte $00        ; ........
+        .byte $00        ; ........
+        .byte $00        ; ........
+        .byte $00        ; ........
 
 ; Character $44 - CBS logo building block
-;   ........
-;   ........
-;   ........
-;   ........
-;   .###....
-;   .###....
-;   .###....
-;   ........
 
-        .byte $00        ; $A220 - Row 0
-        .byte $00        ; $A221 - Row 1
-        .byte $00        ; $A222 - Row 2
-        .byte $00        ; $A223 - Row 3
-        .byte $70        ; $A224 - Row 4
-        .byte $70        ; $A225 - Row 5
-        .byte $70        ; $A226 - Row 6
-        .byte $00        ; $A227 - Row 7
+        .byte $00        ; ........
+        .byte $00        ; ........
+        .byte $00        ; ........
+        .byte $00        ; ........
+        .byte $70        ; .###....
+        .byte $70        ; .###....
+        .byte $70        ; .###....
+        .byte $00        ; ........
 
 ; Character $45 - CBS logo building block
-;   .###....
-;   .###....
-;   .###....
-;   ........
-;   .###....
-;   .###....
-;   .###....
-;   ........
 
-        .byte $70        ; $A228 - Row 0
-        .byte $70        ; $A229 - Row 1
-        .byte $70        ; $A22A - Row 2
-        .byte $00        ; $A22B - Row 3
-        .byte $70        ; $A22C - Row 4
-        .byte $70        ; $A22D - Row 5
-        .byte $70        ; $A22E - Row 6
-        .byte $00        ; $A22F - Row 7
+        .byte $70        ; .###....
+        .byte $70        ; .###....
+        .byte $70        ; .###....
+        .byte $00        ; ........
+        .byte $70        ; .###....
+        .byte $70        ; .###....
+        .byte $70        ; .###....
+        .byte $00        ; ........
 
 ; Character $46 - CBS logo building block
-;   .###.###
-;   .###.###
-;   .###.###
-;   ........
-;   .###....
-;   .###....
-;   .###....
-;   ........
 
-        .byte $77        ; $A230 - Row 0
-        .byte $77        ; $A231 - Row 1
-        .byte $77        ; $A232 - Row 2
-        .byte $00        ; $A233 - Row 3
-        .byte $70        ; $A234 - Row 4
-        .byte $70        ; $A235 - Row 5
-        .byte $70        ; $A236 - Row 6
-        .byte $00        ; $A237 - Row 7
+        .byte $77        ; .###.###
+        .byte $77        ; .###.###
+        .byte $77        ; .###.###
+        .byte $00        ; ........
+        .byte $70        ; .###....
+        .byte $70        ; .###....
+        .byte $70        ; .###....
+        .byte $00        ; ........
 
 ; Character $47 - CBS logo building block
-;   ........
-;   ........
-;   ........
-;   ........
-;   .....###
-;   .....###
-;   .....###
-;   ........
 
-        .byte $00        ; $A238 - Row 0
-        .byte $00        ; $A239 - Row 1
-        .byte $00        ; $A23A - Row 2
-        .byte $00        ; $A23B - Row 3
-        .byte $07        ; $A23C - Row 4
-        .byte $07        ; $A23D - Row 5
-        .byte $07        ; $A23E - Row 6
-        .byte $00        ; $A23F - Row 7
+        .byte $00        ; ........
+        .byte $00        ; ........
+        .byte $00        ; ........
+        .byte $00        ; ........
+        .byte $07        ; .....###
+        .byte $07        ; .....###
+        .byte $07        ; .....###
+        .byte $00        ; ........
 
 ; Character $48 - CBS logo building block
-;   ........
-;   ........
-;   ........
-;   ........
-;   .###.###
-;   .###.###
-;   .###.###
-;   ........
 
-        .byte $00        ; $A240 - Row 0
-        .byte $00        ; $A241 - Row 1
-        .byte $00        ; $A242 - Row 2
-        .byte $00        ; $A243 - Row 3
-        .byte $77        ; $A244 - Row 4
-        .byte $77        ; $A245 - Row 5
-        .byte $77        ; $A246 - Row 6
-        .byte $00        ; $A247 - Row 7
+        .byte $00        ; ........
+        .byte $00        ; ........
+        .byte $00        ; ........
+        .byte $00        ; ........
+        .byte $77        ; .###.###
+        .byte $77        ; .###.###
+        .byte $77        ; .###.###
+        .byte $00        ; ........
 
 ; Character $49 - CBS logo building block
-;   .###....
-;   .###....
-;   .###....
-;   ........
-;   .###.###
-;   .###.###
-;   .###.###
-;   ........
 
-        .byte $70        ; $A248 - Row 0
-        .byte $70        ; $A249 - Row 1
-        .byte $70        ; $A24A - Row 2
-        .byte $00        ; $A24B - Row 3
-        .byte $77        ; $A24C - Row 4
-        .byte $77        ; $A24D - Row 5
-        .byte $77        ; $A24E - Row 6
-        .byte $00        ; $A24F - Row 7
+        .byte $70        ; .###....
+        .byte $70        ; .###....
+        .byte $70        ; .###....
+        .byte $00        ; ........
+        .byte $77        ; .###.###
+        .byte $77        ; .###.###
+        .byte $77        ; .###.###
+        .byte $00        ; ........
 
 ; Character $4A - CBS logo building block
-;   .###.###
-;   .###.###
-;   .###.###
-;   ........
-;   .###.###
-;   .###.###
-;   .###.###
-;   ........
 
-        .byte $77        ; $A250 - Row 0
-        .byte $77        ; $A251 - Row 1
-        .byte $77        ; $A252 - Row 2
-        .byte $00        ; $A253 - Row 3
-        .byte $77        ; $A254 - Row 4
-        .byte $77        ; $A255 - Row 5
-        .byte $77        ; $A256 - Row 6
-        .byte $00        ; $A257 - Row 7
+        .byte $77        ; .###.###
+        .byte $77        ; .###.###
+        .byte $77        ; .###.###
+        .byte $00        ; ........
+        .byte $77        ; .###.###
+        .byte $77        ; .###.###
+        .byte $77        ; .###.###
+        .byte $00        ; ........
 
 ; Character $4B - UNKNOWN usage
-;   .###....
-;   .###....
-;   .###....
-;   .#...###
-;   ........
-;   ..#..#..
-;   .....###
-;   .....###
 
-        .byte $70        ; $A258 - Row 0
-        .byte $70        ; $A259 - Row 1
-        .byte $70        ; $A25A - Row 2
-        .byte $47        ; $A25B - Row 3
-        .byte $00        ; $A25C - Row 4
-        .byte $24        ; $A25D - Row 5
-        .byte $07        ; $A25E - Row 6
-        .byte $07        ; $A25F - Row 7
+        .byte $70        ; .###....
+        .byte $70        ; .###....
+        .byte $70        ; .###....
+        .byte $47        ; .#...###
+        .byte $00        ; ........
+        .byte $24        ; ..#..#..
+        .byte $07        ; .....###
+        .byte $07        ; .....###
 
 ; Character $4C - UNKNOWN usage
-;   .....###
-;   .....###
-;   .....###
-;   .....###
-;   .....###
-;   .....###
-;   .....###
-;   .#...##.
 
-        .byte $07        ; $A260 - Row 0
-        .byte $07        ; $A261 - Row 1
-        .byte $07        ; $A262 - Row 2
-        .byte $07        ; $A263 - Row 3
-        .byte $07        ; $A264 - Row 4
-        .byte $07        ; $A265 - Row 5
-        .byte $07        ; $A266 - Row 6
-        .byte $46        ; $A267 - Row 7
+        .byte $07        ; .....###
+        .byte $07        ; .....###
+        .byte $07        ; .....###
+        .byte $07        ; .....###
+        .byte $07        ; .....###
+        .byte $07        ; .....###
+        .byte $07        ; .....###
+        .byte $46        ; .#...##.
 
 ; Character $4D - UNKNOWN usage
-;   ........
-;   ..#.###.
-;   .....##.
-;   .....##.
-;   .....##.
-;   .#.....#
-;   .#.##...
-;   #.#...#.
 
-        .byte $00        ; $A268 - Row 0
-        .byte $2E        ; $A269 - Row 1
-        .byte $06        ; $A26A - Row 2
-        .byte $06        ; $A26B - Row 3
-        .byte $06        ; $A26C - Row 4
-        .byte $41        ; $A26D - Row 5
-        .byte $58        ; $A26E - Row 6
-        .byte $A2        ; $A26F - Row 7
+        .byte $00        ; ........
+        .byte $2E        ; ..#.###.
+        .byte $06        ; .....##.
+        .byte $06        ; .....##.
+        .byte $06        ; .....##.
+        .byte $41        ; .#.....#
+        .byte $58        ; .#.##...
+        .byte $A2        ; #.#...#.
 
 ; Character $4E - UNKNOWN usage
-;   .###....
-;   .###....
-;   .###....
-;   .#..#.#.
-;   ........
-;   ..#.#...
-;   ....#.#.
-;   ....#.#.
 
-        .byte $70        ; $A270 - Row 0
-        .byte $70        ; $A271 - Row 1
-        .byte $70        ; $A272 - Row 2
-        .byte $4A        ; $A273 - Row 3
-        .byte $00        ; $A274 - Row 4
-        .byte $28        ; $A275 - Row 5
-        .byte $0A        ; $A276 - Row 6
-        .byte $0A        ; $A277 - Row 7
+        .byte $70        ; .###....
+        .byte $70        ; .###....
+        .byte $70        ; .###....
+        .byte $4A        ; .#..#.#.
+        .byte $00        ; ........
+        .byte $28        ; ..#.#...
+        .byte $0A        ; ....#.#.
+        .byte $0A        ; ....#.#.
 
 ; Character $4F - UNKNOWN usage
-;   ....#.#.
-;   ....#.#.
-;   ....#.#.
-;   ....#.#.
-;   ....#.#.
-;   ....#.#.
-;   ....#.#.
-;   ....#.#.
 
-        .byte $0A        ; $A278 - Row 0
-        .byte $0A        ; $A279 - Row 1
-        .byte $0A        ; $A27A - Row 2
-        .byte $0A        ; $A27B - Row 3
-        .byte $0A        ; $A27C - Row 4
-        .byte $0A        ; $A27D - Row 5
-        .byte $0A        ; $A27E - Row 6
-        .byte $0A        ; $A27F - Row 7
+        .byte $0A        ; ....#.#.
+        .byte $0A        ; ....#.#.
+        .byte $0A        ; ....#.#.
+        .byte $0A        ; ....#.#.
+        .byte $0A        ; ....#.#.
+        .byte $0A        ; ....#.#.
+        .byte $0A        ; ....#.#.
+        .byte $0A        ; ....#.#.
 
 ; Character $50 - UNKNOWN usage
-;   ....#.#.
-;   ....#.#.
-;   ....#.#.
-;   ....#.#.
-;   ....#.#.
-;   ....#.#.
-;   ....#.#.
-;   ....#.#.
 
-        .byte $0A        ; $A280 - Row 0
-        .byte $0A        ; $A281 - Row 1
-        .byte $0A        ; $A282 - Row 2
-        .byte $0A        ; $A283 - Row 3
-        .byte $0A        ; $A284 - Row 4
-        .byte $0A        ; $A285 - Row 5
-        .byte $0A        ; $A286 - Row 6
-        .byte $0A        ; $A287 - Row 7
+        .byte $0A        ; ....#.#.
+        .byte $0A        ; ....#.#.
+        .byte $0A        ; ....#.#.
+        .byte $0A        ; ....#.#.
+        .byte $0A        ; ....#.#.
+        .byte $0A        ; ....#.#.
+        .byte $0A        ; ....#.#.
+        .byte $0A        ; ....#.#.
 
 ; Character $51 - UNKNOWN usage
-;   ....#.#.
-;   ....#.#.
-;   ....#.#.
-;   ....#.#.
-;   ....#.#.
-;   ....#.#.
-;   ....#.#.
-;   ....#.#.
 
-        .byte $0A        ; $A288 - Row 0
-        .byte $0A        ; $A289 - Row 1
-        .byte $0A        ; $A28A - Row 2
-        .byte $0A        ; $A28B - Row 3
-        .byte $0A        ; $A28C - Row 4
-        .byte $0A        ; $A28D - Row 5
-        .byte $0A        ; $A28E - Row 6
-        .byte $0A        ; $A28F - Row 7
+        .byte $0A        ; ....#.#.
+        .byte $0A        ; ....#.#.
+        .byte $0A        ; ....#.#.
+        .byte $0A        ; ....#.#.
+        .byte $0A        ; ....#.#.
+        .byte $0A        ; ....#.#.
+        .byte $0A        ; ....#.#.
+        .byte $0A        ; ....#.#.
 
 ; Character $52 - UNKNOWN usage
-;   ....#.#.
-;   ....#.#.
-;   ....#.#.
-;   ....#.#.
-;   ....#.#.
-;   ....#.#.
-;   ....#.#.
-;   ....#.#.
 
-        .byte $0A        ; $A290 - Row 0
-        .byte $0A        ; $A291 - Row 1
-        .byte $0A        ; $A292 - Row 2
-        .byte $0A        ; $A293 - Row 3
-        .byte $0A        ; $A294 - Row 4
-        .byte $0A        ; $A295 - Row 5
-        .byte $0A        ; $A296 - Row 6
-        .byte $0A        ; $A297 - Row 7
+        .byte $0A        ; ....#.#.
+        .byte $0A        ; ....#.#.
+        .byte $0A        ; ....#.#.
+        .byte $0A        ; ....#.#.
+        .byte $0A        ; ....#.#.
+        .byte $0A        ; ....#.#.
+        .byte $0A        ; ....#.#.
+        .byte $0A        ; ....#.#.
 
 ; Character $53 - UNKNOWN usage
-;   ....#.#.
-;   ....#.#.
-;   ....#.#.
-;   ....#.#.
-;   ....#.#.
-;   .#...##.
-;   ........
-;   ..#.###.
 
-        .byte $0A        ; $A298 - Row 0
-        .byte $0A        ; $A299 - Row 1
-        .byte $0A        ; $A29A - Row 2
-        .byte $0A        ; $A29B - Row 3
-        .byte $0A        ; $A29C - Row 4
-        .byte $46        ; $A29D - Row 5
-        .byte $00        ; $A29E - Row 6
-        .byte $2E        ; $A29F - Row 7
+        .byte $0A        ; ....#.#.
+        .byte $0A        ; ....#.#.
+        .byte $0A        ; ....#.#.
+        .byte $0A        ; ....#.#.
+        .byte $0A        ; ....#.#.
+        .byte $46        ; .#...##.
+        .byte $00        ; ........
+        .byte $2E        ; ..#.###.
 
 ; Character $54 - UNKNOWN usage
-;   .....##.
-;   .....##.
-;   .....##.
-;   .#.....#
-;   .###....
-;   #.#...#.
-;   .###....
-;   .###....
 
-        .byte $06        ; $A2A0 - Row 0
-        .byte $06        ; $A2A1 - Row 1
-        .byte $06        ; $A2A2 - Row 2
-        .byte $41        ; $A2A3 - Row 3
-        .byte $70        ; $A2A4 - Row 4
-        .byte $A2        ; $A2A5 - Row 5
-        .byte $70        ; $A2A6 - Row 6
-        .byte $70        ; $A2A7 - Row 7
+        .byte $06        ; .....##.
+        .byte $06        ; .....##.
+        .byte $06        ; .....##.
+        .byte $41        ; .#.....#
+        .byte $70        ; .###....
+        .byte $A2        ; #.#...#.
+        .byte $70        ; .###....
+        .byte $70        ; .###....
 
 ; Character $55 - UNKNOWN usage
-;   .###....
-;   .#...##.
-;   ........
-;   ..#.##..
-;   .....##.
-;   .....##.
-;   .....##.
-;   .....##.
 
-        .byte $70        ; $A2A8 - Row 0
-        .byte $46        ; $A2A9 - Row 1
-        .byte $00        ; $A2AA - Row 2
-        .byte $2C        ; $A2AB - Row 3
-        .byte $06        ; $A2AC - Row 4
-        .byte $06        ; $A2AD - Row 5
-        .byte $06        ; $A2AE - Row 6
-        .byte $06        ; $A2AF - Row 7
+        .byte $70        ; .###....
+        .byte $46        ; .#...##.
+        .byte $00        ; ........
+        .byte $2C        ; ..#.##..
+        .byte $06        ; .....##.
+        .byte $06        ; .....##.
+        .byte $06        ; .....##.
+        .byte $06        ; .....##.
 
 ; Character $56 - UNKNOWN usage
-;   .....##.
-;   .....##.
-;   .....##.
-;   .....##.
-;   .....##.
-;   .....##.
-;   .....##.
-;   .....##.
 
-        .byte $06        ; $A2B0 - Row 0
-        .byte $06        ; $A2B1 - Row 1
-        .byte $06        ; $A2B2 - Row 2
-        .byte $06        ; $A2B3 - Row 3
-        .byte $06        ; $A2B4 - Row 4
-        .byte $06        ; $A2B5 - Row 5
-        .byte $06        ; $A2B6 - Row 6
-        .byte $06        ; $A2B7 - Row 7
+        .byte $06        ; .....##.
+        .byte $06        ; .....##.
+        .byte $06        ; .....##.
+        .byte $06        ; .....##.
+        .byte $06        ; .....##.
+        .byte $06        ; .....##.
+        .byte $06        ; .....##.
+        .byte $06        ; .....##.
 
 ; Character $57 - UNKNOWN usage
-;   .....##.
-;   .....##.
-;   .....##.
-;   .....##.
-;   .....##.
-;   .....##.
-;   .....##.
-;   .#...##.
 
-        .byte $06        ; $A2B8 - Row 0
-        .byte $06        ; $A2B9 - Row 1
-        .byte $06        ; $A2BA - Row 2
-        .byte $06        ; $A2BB - Row 3
-        .byte $06        ; $A2BC - Row 4
-        .byte $06        ; $A2BD - Row 5
-        .byte $06        ; $A2BE - Row 6
-        .byte $46        ; $A2BF - Row 7
+        .byte $06        ; .....##.
+        .byte $06        ; .....##.
+        .byte $06        ; .....##.
+        .byte $06        ; .....##.
+        .byte $06        ; .....##.
+        .byte $06        ; .....##.
+        .byte $06        ; .....##.
+        .byte $46        ; .#...##.
 
 ; Character $58 - UNKNOWN usage
-;   ........
-;   ..#.###.
-;   .....##.
-;   .....##.
-;   .....##.
-;   .#.....#
-;   #.#..##.
-;   #.#...#.
 
-        .byte $00        ; $A2C0 - Row 0
-        .byte $2E        ; $A2C1 - Row 1
-        .byte $06        ; $A2C2 - Row 2
-        .byte $06        ; $A2C3 - Row 3
-        .byte $06        ; $A2C4 - Row 4
-        .byte $41        ; $A2C5 - Row 5
-        .byte $A6        ; $A2C6 - Row 6
-        .byte $A2        ; $A2C7 - Row 7
+        .byte $00        ; ........
+        .byte $2E        ; ..#.###.
+        .byte $06        ; .....##.
+        .byte $06        ; .....##.
+        .byte $06        ; .....##.
+        .byte $41        ; .#.....#
+        .byte $A6        ; #.#..##.
+        .byte $A2        ; #.#...#.
 
 ; Note: There is more sprite data (player and enemy animations) at the end of this
 ; dissassembly.
@@ -2298,7 +1586,6 @@ $A580: 60       RTS ; Return from additional setup
 ; Game over screen display and high score handling
 ; This routine:
 ; - Displays "PRESS TRIGGER TO PLAY AGAIN" message to screen memory
-;   (copies 52 bytes from $A5D7-$A60B to screen at $3900)
 ; - Backs up current score and time to temporary storage
 ; - Compares current score with high score
 ; - Updates high score table if player achieved new high score
@@ -2353,18 +1640,8 @@ $A5D6: 60       RTS ; Return from game over screen
 ; Text data for game completion screens
 ; 
 ; $A5D7-$A60B (52 bytes): "   PRESS TRIGGER          TO PLAY             AGAIN"
-;   - Copied by game_over_screen routine to display continue prompt
 ; 
 ; $A60B-$A63A (48 bytes): Skill rank names in 8-byte chunks
-;   Used by calculate_rank ($BAC0) which calculates rank index (0-5) based on
-;   player performance, multiplies by 8, and copies 8 bytes to screen at $06BA
-;   - Rank 0 (offset 0):  "GOON  RO" ($A60B-$A612) - lowest rank
-;   - Rank 1 (offset 8):  "OOKIE  N" ($A613-$A61A) - continues "ROOKIE"
-;   - Rank 2 (offset 16): "OVICE  G" ($A61B-$A622) - continues "NOVICE"
-;   - Rank 3 (offset 24): "UNNER  B" ($A623-$A62A) - continues "GUNNER"
-;   - Rank 4 (offset 32): "LASTER M" ($A62B-$A632) - continues "BLASTER"
-;   - Rank 5 (offset 40): "ARKSMAN" ($A633-$A63A) - continues "MARKSMAN", highest rank
-;   NOTE: Rank names span chunk boundaries - display logic handles full text
 ; ===============================================================================
 $A5D7: 20       .byte $20        ; ' ' (space)
 $A5D8: 20       .byte $20        ; ' ' (space)  
@@ -2485,35 +1762,16 @@ $A639: 4E       .byte $4E        ; 'N'
 ; This routine would handle per-frame game updates:
 ;
 ; 1. ANIMATION FRAME SEQUENCING ($A63B-$A662):
-;    - Manages 17-frame animation sequence ($B3: 0→17)
-;    - Cycles through 3-step animation phases ($B4: 0→1→2→0)
-;    - Updates hardware register $E806 with current frame
-;    - Sets completion state ($87) when frame 13 reached
 ;
 ; 2. ANIMATION SPEED CONTROL ($A673-$A686):
-;    - Gradually decrements speed value ($B2) in register $E807
-;    - Disables animations when speed reaches $80
-;    - Creates smooth animation slowdown effect
 ;
 ; 3. TIMER MANAGEMENT ($A688-$A69E):
-;    - Increments primary timer ($B6) in $E802 each frame
-;    - When timer reaches 32, decrements secondary timer ($B7) in $E803
-;    - Provides dual-timer system for animation timing
 ;
 ; 4. SPRITE POSITION ANIMATION ($A6A1-$A6B8):
-;    - Moves player sprite left by 4 pixels per frame ($B8)
-;    - Updates $E804 (player sprite X position)
-;    - Clears $E805 (player sprite character to $00) when sprite reaches edge
-;    - Disables sprite animation when position < 8 pixels
 ;
 ; 5. ACCURACY BONUS SYSTEM ($A6BA-$A6CB):
-;    - Calculates shooting accuracy: $D1 - $D4 (shots fired vs hits)
-;    - Awards bonus ($C9 to $08) if accuracy good (< 5 misses)
-;    - Only processes when trigger not active ($93 = 0)
 ;
 ; 6. CHAIN TO OS NMI HANDLER ($A6CD):
-;    - JMP $FCB2 - continues to OS ROM NMI handler
-;    - Allows OS to handle system-level interrupt processing
 ;
 ; This represents a complete per-frame game loop that was developed but never
 ; integrated into the final game. The functionality may have been moved to
@@ -2701,54 +1959,6 @@ TITLE_SCREEN_DATA:
 ; Character $4A is background/space (used 27/71 times = 38%)
 ; 
 ; Logo Pattern (each character is 8x8 pixels) - Spells "CBS":
-;   .........###.###.###.............###.###.###.###.###.....................###.###.###............
-;   .........###.###.###.............###.###.###.###.###.....................###.###.###............
-;   .........###.###.###.............###.###.###.###.###.....................###.###.###............
-;   ................................................................................................
-;   .....###.###.###.###.###.........###.###.###.###.###.###.............###.###.###.###.###........
-;   .....###.###.###.###.###.........###.###.###.###.###.###.............###.###.###.###.###........
-;   .....###.###.###.###.###.........###.###.###.###.###.###.............###.###.###.###.###........
-;   ................................................................................................
-;   .###.###.###.###.###.....###.###.###.###.###.###.###.....###.###.###.###.###.###.###.....###.###
-;   .###.###.###.###.###.....###.###.###.###.###.###.###.....###.###.###.###.###.###.###.....###.###
-;   .###.###.###.###.###.....###.###.###.###.###.###.###.....###.###.###.###.###.###.###.....###.###
-;   ................................................................................................
-;   .###.....###.###.###.....###.###.###.....###.###.###.....###.###.###.....###.###.###.....###.###
-;   .###.....###.###.###.....###.###.###.....###.###.###.....###.###.###.....###.###.###.....###.###
-;   .###.....###.###.###.....###.###.###.....###.###.###.....###.###.###.....###.###.###.....###.###
-;   ................................................................................................
-;   .###.....###.###.###.....###.###.###.....###.###.###.....###.###.###.....................###.###
-;   .###.....###.###.###.....###.###.###.....###.###.###.....###.###.###.....................###.###
-;   .###.....###.###.###.....###.###.###.....###.###.###.....###.###.###.....................###.###
-;   ................................................................................................
-;   .###.....................###.###.###.###.###.###.........###.###.###.###.###.###.........###.###
-;   .###.....................###.###.###.###.###.###.........###.###.###.###.###.###.........###.###
-;   .###.....................###.###.###.###.###.###.........###.###.###.###.###.###.........###.###
-;   ................................................................................................
-;   .###.....................###.###.###.###.###.###.............###.###.###.###.###.###.....###.###
-;   .###.....................###.###.###.###.###.###.............###.###.###.###.###.###.....###.###
-;   .###.....................###.###.###.###.###.###.............###.###.###.###.###.###.....###.###
-;   ................................................................................................
-;   .###.....###.###.###.....###.###.###.....###.###.###.....................###.###.###.....###.###
-;   .###.....###.###.###.....###.###.###.....###.###.###.....................###.###.###.....###.###
-;   .###.....###.###.###.....###.###.###.....###.###.###.....................###.###.###.....###.###
-;   ................................................................................................
-;   .###.....###.###.###.....###.###.###.....###.###.###.....###.###.###.....###.###.###.........###
-;   .###.....###.###.###.....###.###.###.....###.###.###.....###.###.###.....###.###.###.........###
-;   .###.....###.###.###.....###.###.###.....###.###.###.....###.###.###.....###.###.###.........###
-;   ................................................................................................
-;   .###.###.###.###.###.....###.###.###.###.###.###.###.....###.###.###.###.###.###.###............
-;   .###.###.###.###.###.....###.###.###.###.###.###.###.....###.###.###.###.###.###.###............
-;   .###.###.###.###.###.....###.###.###.###.###.###.###.....###.###.###.###.###.###.###............
-;   ................................................................................................
-;   .###.###.###.###.........###.###.###.###.###.###.............###.###.###.###.###........
-;   .###.###.###.###.........###.###.###.###.###.###.............###.###.###.###.###........
-;   .###.###.###.###.........###.###.###.###.###.###.............###.###.###.###.###........
-;   ........................................................................................
-;   .###.###.###.............###.###.###.###.###.....................###.###.###............
-;   .###.###.###.............###.###.###.###.###.....................###.###.###............
-;   .###.###.###.............###.###.###.###.###.....................###.###.###............
-;   ........................................................................................
 ; ===============================================================================
 $A78C: .byte $47, $4A, $49, $40, $4A, $4A, $49, $40, $47, $4A, $49, $40  ; Logo row 1 (12 blocks)
 $A798: .byte $46, $4A, $45, $4A, $46, $4A, $45, $4A, $46, $4A, $45, $4A  ; Logo row 2 (12 blocks)
@@ -2821,36 +2031,16 @@ $A839: .byte $0E                ; "." (period)
 ; MAIN SECTIONS:
 ;
 ; 1. ENEMY-TO-ENEMY COLLISION DETECTION ($A844-$A8DD):
-;    - Checks if enemies collided with each other (P1-P3 collision registers)
-;    - Awards 5 POINTS for enemy-to-enemy collisions
-;    - Checks if enemy missiles hit anything (M1-M3 collision registers)
-;    - Awards 1 POINT for enemy missile hits
-;    - Marks enemy slots as DEFEATED when hit
 ;
 ; 2. PLAYER MISSILE HIT DETECTION ($A8F6-$A930):
-;    - Checks if player's missile (M0) hit any enemies (P1-P3)
-;    - Reads $C008 collision register with bit masks
-;    - Awards 1 POINT for each enemy hit
-;    - Increments shot counter $D4 (for accuracy tracking)
 ;
 ; 3. FIRE BUTTON PROCESSING ($A932-$A93E):
-;    - Reads fire button state from $C008
-;    - Calls missile creation routine ($A99C) when pressed
 ;
 ; 4. PLAYER EXIT DETECTION ($A941-$A967):
-;    - Checks P0PF ($C004) - Player 0 to Playfield collision
-;    - Detects when player touches arena edges (exits)
-;    - Sets $AD flag when player at exit (triggers sector completion check)
-;    - Also checks for general player collisions (sets $93 flag)
 ;
 ; 5. ENEMY MISSILE FIRING ($A969-$A995):
-;    - Checks enemy-to-playfield collisions (P1PF, P2PF, P3PF)
-;    - When enemy hits playfield, triggers missile creation
-;    - Calls create_missile with X=1,2,3 for each enemy
 ;
 ; 6. CLEANUP ($A996-$A99B):
-;    - Clears all collision registers via $C01E (GTIA HITCLR)
-;    - Returns to main game loop
 ;
 ; **SCORING SYSTEM**:
 ; - Enemy-to-Enemy Collision: 5 POINTS (strategic bonus)
@@ -2974,9 +2164,6 @@ $A8F4: 85 AC    STA $AC
 ; - Player missile (M0) collision with enemies (P1-P3) detected via hardware
 ; - Hardware collision register $C008 detects M0 hitting enemy sprites
 ; - Each bit represents collision with a different enemy:
-;   * Bit 1 ($02): Player missile (M0) hit Enemy 1 (P1)
-;   * Bit 2 ($04): Player missile (M0) hit Enemy 2 (P2)
-;   * Bit 3 ($08): Player missile (M0) hit Enemy 3 (P3)
 ;
 ; **HIT PROCESSING**:
 ; - When collision detected, enemy slot flag ($94/$95/$96) is set
@@ -3069,10 +2256,6 @@ $A99B: 60       RTS             ; Return from collision_detection
 ;
 ; **PARAMETERS**:
 ; - X: Missile slot (0-3)
-;   * 0 = Player missile (M0) - clears bits 0-1
-;   * 1 = Enemy 1 missile (M1) - clears bits 2-3
-;   * 2 = Enemy 2 missile (M2) - clears bits 4-5
-;   * 3 = Enemy 3 missile (M3) - clears bits 6-7
 ;
 ; **BIT MASK TABLE ($BF7C)**:
 ; - $BF7C: $03 (00000011) - Player missile column
@@ -3086,10 +2269,6 @@ $A99B: 60       RTS             ; Return from collision_detection
 ; 3. Decrements Y position
 ; 4. Calls erase subroutine twice (clears 2 scanlines)
 ; 5. Erase subroutine:
-;    - Loads bit mask from $BF7C+X
-;    - Inverts mask (EOR #$FF) to preserve other pixels
-;    - ANDs with PMG memory at $1300+Y to clear missile pixels
-;    - Stores result back to PMG memory
 ;
 ; **CONTEXT**:
 ; Called after collision detection when missiles hit targets. Removes the
@@ -4486,10 +3665,6 @@ $B14E: 60       RTS             ; Return from timing delay routine
 ; 1. Checks timing counter ($A8) - only processes every Nth frame
 ; 2. Checks if any missiles are active ($E2-$E5)
 ; 3. For each active missile:
-;    - Reads movement direction ($88)
-;    - Updates missile position ($DE)
-;    - Calls sprite animation routines ($BCB7, $BC58)
-;    - Updates missile Y position ($E2-$E5)
 ; 4. Increments timing counter and compares with speed ($D6)
 ;
 ; **TIMING CONTROL**:
@@ -4783,15 +3958,7 @@ $B2B2: 60       RTS             ; Return
 ; 1. **Position Calculation**: Compares player position ($80/$84) vs enemy position ($92/$77)
 ; 2. **Distance Analysis**: Calculates X/Y distance differences ($9E/$9F)
 ; 3. **Firing Decision**: Creates 4-bit targeting value from position comparison:
-;    - Bit 0-1 ($9C/$9D): Movement direction flags
-;    - Bit 2 ($A2): Set if Y-distance > threshold (vertical alignment)
-;    - Bit 3 ($A3): Set if X-distance > threshold (horizontal alignment)
 ; 4. **Firing Patterns**: Different values trigger different firing behaviors:
-;    - $04/$06: Horizontal firing (values 4,6)
-;    - $05/$07: Diagonal firing (values 5,7)  
-;    - $08/$09: Vertical firing (values 8,9)
-;    - $0A/$0B: Advanced targeting (values 10,11)
-;    - $0C-$0F: Close-range rapid fire (values 12-15)
 ; 5. **Missile Setup**: Sets enemy missile positions ($E2/$DE) and enables firing
 ; ===============================================================================
 
@@ -5090,9 +4257,6 @@ $B4B1: 85 B6    STA $B6         ; Store sound timer
 ; - Joystick direction sampling from $C000-$C00F registers at fire time
 ; - Player missile creation through hardware PMG system (Missile 0)
 ; - Hardware collision detection via $C008 register bits:
-;   * Bit 1: Player missile hit enemy slot 1
-;   * Bit 2: Player missile hit enemy slot 2  
-;   * Bit 3: Player missile hit enemy slot 3
 ; - When collision detected, enemy is marked defeated
 ; - Trigger detection via $C010 register for menus/transitions
 ;
@@ -5125,10 +4289,6 @@ $B4B1: 85 B6    STA $B6         ; Store sound timer
 ; 2. $D7 = Frequency limit (loaded from level-based table at $BBE5)
 ; 3. Enemies can only attempt to fire when $A7 = 0
 ; 4. **ACTUAL FIRING RATE** is much lower due to additional conditions:
-;    - Hardware randomization check (25% chance)
-;    - Enemy state validation
-;    - Missile availability check
-;    - Player positioning requirements
 ; 
 ; **THEORETICAL vs ACTUAL RATES**:
 ; - Theoretical: 59.92/$D7 shots/sec (if fired every opportunity)
@@ -5146,9 +4306,6 @@ $B4B1: 85 B6    STA $B6         ; Store sound timer
 ; 1. Enemy firing sets initial missile position in hardware register $C004,X
 ; 2. Missile direction/trajectory stored in $6C (rotated per enemy for variety)
 ; 3. Hardware PMG system automatically moves missiles based on:
-;    - Hardware collision detection ($C00D-$C00F for missile/playfield)
-;    - Automatic sprite positioning via ANTIC/GTIA chips
-;    - No software position updates needed each frame
 ;
 ; **ENEMY MISSILE LIFECYCLE**:
 ; 1. **Creation**: Enemy AI triggers firing → $B46B sets position + direction
@@ -5197,15 +4354,6 @@ $B4BE: 60       RTS
 ; 1. Checks $97,X (enemy status flag)
 ; 2. If inactive ($97,X = 0): skips to next slot
 ; 3. If active: compares $D4 (enemies defeated) with $D1 (spawn limit)
-;    - If $D4 >= $D1: Sets $93,X = $C0 (no more spawns - limit reached)
-;    - If $D4 < $D1: Spawns/respawns enemy:
-;      * Clears $97,X and $93,X
-;      * Sets $8C,X = $FF
-;      * Generates random spawn position using $B51C and $B531
-;      * Loads position from spawn tables $BFD4 (X) and $BFDA (Y)
-;      * Sets enemy X position ($80,X) and Y position ($84,X)
-;      * Sets enemy color ($C000,X)
-;      * Updates display register ($08,X)
 ;
 ; **SPAWN LIMIT SYSTEM**:
 ; $D1 is loaded from sector difficulty table ($BBE4). It controls how many
@@ -5305,7 +4453,6 @@ $B530: 60       RTS             ; Return with random 0-5 in A and X
 ; Generates random Y coordinate index (0-2) for enemy spawn position
 ; Returns: A and Y = random value 0, 2, or 0-2 (indexes into $BFDA Y position table)
 ; Special handling: If X=0 or X=5, calls random_spawn_y_full for 0-2 range
-;                   Otherwise returns 0 or 2 only (avoids middle Y position)
 random_spawn_y:
 $B531: E0 00    CPX #$00        ; Check X register value
 $B533: F0 15    BEQ $B54A       ; Branch to full range if X=0
@@ -5346,34 +4493,16 @@ $B55A: 60       RTS             ; Return with random 0-2 in A and Y
 ;
 ; PROCESS:
 ; 1. LOOP THROUGH 3 ENEMY SLOTS (X = 1, 2, 3):
-;    - Checks enemy slot status ($93,X)
-;    - Skips empty slots or if game in special state ($91)
 ;
 ; 2. LOAD ENEMY SPRITE DATA:
-;    - Loads sprite character from table ($8C,X)
-;    - Special case: if character = $FF, loads $AC (likely bug/debug code)
-;    - Loads enemy position data ($80,X for X, $84,X for Y)
 ;
 ; 3. CALCULATE SPRITE SCREEN POSITIONS:
-;    - Performs complex position calculations with offsets
-;    - Calls $BD09 multiple times for coordinate transformations
-;    - Calculates both X and Y screen coordinates
-;    - Handles positive/negative position values differently
 ;
 ; 4. BUILD DISPLAY DATA:
-;    - Loops 4 times building sprite display information
-;    - Accumulates data in working registers ($6B, $70)
-;    - Performs bit operations to combine sprite data
 ;
 ; 5. UPDATE SPRITE DISPLAY:
-;    - Calls $BD30 to update display hardware
-;    - Calls copy_sprite_data twice to render sprite graphics to PMG memory
-;    - Stores updated positions back to enemy tables
 ;
 ; 6. LOOP MANAGEMENT:
-;    - Increments X and loops back for next enemy
-;    - Processes all 3 enemies per frame
-;    - Updates game state counter ($91) at end
 ;
 ; NOTE: Contains apparent bug at $B587-$B589 where character $AC (172) is
 ; loaded into player sprite register $E805. Character $AC is beyond the 89
@@ -5845,13 +4974,9 @@ $B888: 60       RTS             ; Screen clear complete!
 ; the final calculated exit patterns to their screen positions:
 ;
 ; 1. **EXIT PATTERN STAGING**: Exit hole patterns calculated by $B8AF are staged
-;    in memory areas $0629-$0630 and $0615-$061C
 ; 2. **SCREEN TRANSFER**: Patterns are transferred to final screen positions
-;    $2E29-$2E30 and $2E15-$2E1C where they become visible
 ; 3. **COORDINATE MAPPING**: These screen positions correspond to the left and
-;    right perimeter wall areas where exits must appear
 ; 4. **TIMING COORDINATION**: Transfer occurs after all pattern calculations
-;    are complete, ensuring exits appear at correct positions
 ;
 ; **MEMORY MAPPING FOR EXITS**:
 ; - $0629-$0630 → $2E29-$2E30: Left wall exit pattern data
@@ -5911,13 +5036,9 @@ $B8AE: 60       RTS             ; Screen memory initialization complete
 ; masking to create openings instead of solid walls:
 ;
 ; 1. **PATTERN TYPE SELECTION**: Based on element position ($55 & #$03), selects
-;    one of 4 different bit masks for pattern extraction
 ; 2. **EXIT-SPECIFIC MASKING**: For exit elements, uses reduced bit patterns to
-;    create holes instead of solid wall patterns
 ; 3. **VERTICAL POSITIONING**: Uses random value from $6C to determine which
-;    vertical position within the element gets the exit hole
 ; 4. **PATTERN COMBINATION**: Uses ORA operations to combine exit patterns with
-;    existing screen data, creating seamless wall-to-exit transitions
 ;
 ; **BIT MASK PATTERNS FOR EXIT CREATION**:
 ; - Pattern 0 ($C0 mask): Creates wide exit holes (bits 7,6)
@@ -6008,24 +5129,14 @@ $B90C: 60       RTS             ; Advanced arena element placement complete
 ; determine how many elements to generate and with what characteristics:
 ;
 ; 1. **PARAMETER COMPARISON SYSTEM**: Compares $55 (element type) with $C0 
-;    (control threshold) to determine generation path
 ; 2. **ITERATIVE GENERATION**: Uses loop counters to call $B8AF multiple times
-;    with incrementing/decrementing element parameters
 ; 3. **STATE PRESERVATION**: Saves and restores generation parameters ($C3)
-;    to maintain consistency across multiple generation calls
 ; 4. **BIDIRECTIONAL PARAMETER MODIFICATION**: Can increment or decrement 
-;    element type parameters during iteration loops
 ;
 ; **FORWARD vs BACKWARD GENERATION EXPLAINED**:
 ; - **FORWARD GENERATION** ($B917-$B929): DECREMENTS element type ($55) each iteration
-;   * Starts with higher element type value, works DOWN to lower values
-;   * Loop: $55 → $55-1 → $55-2 → ... (descending element types)
-;   * Used when $55 > $C0 (element type above threshold)
 ;
 ; - **BACKWARD GENERATION** ($B92B-$B93F): INCREMENTS element type ($55) each iteration  
-;   * Starts with lower element type value, works UP to higher values
-;   * Loop: $55 → $55+1 → $55+2 → ... (ascending element types)
-;   * Used when $55 < $C0 (element type below threshold, negative comparison)
 ;
 ; This allows the system to generate arena elements in different type sequences
 ; depending on the starting parameters, creating varied arena patterns.
@@ -6071,14 +5182,8 @@ $B93F: 60       RTS             ; Return from reverse generation
 ; This path operates on element positions ($54) rather than element types ($55):
 ;
 ; - **BACKWARD ELEMENT PROCESSING** ($B948-$B95A): DECREMENTS element position ($54)
-;   * Starts with higher element position, works DOWN to lower positions
-;   * Loop: $54 → $54-1 → $54-2 → ... (descending element positions)
-;   * Used when $54 > $BF (current position above threshold)
 ;
 ; - **FORWARD ELEMENT PROCESSING** ($B95B-$B96F): INCREMENTS element position ($54)
-;   * Starts with lower element position, works UP to higher positions  
-;   * Loop: $54 → $54+1 → $54+2 → ... (ascending element positions)
-;   * Used when $54 < $BF (current position below threshold)
 ;
 ; This allows processing arena elements in different positional sequences,
 ; enabling precise control over which specific elements (like Elements 2 and 38
@@ -6125,11 +5230,8 @@ $B96F: 60       RTS             ; Return from forward element processing
 ; The routine follows a carefully orchestrated sequence to build the arena:
 ;
 ; 1. **INITIALIZATION PHASE** ($B977-$B98F): Sets up base parameters and 
-;    performs initial arena element placement
 ; 2. **EXIT ELEMENT PROCESSING** ($B992-$B996): Specifically handles Element 2
-;    (left exit) using the control system
 ; 3. **WALL GENERATION PHASE** ($B999-$B9C7): Creates perimeter walls and
-;    internal obstacles using alternating patterns
 ; 4. **FINAL PARAMETER SETUP** ($B9C8-$B9D4): Prepares for hardware randomization
 ;
 ; **KEY ELEMENT TARGETING**:
@@ -6605,7 +5707,6 @@ $BBE3: 60       RTS             ; Return
 ; - Sector 6: ~2.50 shots/sec (every ~0.4 seconds)
 ; - Sector 7: ~3.75 shots/sec (every ~0.27 seconds)
 ; ===============================================================================
-;           D1   D7   D6   D8
 $BBE4: .byte $0E, $00, $02, $15    ; Sector 0:  D1=14,  D7=0,    D6=2,   D8=21  (No firing)
 $BBE8: .byte $14, $60, $02, $12    ; Sector 1:  D1=20,  D7=96,   D6=2,   D8=18
 $BBEC: .byte $1A, $40, $03, $08    ; Sector 2:  D1=26,  D7=64,   D6=3,   D8=8
@@ -6982,33 +6083,15 @@ $BD65: 60       RTS
 ;
 ; FUNCTIONS:
 ; 1. SCORE UPDATE ($BD6E-$BD82):
-;    - Adds hit value (in accumulator) to score at $060B,X
-;    - Handles BCD digit overflow (wraps at $3A = '9'+1)
-;    - Carries overflow to next higher digit
-;    - Processes all 5 score digits
 ;
 ; 2. SCORE DISPLAY UPDATE ($BD83-$BD8F):
-;    - Converts score digits to screen codes (subtract $20)
-;    - Updates score display on screen at $2E0B
-;    - Refreshes all 5 digits
 ;
 ; 3. SOUND EFFECT TRIGGER ($BD91-$BDA1):
-;    - Compares new score with previous value ($7B)
-;    - If score changed, triggers hit sound effect
-;    - Sets sound parameters: $D0 and $BD = $4F
-;    - Sound frequency/duration creates "hit" audio feedback
 ;
 ; **ENTRY POINTS**:
 ; - $BD66 (player_bonus_score_increase): Bonus point awards (loads value from $AC)
-;   * Called from bonus routines (e.g., sector completion at $AB9F)
-;   * Adds $AC value to score digit at $060B+2 (hundreds place)
-;   * Used for iterative bonus point awards
 ;
 ; - $BD6C (enemy_hit_scoring): Combat scoring (value already in accumulator)
-;   * Called from collision_detection
-;   * Adds accumulator value (1 or 5) to score digit at $060B+3 (tens place)
-;   * 5 points: Enemy-to-enemy collision (strategic bonus)
-;   * 1 point: Player missile hits enemy (standard kill)
 ; ===============================================================================
 player_bonus_score_increase:
 $BD66: A5 AC    LDA $AC         ; **BONUS ENTRY** - Load bonus value from $AC
@@ -7151,9 +6234,7 @@ $BDD4: 60       RTS              ; Return
 ;
 ; **WHY WSYNC AND DELAY?**:
 ; - **WSYNC**: Ensures display list modifications happen during horizontal blank
-;   (the brief period when the electron beam returns to start the next scan line)
 ; - **5-cycle delay**: Provides additional timing buffer to ensure modifications
-;   complete before the beam starts drawing the next line
 ; - **Purpose**: Prevents visual tearing/glitches when changing display list mid-frame
 ;
 ; **DISPLAY LIST MEMORY ($0204-$0205)**:
@@ -7163,8 +6244,6 @@ $BDD4: 60       RTS              ; Return
 ;
 ; **USAGE CONTEXTS**:
 ; - **Sector Setup** ($A6F3): Updates display list for sector/level display
-;   * A=07 (sector number), X=$A6, Y=$3B
-;   * Synchronized update prevents visual glitches during sector transition
 ; - **Sound System** ($B030): Same timing mechanism for audio/visual coordination
 ;
 ; **NOT SCREEN ERASING**: This routine modifies display list parameters, not
@@ -7221,518 +6300,518 @@ PLAYER_SPRITE_DATA:
 ; Player sprite animation data.
 
 ; PLAYER - STATIONARY
-$BE20: 08       .byte $08        ; ....#... - Sprite data byte
-$BE21: 14       .byte $14        ; ...#.#.. - Sprite data byte
-$BE22: 14       .byte $14        ; ...#.#.. - Sprite data byte
-$BE23: 08       .byte $08        ; ....#... - Sprite data byte
-$BE24: 1C       .byte $1C        ; ...###.. - **ENEMY SPRITE CHARACTER** - Character $1C used for moving enemies
-$BE25: 2A       .byte $2A        ; ..#.#.#. - Sprite data byte
-$BE26: 2A       .byte $2A        ; ..#.#.#. - Sprite data byte
-$BE27: 08       .byte $08        ; ....#... - Sprite data byte
-$BE28: 14       .byte $14        ; ...#.#.. - Sprite data byte
-$BE29: 14       .byte $14        ; ...#.#.. - Sprite data byte
-$BE2A: 14       .byte $14        ; ...#.#.. - Sprite data byte
-$BE2B: 36       .byte $36        ; ..##.##. - Sprite data byte
+        .byte $08        ; ....#...
+        .byte $14        ; ...#.#..
+        .byte $14        ; ...#.#..
+        .byte $08        ; ....#...
+        .byte $1C        ; ...###.. **ENEMY SPRITE CHARACTER** - Character $1C used for moving enemies
+        .byte $2A        ; ..#.#.#.
+        .byte $2A        ; ..#.#.#.
+        .byte $08        ; ....#...
+        .byte $14        ; ...#.#..
+        .byte $14        ; ...#.#..
+        .byte $14        ; ...#.#..
+        .byte $36        ; ..##.##.
 
 ; PLAYER - WALKING LEFT 1
-$BE2C: 08       .byte $08        ; ....#... - Sprite data byte
-$BE2D: 14       .byte $14        ; ...#.#.. - Sprite data byte
-$BE2E: 14       .byte $14        ; ...#.#.. - Sprite data byte
-$BE2F: 08       .byte $08        ; ....#... - Sprite data byte
-$BE30: 5C       .byte $5C        ; .#.###.. - Sprite data byte
-$BE31: 2A       .byte $2A        ; ..#.#.#. - Sprite data byte
-$BE32: 09       .byte $09        ; ....#..# - Sprite data byte
-$BE33: 0A       .byte $0A        ; ....#.#. - Sprite data byte
-$BE34: 18       .byte $18        ; ...##... - Sprite data byte
-$BE35: 24       .byte $24        ; ..#..#.. - Sprite data byte
-$BE36: 27       .byte $27        ; ..#..### - Sprite data byte
-$BE37: 61       .byte $61        ; .##....# - Sprite data byte
+        .byte $08        ; ....#...
+        .byte $14        ; ...#.#..
+        .byte $14        ; ...#.#..
+        .byte $08        ; ....#...
+        .byte $5C        ; .#.###..
+        .byte $2A        ; ..#.#.#.
+        .byte $09        ; ....#..#
+        .byte $0A        ; ....#.#.
+        .byte $18        ; ...##...
+        .byte $24        ; ..#..#..
+        .byte $27        ; ..#..###
+        .byte $61        ; .##....#
 
 ; PLAYER - WALKING LEFT 2
-$BE38: 08       .byte $08        ; ....#... - Sprite data byte
-$BE39: 14       .byte $14        ; ...#.#.. - Sprite data byte
-$BE3A: 14       .byte $14        ; ...#.#.. - Sprite data byte
-$BE3B: 08       .byte $08        ; ....#... - Sprite data byte
-$BE3C: 0C       .byte $0C        ; ....##.. - Sprite data byte
-$BE3D: 0C       .byte $0C        ; ....##.. - Sprite data byte
-$BE3E: 3C       .byte $3C        ; ..####.. - Sprite data byte
-$BE3F: 08       .byte $08        ; ....#... - Sprite data byte
-$BE40: 18       .byte $18        ; ...##... - Sprite data byte
-$BE41: 0C       .byte $0C        ; ....##.. - Sprite data byte
-$BE42: 0A       .byte $0A        ; ....#.#. - Sprite data byte
-$BE43: 1C       .byte $1C        ; ...###.. - **ENEMY SPRITE CHARACTER** - Character $1C used for moving enemies
+        .byte $08        ; ....#...
+        .byte $14        ; ...#.#..
+        .byte $14        ; ...#.#..
+        .byte $08        ; ....#...
+        .byte $0C        ; ....##..
+        .byte $0C        ; ....##..
+        .byte $3C        ; ..####..
+        .byte $08        ; ....#...
+        .byte $18        ; ...##...
+        .byte $0C        ; ....##..
+        .byte $0A        ; ....#.#.
+        .byte $1C        ; ...###.. **ENEMY SPRITE CHARACTER** - Character $1C used for moving enemies
 
 ; PLAYER - WALKING RIGHT 1
-$BE44: 10       .byte $10        ; ...#.... - Sprite data byte
-$BE45: 28       .byte $28        ; ..#.#... - Sprite data byte
-$BE46: 28       .byte $28        ; ..#.#... - Sprite data byte
-$BE47: 10       .byte $10        ; ...#.... - Sprite data byte
-$BE48: 3A       .byte $3A        ; ..###.#. - Sprite data byte
-$BE49: 54       .byte $54        ; .#.#.#.. - Sprite data byte
-$BE4A: 90       .byte $90        ; #..#.... - Sprite data byte
-$BE4B: 50       .byte $50        ; .#.#.... - Sprite data byte
-$BE4C: 18       .byte $18        ; ...##... - Sprite data byte
-$BE4D: 24       .byte $24        ; ..#..#.. - Sprite data byte
-$BE4E: E4       .byte $E4        ; ###..#.. - Sprite data byte
-$BE4F: 86       .byte $86        ; #....##. - Sprite data byte
+        .byte $10        ; ...#....
+        .byte $28        ; ..#.#...
+        .byte $28        ; ..#.#...
+        .byte $10        ; ...#....
+        .byte $3A        ; ..###.#.
+        .byte $54        ; .#.#.#..
+        .byte $90        ; #..#....
+        .byte $50        ; .#.#....
+        .byte $18        ; ...##...
+        .byte $24        ; ..#..#..
+        .byte $E4        ; ###..#..
+        .byte $86        ; #....##.
 
 ; PLAYER - WALKING RIGHT 2
-$BE50: 10       .byte $10        ; ...#.... - Sprite data byte
-$BE51: 28       .byte $28        ; ..#.#... - Sprite data byte
-$BE52: 28       .byte $28        ; ..#.#... - Sprite data byte
-$BE53: 10       .byte $10        ; ...#.... - Sprite data byte
-$BE54: 30       .byte $30        ; ..##.... - Sprite data byte
-$BE55: 30       .byte $30        ; ..##.... - Sprite data byte
-$BE56: 3C       .byte $3C        ; ..####.. - Sprite data byte
-$BE57: 10       .byte $10        ; ...#.... - Sprite data byte
-$BE58: 18       .byte $18        ; ...##... - Sprite data byte
-$BE59: 30       .byte $30        ; ..##.... - Sprite data byte
-$BE5A: 50       .byte $50        ; .#.#.... - Sprite data byte
-$BE5B: 38       .byte $38        ; ..###... - Sprite data byte
+        .byte $10        ; ...#....
+        .byte $28        ; ..#.#...
+        .byte $28        ; ..#.#...
+        .byte $10        ; ...#....
+        .byte $30        ; ..##....
+        .byte $30        ; ..##....
+        .byte $3C        ; ..####..
+        .byte $10        ; ...#....
+        .byte $18        ; ...##...
+        .byte $30        ; ..##....
+        .byte $50        ; .#.#....
+        .byte $38        ; ..###...
 
 ; PLAYER - WALKING UP/DOWN 1
-$BE5C: 08       .byte $08        ; ....#... - Sprite data byte
-$BE5D: 14       .byte $14        ; ...#.#.. - Sprite data byte
-$BE5E: 34       .byte $34        ; ..##.#.. - Sprite data byte
-$BE5F: 28       .byte $28        ; ..#.#... - Sprite data byte
-$BE60: 1C       .byte $1C        ; ...###.. - **ENEMY SPRITE CHARACTER** - Character $1C used for moving enemies
-$BE61: 0A       .byte $0A        ; ....#.#. - Sprite data byte
-$BE62: 0A       .byte $0A        ; ....#.#. - Sprite data byte
-$BE63: 08       .byte $08        ; ....#... - Sprite data byte
-$BE64: 14       .byte $14        ; ...#.#.. - Sprite data byte
-$BE65: 16       .byte $16        ; ...#.##. - Sprite data byte
-$BE66: 10       .byte $10        ; ...#.... - Sprite data byte
-$BE67: 30       .byte $30        ; ..##.... - Sprite data byte
+        .byte $08        ; ....#...
+        .byte $14        ; ...#.#..
+        .byte $34        ; ..##.#..
+        .byte $28        ; ..#.#...
+        .byte $1C        ; ...###.. **ENEMY SPRITE CHARACTER** - Character $1C used for moving enemies
+        .byte $0A        ; ....#.#.
+        .byte $0A        ; ....#.#.
+        .byte $08        ; ....#...
+        .byte $14        ; ...#.#..
+        .byte $16        ; ...#.##.
+        .byte $10        ; ...#....
+        .byte $30        ; ..##....
 
 ; PLAYER - WALKING UP/DOWN 2
-$BE68: 08       .byte $08        ; ....#... - Sprite data byte
-$BE69: 14       .byte $14        ; ...#.#.. - Sprite data byte
-$BE6A: 16       .byte $16        ; ...#.##. - Sprite data byte
-$BE6B: 0A       .byte $0A        ; ....#.#. - Sprite data byte
-$BE6C: 1C       .byte $1C        ; ...###.. - **ENEMY SPRITE CHARACTER** - Character $1C used for moving enemies
-$BE6D: 28       .byte $28        ; ..#.#... - Sprite data byte
-$BE6E: 28       .byte $28        ; ..#.#... - Sprite data byte
-$BE6F: 08       .byte $08        ; ....#... - Sprite data byte
-$BE70: 14       .byte $14        ; ...#.#.. - Sprite data byte
-$BE71: 34       .byte $34        ; ..##.#.. - Sprite data byte
-$BE72: 04       .byte $04        ; .....#.. - Sprite data byte
-$BE73: 06       .byte $06        ; .....##. - Sprite data byte
+        .byte $08        ; ....#...
+        .byte $14        ; ...#.#..
+        .byte $16        ; ...#.##.
+        .byte $0A        ; ....#.#.
+        .byte $1C        ; ...###.. **ENEMY SPRITE CHARACTER** - Character $1C used for moving enemies
+        .byte $28        ; ..#.#...
+        .byte $28        ; ..#.#...
+        .byte $08        ; ....#...
+        .byte $14        ; ...#.#..
+        .byte $34        ; ..##.#..
+        .byte $04        ; .....#..
+        .byte $06        ; .....##.
 
 ; PLAYER - SHOOTING LEFT
-$BE74: 00       .byte $00        ; ........ - Sprite data byte
-$BE75: 00       .byte $00        ; ........ - Sprite data byte
-$BE76: 04       .byte $04        ; .....#.. - Sprite data byte
-$BE77: 0A       .byte $0A        ; ....#.#. - Sprite data byte
-$BE78: 0A       .byte $0A        ; ....#.#. - Sprite data byte
-$BE79: C4       .byte $C4        ; ##...#.. - Sprite data byte
-$BE7A: 7C       .byte $7C        ; .#####.. - Sprite data byte
-$BE7B: 04       .byte $04        ; .....#.. - Sprite data byte
-$BE7C: 0C       .byte $0C        ; ....##.. - Sprite data byte
-$BE7D: 14       .byte $14        ; ...#.#.. - Sprite data byte
-$BE7E: 0F       .byte $0F        ; ....#### - Sprite data byte
-$BE7F: 19       .byte $19        ; ...##..# - Sprite data byte
+        .byte $00        ; ........
+        .byte $00        ; ........
+        .byte $04        ; .....#..
+        .byte $0A        ; ....#.#.
+        .byte $0A        ; ....#.#.
+        .byte $C4        ; ##...#..
+        .byte $7C        ; .#####..
+        .byte $04        ; .....#..
+        .byte $0C        ; ....##..
+        .byte $14        ; ...#.#..
+        .byte $0F        ; ....####
+        .byte $19        ; ...##..#
 
 ; PLAYER - SHOOTING TOP LEFT
-$BE80: 00       .byte $00        ; ........ - Sprite data byte
-$BE81: 40       .byte $40        ; .#...... - Sprite data byte
-$BE82: 24       .byte $24        ; ..#..#.. - Animation pattern data
-$BE83: 4A       .byte $4A        ; .#..#.#. - Animation pattern data
-$BE84: 2A       .byte $2A        ; ..#.#.#. - Animation pattern data
-$BE85: 14       .byte $14        ; ...#.#.. - Animation pattern data
-$BE86: 0C       .byte $0C        ; ....##.. - Animation pattern data
-$BE87: 04       .byte $04        ; .....#.. - **PLAYER HEAD (VERTICAL)** - Character $04
-$BE88: 0C       .byte $0C        ; ....##.. - Animation pattern data
-$BE89: 14       .byte $14        ; ...#.#.. - Animation pattern data
-$BE8A: 0F       .byte $0F        ; ....#### - Animation pattern data
-$BE8B: 19       .byte $19        ; ...##..# - Animation pattern data
+        .byte $00        ; ........
+        .byte $40        ; .#......
+        .byte $24        ; ..#..#..
+        .byte $4A        ; .#..#.#.
+        .byte $2A        ; ..#.#.#.
+        .byte $14        ; ...#.#..
+        .byte $0C        ; ....##..
+        .byte $04        ; .....#.. **PLAYER HEAD (VERTICAL)** - Character $04
+        .byte $0C        ; ....##..
+        .byte $14        ; ...#.#..
+        .byte $0F        ; ....####
+        .byte $19        ; ...##..#
 
 ; PLAYER - SHOOTING BOTTOM LEFT
-$BE8C: 00       .byte $00        ; ........ - Animation pattern data
-$BE8D: 00       .byte $00        ; ........ - Animation pattern data
-$BE8E: 04       .byte $04        ; .....#.. - **PLAYER HEAD (VERTICAL)** - Character $04
-$BE8F: 0A       .byte $0A        ; ....#.#. - Animation pattern data
-$BE90: 0A       .byte $0A        ; ....#.#. - Animation pattern data
-$BE91: 04       .byte $04        ; .....#.. - **PLAYER HEAD (VERTICAL)** - Character $04
-$BE92: 0C       .byte $0C        ; ....##.. - Animation pattern data
-$BE93: 54       .byte $54        ; .#.#.#.. - Animation pattern data
-$BE94: AC       .byte $AC        ; #.#.##.. - Animation pattern data
-$BE95: 14       .byte $14        ; ...#.#.. - Animation pattern data
-$BE96: 0F       .byte $0F        ; ....#### - Animation pattern data
-$BE97: 19       .byte $19        ; ...##..# - Animation pattern data
+        .byte $00        ; ........
+        .byte $00        ; ........
+        .byte $04        ; .....#.. **PLAYER HEAD (VERTICAL)** - Character $04
+        .byte $0A        ; ....#.#.
+        .byte $0A        ; ....#.#.
+        .byte $04        ; .....#.. **PLAYER HEAD (VERTICAL)** - Character $04
+        .byte $0C        ; ....##..
+        .byte $54        ; .#.#.#..
+        .byte $AC        ; #.#.##..
+        .byte $14        ; ...#.#..
+        .byte $0F        ; ....####
+        .byte $19        ; ...##..#
 
 ; PLAYER - SHOOTING RIGHT
-$BE98: 00       .byte $00        ; ........ - Animation pattern data
-$BE99: 00       .byte $00        ; ........ - Animation pattern data
-$BE9A: 20       .byte $20        ; ..#..... - Animation pattern data
-$BE9B: 50       .byte $50        ; .#.#.... - Animation pattern data
-$BE9C: 50       .byte $50        ; .#.#.... - Animation pattern data
-$BE9D: 23       .byte $23        ; ..#...## - Animation pattern data
-$BE9E: 3E       .byte $3E        ; ..#####. - Animation pattern data
-$BE9F: 20       .byte $20        ; ..#..... - Animation pattern data
-$BEA0: 30       .byte $30        ; ..##.... - Animation pattern data
-$BEA1: 28       .byte $28        ; ..#.#... - Animation pattern data
-$BEA2: F0       .byte $F0        ; ####.... - Animation pattern data
-$BEA3: 98       .byte $98        ; #..##... - Animation pattern data
+        .byte $00        ; ........
+        .byte $00        ; ........
+        .byte $20        ; ..#.....
+        .byte $50        ; .#.#....
+        .byte $50        ; .#.#....
+        .byte $23        ; ..#...##
+        .byte $3E        ; ..#####.
+        .byte $20        ; ..#.....
+        .byte $30        ; ..##....
+        .byte $28        ; ..#.#...
+        .byte $F0        ; ####....
+        .byte $98        ; #..##...
 
 ; PLAYER - SHOOTING TOP RIGHT
-$BEA4: 00       .byte $00        ; ........ - Animation pattern data
-$BEA5: 02       .byte $02        ; ......#. - **PLAYER HEAD (SIDEWAYS)** - Character $02
-$BEA6: 24       .byte $24        ; ..#..#.. - Animation pattern data
-$BEA7: 52       .byte $52        ; .#.#..#. - Animation pattern data
-$BEA8: 54       .byte $54        ; .#.#.#.. - Animation pattern data
-$BEA9: 28       .byte $28        ; ..#.#... - Animation pattern data
-$BEAA: 30       .byte $30        ; ..##.... - Animation pattern data
-$BEAB: 20       .byte $20        ; ..#..... - Animation pattern data
-$BEAC: 30       .byte $30        ; ..##.... - Animation pattern data
-$BEAD: 28       .byte $28        ; ..#.#... - Animation pattern data
-$BEAE: F0       .byte $F0        ; ####.... - Animation pattern data
-$BEAF: 98       .byte $98        ; #..##... - Animation pattern data
+        .byte $00        ; ........
+        .byte $02        ; ......#. **PLAYER HEAD (SIDEWAYS)** - Character $02
+        .byte $24        ; ..#..#..
+        .byte $52        ; .#.#..#.
+        .byte $54        ; .#.#.#..
+        .byte $28        ; ..#.#...
+        .byte $30        ; ..##....
+        .byte $20        ; ..#.....
+        .byte $30        ; ..##....
+        .byte $28        ; ..#.#...
+        .byte $F0        ; ####....
+        .byte $98        ; #..##...
 
 ; PLAYER - SHOOTING BOTTOM RIGHT
-$BEB0: 00       .byte $00        ; ........ - Animation pattern data
-$BEB1: 00       .byte $00        ; ........ - Animation pattern data
-$BEB2: 20       .byte $20        ; ..#..... - Animation pattern data
-$BEB3: 50       .byte $50        ; .#.#.... - Animation pattern data
-$BEB4: 50       .byte $50        ; .#.#.... - Animation pattern data
-$BEB5: 20       .byte $20        ; ..#..... - Animation pattern data
-$BEB6: 30       .byte $30        ; ..##.... - Animation pattern data
-$BEB7: 2A       .byte $2A        ; ..#.#.#. - Animation pattern data
-$BEB8: 35       .byte $35        ; ..##.#.# - Animation pattern data
-$BEB9: 28       .byte $28        ; ..#.#... - Animation pattern data
-$BEBA: F0       .byte $F0        ; ####.... - Animation pattern data
-$BEBB: 98       .byte $98        ; #..##... - Animation pattern data
+        .byte $00        ; ........
+        .byte $00        ; ........
+        .byte $20        ; ..#.....
+        .byte $50        ; .#.#....
+        .byte $50        ; .#.#....
+        .byte $20        ; ..#.....
+        .byte $30        ; ..##....
+        .byte $2A        ; ..#.#.#.
+        .byte $35        ; ..##.#.#
+        .byte $28        ; ..#.#...
+        .byte $F0        ; ####....
+        .byte $98        ; #..##...
 
 ; PLAYER - SHOOTING UP
-$BEBC: 00       .byte $00        ; ........ - Animation pattern data
-$BEBD: 04       .byte $04        ; .....#.. - **PLAYER HEAD (VERTICAL)** - Character $04
-$BEBE: 24       .byte $24        ; ..#..#.. - Animation pattern data
-$BEBF: 52       .byte $52        ; .#.#..#. - Animation pattern data
-$BEC0: 54       .byte $54        ; .#.#.#.. - Animation pattern data
-$BEC1: 28       .byte $28        ; ..#.#... - Animation pattern data
-$BEC2: 30       .byte $30        ; ..##.... - Animation pattern data
-$BEC3: 20       .byte $20        ; ..#..... - Animation pattern data
-$BEC4: 30       .byte $30        ; ..##.... - Animation pattern data
-$BEC5: 28       .byte $28        ; ..#.#... - Animation pattern data
-$BEC6: F0       .byte $F0        ; ####.... - Animation pattern data
-$BEC7: 98       .byte $98        ; #..##... - Animation pattern data
+        .byte $00        ; ........
+        .byte $04        ; .....#.. **PLAYER HEAD (VERTICAL)** - Character $04
+        .byte $24        ; ..#..#..
+        .byte $52        ; .#.#..#.
+        .byte $54        ; .#.#.#..
+        .byte $28        ; ..#.#...
+        .byte $30        ; ..##....
+        .byte $20        ; ..#.....
+        .byte $30        ; ..##....
+        .byte $28        ; ..#.#...
+        .byte $F0        ; ####....
+        .byte $98        ; #..##...
 
 ; PLAYER - SHOOTING DOWN
-$BEC8: 00       .byte $00        ; ........ - Animation pattern data
-$BEC9: 00       .byte $00        ; ........ - Animation pattern data
-$BECA: 04       .byte $04        ; .....#.. - **PLAYER HEAD (VERTICAL)** - Character $04
-$BECB: 0A       .byte $0A        ; ....#.#. - Animation pattern data
-$BECC: 0A       .byte $0A        ; ....#.#. - Animation pattern data
-$BECD: 04       .byte $04        ; .....#.. - **PLAYER HEAD (VERTICAL)** - Character $04
-$BECE: 0C       .byte $0C        ; ....##.. - Animation pattern data
-$BECF: 14       .byte $14        ; ...#.#.. - Animation pattern data
-$BED0: 6C       .byte $6C        ; .##.##.. - Complex sprite pattern
-$BED1: 54       .byte $54        ; .#.#.#.. - Complex sprite pattern  
-$BED2: 0F       .byte $0F        ; ....#### - Complex sprite pattern
-$BED3: 19       .byte $19        ; ...##..# - Animation pattern data
+        .byte $00        ; ........
+        .byte $00        ; ........
+        .byte $04        ; .....#.. **PLAYER HEAD (VERTICAL)** - Character $04
+        .byte $0A        ; ....#.#.
+        .byte $0A        ; ....#.#.
+        .byte $04        ; .....#.. **PLAYER HEAD (VERTICAL)** - Character $04
+        .byte $0C        ; ....##..
+        .byte $14        ; ...#.#..
+        .byte $6C        ; .##.##.. Complex sprite pattern
+        .byte $54        ; .#.#.#.. Complex sprite pattern
+        .byte $0F        ; ....#### Complex sprite pattern
+        .byte $19        ; ...##..#
 
 # Player / enemy explosion sprite animation.
 
 ; EXPLOSION 1
-$BED4: 00       .byte $00        ; ........ - Padding/empty data
-$BED5: 00       .byte $00        ; ........ - Padding/empty data
-$BED6: 00       .byte $00        ; ........ - Padding/empty data
-$BED7: 00       .byte $00        ; ........ - Padding/empty data
-$BED8: 00       .byte $00        ; ........ - Padding/empty data
-$BED9: 00       .byte $00        ; ........ - Padding/empty data
-$BEDA: 08       .byte $08        ; ....#... - **DEATH ANIMATION** - Character $08
-$BEDB: 08       .byte $08        ; ....#... - **DEATH ANIMATION** - Character $08
-$BEDC: 00       .byte $00        ; ........ - Padding/empty data
-$BEDD: 00       .byte $00        ; ........ - Padding/empty data
-$BEDE: 00       .byte $00        ; ........ - Padding/empty data
-$BEDF: 00       .byte $00        ; ........ - Padding/empty data
+        .byte $00        ; ........
+        .byte $00        ; ........
+        .byte $00        ; ........
+        .byte $00        ; ........
+        .byte $00        ; ........
+        .byte $00        ; ........
+        .byte $08        ; ....#... **DEATH ANIMATION** - Character $08
+        .byte $08        ; ....#... **DEATH ANIMATION** - Character $08
+        .byte $00        ; ........
+        .byte $00        ; ........
+        .byte $00        ; ........
+        .byte $00        ; ........
 
 ; EXPLOSION 2
-$BEE0: 00       .byte $00        ; ........ - Padding/empty data
-$BEE1: 00       .byte $00        ; ........ - Padding/empty data
-$BEE2: 00       .byte $00        ; ........ - Padding/empty data
-$BEE3: 00       .byte $00        ; ........ - Padding/empty data
-$BEE4: 00       .byte $00        ; ........ - Padding/empty data
-$BEE5: 00       .byte $00        ; ........ - Padding/empty data
-$BEE6: 00       .byte $00        ; ........ - Padding/empty data
-$BEE7: 10       .byte $10        ; ...#.... - Sparse pattern data
-$BEE8: 38       .byte $38        ; ..###... - Sprite pattern data
-$BEE9: 10       .byte $10        ; ...#.... - Sprite pattern data
-$BEEA: 00       .byte $00        ; ........ - Padding/empty data
-$BEEB: 00       .byte $00        ; ........ - Padding/empty data
+        .byte $00        ; ........
+        .byte $00        ; ........
+        .byte $00        ; ........
+        .byte $00        ; ........
+        .byte $00        ; ........
+        .byte $00        ; ........
+        .byte $00        ; ........
+        .byte $10        ; ...#.... Sparse pattern data
+        .byte $38        ; ..###...
+        .byte $10        ; ...#....
+        .byte $00        ; ........
+        .byte $00        ; ........
 
 ; EXPLOSION 3
-$BEEC: 00       .byte $00        ; ........ - Padding/empty data
-$BEED: 00       .byte $00        ; ........ - Padding/empty data
-$BEEE: 00       .byte $00        ; ........ - Padding/empty data
-$BEEF: 00       .byte $00        ; ........ - Padding/empty data
-$BEF0: 00       .byte $00        ; ........ - Padding/empty data
-$BEF1: 00       .byte $00        ; ........ - Padding/empty data
-$BEF2: 00       .byte $00        ; ........ - Padding/empty data
-$BEF3: 00       .byte $00        ; ........ - Padding/empty data
-$BEF4: 00       .byte $00        ; ........ - Padding/empty data
-$BEF5: 14       .byte $14        ; ...#.#.. - Sprite pattern data
-$BEF6: 00       .byte $00        ; ........ - Padding/empty data
-$BEF7: 2C       .byte $2C        ; ..#.##.. - Sprite pattern data
+        .byte $00        ; ........
+        .byte $00        ; ........
+        .byte $00        ; ........
+        .byte $00        ; ........
+        .byte $00        ; ........
+        .byte $00        ; ........
+        .byte $00        ; ........
+        .byte $00        ; ........
+        .byte $00        ; ........
+        .byte $14        ; ...#.#..
+        .byte $00        ; ........
+        .byte $2C        ; ..#.##..
 
 ; EXPLOSION 4
-$BEF8: 00       .byte $00        ; ........ - Padding/empty data
-$BEF9: 14       .byte $14        ; ...#.#.. - Sprite pattern data
-$BEFA: 00       .byte $00        ; ........ - Padding/empty data
-$BEFB: 00       .byte $00        ; ........ - Padding/empty data
-$BEFC: 00       .byte $00        ; ........ - Padding/empty data
-$BEFD: 00       .byte $00        ; ........ - Padding/empty data
-$BEFE: 00       .byte $00        ; ........ - Padding/empty data
-$BEFF: 00       .byte $00        ; ........ - Padding/empty data
-$BF00: 00       .byte $00        ; ........ - Table entry
-$BF01: 10       .byte $10        ; ...#.... - Table entry
-$BF02: 00       .byte $00        ; ........ - Table entry
-$BF03: 58       .byte $58        ; .#.##... - Table entry
+        .byte $00        ; ........
+        .byte $14        ; ...#.#..
+        .byte $00        ; ........
+        .byte $00        ; ........
+        .byte $00        ; ........
+        .byte $00        ; ........
+        .byte $00        ; ........
+        .byte $00        ; ........
+        .byte $00        ; ........
+        .byte $10        ; ...#....
+        .byte $00        ; ........
+        .byte $58        ; .#.##...
 
 ; EXPLOSION 5
-$BF04: 00       .byte $00        ; ........ - Table entry
-$BF05: 2C       .byte $2C        ; ..#.##.. - Table entry
-$BF06: 00       .byte $00        ; ........ - Table entry
-$BF07: 50       .byte $50        ; .#.#.... - Table entry
-$BF08: 00       .byte $00        ; ........ - Table entry
-$BF09: 10       .byte $10        ; ...#.... - Table entry
-$BF0A: 00       .byte $00        ; ........ - Table entry
-$BF0B: 00       .byte $00        ; ........ - Table entry
-$BF0C: 00       .byte $00        ; ........ - Table entry
-$BF0D: 38       .byte $38        ; ..###... - Table entry
-$BF0E: 00       .byte $00        ; ........ - Table entry
-$BF0F: 92       .byte $92        ; #..#..#. - Table entry
+        .byte $00        ; ........
+        .byte $2C        ; ..#.##..
+        .byte $00        ; ........
+        .byte $50        ; .#.#....
+        .byte $00        ; ........
+        .byte $10        ; ...#....
+        .byte $00        ; ........
+        .byte $00        ; ........
+        .byte $00        ; ........
+        .byte $38        ; ..###...
+        .byte $00        ; ........
+        .byte $92        ; #..#..#.
 
 ; EXPLOSION 6
-$BF10: 00       .byte $00        ; ........ - Table entry
-$BF11: 58       .byte $58        ; .#.##... - Table entry
-$BF12: 00       .byte $00        ; ........ - Table entry
-$BF13: AA       .byte $AA        ; #.#.#.#. - Table entry
-$BF14: 00       .byte $00        ; ........ - Table entry
-$BF15: 54       .byte $54        ; .#.#.#.. - Table entry
-$BF16: 00       .byte $00        ; ........ - Table entry
-$BF17: 54       .byte $54        ; .#.#.#.. - Table entry
-$BF18: 00       .byte $00        ; ........ - Table entry
-$BF19: 00       .byte $00        ; ........ - Table entry
-$BF1A: 48       .byte $48        ; .#..#... - Table entry
-$BF1B: 10       .byte $10        ; ...#.... - Table entry
+        .byte $00        ; ........
+        .byte $58        ; .#.##...
+        .byte $00        ; ........
+        .byte $AA        ; #.#.#.#.
+        .byte $00        ; ........
+        .byte $54        ; .#.#.#..
+        .byte $00        ; ........
+        .byte $54        ; .#.#.#..
+        .byte $00        ; ........
+        .byte $00        ; ........
+        .byte $48        ; .#..#...
+        .byte $10        ; ...#....
 
 ; EXPLOSION 7
-$BF1C: 28       .byte $28        ; ..#.#... - Table entry
-$BF1D: 92       .byte $92        ; #..#..#. - Table entry
-$BF1E: 01       .byte $01        ; .......# - Table entry
-$BF1F: 58       .byte $58        ; .#.##... - Table entry
-$BF20: 00       .byte $00        ; ........ - Table entry
-$BF21: 82       .byte $82        ; #.....#. - Table entry
-$BF22: 00       .byte $00        ; ........ - Table entry
-$BF23: 54       .byte $54        ; .#.#.#.. - Table entry
-$BF24: 00       .byte $00        ; ........ - Table entry
-$BF25: A0       .byte $A0        ; #.#..... - Table entry
-$BF26: 10       .byte $10        ; ...#.... - Table entry
-$BF27: 44       .byte $44        ; .#...#.. - Table entry
+        .byte $28        ; ..#.#...
+        .byte $92        ; #..#..#.
+        .byte $01        ; .......#
+        .byte $58        ; .#.##...
+        .byte $00        ; ........
+        .byte $82        ; #.....#.
+        .byte $00        ; ........
+        .byte $54        ; .#.#.#..
+        .byte $00        ; ........
+        .byte $A0        ; #.#.....
+        .byte $10        ; ...#....
+        .byte $44        ; .#...#..
 
 ; EXPLOSION 8
-$BF28: 52       .byte $52        ; .#.#..#. - Table entry
-$BF29: 24       .byte $24        ; ..#..#.. - Table entry
-$BF2A: 10       .byte $10        ; ...#.... - Table entry
-$BF2B: A4       .byte $A4        ; #.#..#.. - Table entry
-$BF2C: 09       .byte $09        ; ....#..# - **DEATH ANIMATION** - Character $09
-$BF2D: A0       .byte $A0        ; #.#..... - Table entry
-$BF2E: 00       .byte $00        ; ........ - Table entry
-$BF2F: 00       .byte $00        ; ........ - Table entry
-$BF30: 84       .byte $84        ; #....#.. - Table entry
-$BF31: 00       .byte $00        ; ........ - Table entry
-$BF32: 55       .byte $55        ; .#.#.#.# - Table entry
-$BF33: 00       .byte $00        ; ........ - Table entry
+        .byte $52        ; .#.#..#.
+        .byte $24        ; ..#..#..
+        .byte $10        ; ...#....
+        .byte $A4        ; #.#..#..
+        .byte $09        ; ....#..# **DEATH ANIMATION** - Character $09
+        .byte $A0        ; #.#.....
+        .byte $00        ; ........
+        .byte $00        ; ........
+        .byte $84        ; #....#..
+        .byte $00        ; ........
+        .byte $55        ; .#.#.#.#
+        .byte $00        ; ........
 
 ; EXPLOSION 9
-$BF34: 29       .byte $29        ; ..#.#..# - Table entry
-$BF35: 52       .byte $52        ; .#.#..#. - Table entry
-$BF36: 52       .byte $52        ; .#.#..#. - Table entry
-$BF37: A4       .byte $A4        ; #.#..#.. - Table entry
-$BF38: 10       .byte $10        ; ...#.... - Table entry
-$BF39: A4       .byte $A4        ; #.#..#.. - Table entry
-$BF3A: 01       .byte $01        ; .......# - Table entry
-$BF3B: 80       .byte $80        ; #....... - Table entry
-$BF3C: 01       .byte $01        ; .......# - Table entry
-$BF3D: 00       .byte $00        ; ........ - Table entry
-$BF3E: 80       .byte $80        ; #....... - Table entry
-$BF3F: 00       .byte $00        ; ........ - Table entry
+        .byte $29        ; ..#.#..#
+        .byte $52        ; .#.#..#.
+        .byte $52        ; .#.#..#.
+        .byte $A4        ; #.#..#..
+        .byte $10        ; ...#....
+        .byte $A4        ; #.#..#..
+        .byte $01        ; .......#
+        .byte $80        ; #.......
+        .byte $01        ; .......#
+        .byte $00        ; ........
+        .byte $80        ; #.......
+        .byte $00        ; ........
 
 ; EXPLOSION 10
-$BF40: 45       .byte $45        ; .#...#.# - Table entry
-$BF41: 00       .byte $00        ; ........ - Table entry
-$BF42: A8       .byte $A8        ; #.#.#... - Table entry
-$BF43: 52       .byte $52        ; .#.#..#. - Table entry
-$BF44: 52       .byte $52        ; .#.#..#. - Table entry
-$BF45: 24       .byte $24        ; ..#..#.. - Table entry
-$BF46: 10       .byte $10        ; ...#.... - Table entry
-$BF47: 24       .byte $24        ; ..#..#.. - Table entry
-$BF48: 00       .byte $00        ; ........ - Table entry
-$BF49: 80       .byte $80        ; #....... - Table entry
-$BF4A: 01       .byte $01        ; .......# - Table entry
-$BF4B: 00       .byte $00        ; ........ - Table entry
+        .byte $45        ; .#...#.#
+        .byte $00        ; ........
+        .byte $A8        ; #.#.#...
+        .byte $52        ; .#.#..#.
+        .byte $52        ; .#.#..#.
+        .byte $24        ; ..#..#..
+        .byte $10        ; ...#....
+        .byte $24        ; ..#..#..
+        .byte $00        ; ........
+        .byte $80        ; #.......
+        .byte $01        ; .......#
+        .byte $00        ; ........
 
 ; EXPLOSION 11
-$BF4C: 00       .byte $00        ; ........ - Table entry
-$BF4D: 00       .byte $00        ; ........ - Table entry
-$BF4E: 01       .byte $01        ; .......# - Table entry
-$BF4F: 00       .byte $00        ; ........ - Table entry
-$BF50: 29       .byte $29        ; ..#.#..# - Table entry
-$BF51: 50       .byte $50        ; .#.#.... - Table entry
-$BF52: 50       .byte $50        ; .#.#.... - Table entry
-$BF53: A1       .byte $A1        ; #.#....# - Table entry
-$BF54: 00       .byte $00        ; ........ - Table entry
-$BF55: 00       .byte $00        ; ........ - Table entry
-$BF56: 00       .byte $00        ; ........ - Table entry
-$BF57: 80       .byte $80        ; #....... - Table entry
+        .byte $00        ; ........
+        .byte $00        ; ........
+        .byte $01        ; .......#
+        .byte $00        ; ........
+        .byte $29        ; ..#.#..#
+        .byte $50        ; .#.#....
+        .byte $50        ; .#.#....
+        .byte $A1        ; #.#....#
+        .byte $00        ; ........
+        .byte $00        ; ........
+        .byte $00        ; ........
+        .byte $80        ; #.......
 
 ; EXPLOSION 12
-$BF58: 01       .byte $01        ; .......# - Table entry
-$BF59: 00       .byte $00        ; ........ - Table entry
-$BF5A: 80       .byte $80        ; #....... - Table entry
-$BF5B: 00       .byte $00        ; ........ - Table entry
-$BF5C: 00       .byte $00        ; ........ - Table entry
-$BF5D: 00       .byte $00        ; ........ - Table entry
-$BF5E: 81       .byte $81        ; #......# - Table entry
-$BF5F: 10       .byte $10        ; ...#.... - Table entry
-$BF60: 00       .byte $00        ; ........ - Table entry
-$BF61: 40       .byte $40        ; .#...... - Table entry
-$BF62: 00       .byte $00        ; ........ - Table entry
-$BF63: 02       .byte $02        ; ......#. - **PLAYER HEAD (SIDEWAYS)** - Character $02
+        .byte $01        ; .......#
+        .byte $00        ; ........
+        .byte $80        ; #.......
+        .byte $00        ; ........
+        .byte $00        ; ........
+        .byte $00        ; ........
+        .byte $81        ; #......#
+        .byte $10        ; ...#....
+        .byte $00        ; ........
+        .byte $40        ; .#......
+        .byte $00        ; ........
+        .byte $02        ; ......#. **PLAYER HEAD (SIDEWAYS)** - Character $02
 
 ; EXPLOSION 13
-$BF64: 00       .byte $00        ; ........ - Table entry
-$BF65: 80       .byte $80        ; #....... - Table entry
-$BF66: 00       .byte $00        ; ........ - Table entry
-$BF67: 01       .byte $01        ; .......# - Table entry
-$BF68: 00       .byte $00        ; ........ - Table entry
-$BF69: 00       .byte $00        ; ........ - Table entry
-$BF6A: 20       .byte $20        ; ..#..... - Table entry
-$BF6B: 00       .byte $00        ; ........ - Table entry
-$BF6C: 00       .byte $00        ; ........ - Table entry
-$BF6D: 10       .byte $10        ; ...#.... - Table entry
-$BF6E: 00       .byte $00        ; ........ - Table entry
-$BF6F: 00       .byte $00        ; ........ - Table entry
+        .byte $00        ; ........
+        .byte $80        ; #.......
+        .byte $00        ; ........
+        .byte $01        ; .......#
+        .byte $00        ; ........
+        .byte $00        ; ........
+        .byte $20        ; ..#.....
+        .byte $00        ; ........
+        .byte $00        ; ........
+        .byte $10        ; ...#....
+        .byte $00        ; ........
+        .byte $00        ; ........
 
 ; EXPLOSION 14
-$BF70: 00       .byte $00        ; ........ - Table entry
-$BF71: 00       .byte $00        ; ........ - Table entry
-$BF72: 00       .byte $00        ; ........ - Table entry
-$BF73: 00       .byte $00        ; ........ - Table entry
-$BF74: 00       .byte $00        ; ........ - Table entry
-$BF75: 00       .byte $00        ; ........ - Table entry
-$BF76: 00       .byte $00        ; ........ - Table entry
-$BF77: 00       .byte $00        ; ........ - Table entry
-$BF78: 00       .byte $00        ; ........ - Table entry
-$BF79: 00       .byte $00        ; ........ - Table entry
-$BF7A: 00       .byte $00        ; ........ - Table entry
-$BF7B: 00       .byte $00        ; ........ - Table entry
+        .byte $00        ; ........
+        .byte $00        ; ........
+        .byte $00        ; ........
+        .byte $00        ; ........
+        .byte $00        ; ........
+        .byte $00        ; ........
+        .byte $00        ; ........
+        .byte $00        ; ........
+        .byte $00        ; ........
+        .byte $00        ; ........
+        .byte $00        ; ........
+        .byte $00        ; ........
 
 ; Unknown sprite?
-$BF7C: 03       .byte $03        ; ......## - **PLAYER BODY (FRAME 1)** - Character $03
-$BF7D: 0C       .byte $0C        ; ....##.. - Pattern data
-$BF7E: 30       .byte $30        ; ..##.... - Pattern data
-$BF7F: C0       .byte $C0        ; ##...... - Pattern data
+        .byte $03        ; ......## **PLAYER BODY (FRAME 1)** - Character $03
+        .byte $0C        ; ....##.. Pattern data
+        .byte $30        ; ..##.... Pattern data
+        .byte $C0        ; ##...... Pattern data
 
 # Enemy sprites and animations.
 
 ; ENEMY - STATIONARY
-$BF80: 7E       .byte $7E        ; .######. - **DETAILED SPRITE** - Complex border pattern
-$BF81: 18       .byte $18        ; ...##... - **DETAILED SPRITE** - Center detail
-$BF82: FF       .byte $FF        ; ######## - **DETAILED SPRITE** - Full width line
-$BF83: BD       .byte $BD        ; #.####.# - **DETAILED SPRITE** - Detailed body pattern
-$BF84: BD       .byte $BD        ; #.####.# - **DETAILED SPRITE** - Repeated body pattern
-$BF85: BD       .byte $BD        ; #.####.# - **DETAILED SPRITE** - Repeated body pattern
-$BF86: BD       .byte $BD        ; #.####.# - **DETAILED SPRITE** - Repeated body pattern
-$BF87: BD       .byte $BD        ; #.####.# - **DETAILED SPRITE** - Repeated body pattern
-$BF88: 3C       .byte $3C        ; ..####.. - **DETAILED SPRITE** - Complex pattern
-$BF89: 24       .byte $24        ; ..#..#.. - **DETAILED SPRITE** - Complex pattern
-$BF8A: 24       .byte $24        ; ..#..#.. - **DETAILED SPRITE** - Complex pattern
-$BF8B: 66       .byte $66        ; .##..##. - **DETAILED SPRITE** - Complex pattern
+        .byte $7E        ; .######. **DETAILED SPRITE** - Complex border pattern
+        .byte $18        ; ...##... **DETAILED SPRITE** - Center detail
+        .byte $FF        ; ######## **DETAILED SPRITE** - Full width line
+        .byte $BD        ; #.####.# **DETAILED SPRITE** - Detailed body pattern
+        .byte $BD        ; #.####.# **DETAILED SPRITE** - Repeated body pattern
+        .byte $BD        ; #.####.# **DETAILED SPRITE** - Repeated body pattern
+        .byte $BD        ; #.####.# **DETAILED SPRITE** - Repeated body pattern
+        .byte $BD        ; #.####.# **DETAILED SPRITE** - Repeated body pattern
+        .byte $3C        ; ..####.. **DETAILED SPRITE** - Complex pattern
+        .byte $24        ; ..#..#.. **DETAILED SPRITE** - Complex pattern
+        .byte $24        ; ..#..#.. **DETAILED SPRITE** - Complex pattern
+        .byte $66        ; .##..##. **DETAILED SPRITE** - Complex pattern
 
 ; ENEMY - WALKING LEFT 1
-$BF8C: 7E       .byte $7E        ; .######. - **DETAILED SPRITE** - Complex pattern
-$BF8D: 18       .byte $18        ; ...##... - **DETAILED SPRITE** - Complex pattern
-$BF8E: 3F       .byte $3F        ; ..###### - **DETAILED SPRITE** - Complex pattern
-$BF8F: 3D       .byte $3D        ; ..####.# - **DETAILED SPRITE** - Complex pattern
-$BF90: 3D       .byte $3D        ; ..####.# - **DETAILED SPRITE** - Complex pattern
-$BF91: 3D       .byte $3D        ; ..####.# - **DETAILED SPRITE** - Complex pattern
-$BF92: 3D       .byte $3D        ; ..####.# - **DETAILED SPRITE** - Complex pattern
-$BF93: 3D       .byte $3D        ; ..####.# - **DETAILED SPRITE** - Complex pattern
-$BF94: 3C       .byte $3C        ; ..####.. - **DETAILED SPRITE** - Complex pattern
-$BF95: 24       .byte $24        ; ..#..#.. - **DETAILED SPRITE** - Complex pattern
-$BF96: 24       .byte $24        ; ..#..#.. - **DETAILED SPRITE** - Complex pattern
-$BF97: 6C       .byte $6C        ; .##.##.. - **DETAILED SPRITE** - Complex pattern
+        .byte $7E        ; .######. **DETAILED SPRITE** - Complex pattern
+        .byte $18        ; ...##... **DETAILED SPRITE** - Complex pattern
+        .byte $3F        ; ..###### **DETAILED SPRITE** - Complex pattern
+        .byte $3D        ; ..####.# **DETAILED SPRITE** - Complex pattern
+        .byte $3D        ; ..####.# **DETAILED SPRITE** - Complex pattern
+        .byte $3D        ; ..####.# **DETAILED SPRITE** - Complex pattern
+        .byte $3D        ; ..####.# **DETAILED SPRITE** - Complex pattern
+        .byte $3D        ; ..####.# **DETAILED SPRITE** - Complex pattern
+        .byte $3C        ; ..####.. **DETAILED SPRITE** - Complex pattern
+        .byte $24        ; ..#..#.. **DETAILED SPRITE** - Complex pattern
+        .byte $24        ; ..#..#.. **DETAILED SPRITE** - Complex pattern
+        .byte $6C        ; .##.##.. **DETAILED SPRITE** - Complex pattern
 
 ; ENEMY - WALKING LEFT 2
-$BF98: 7E       .byte $7E        ; .######. - **DETAILED SPRITE** - Complex pattern
-$BF99: 18       .byte $18        ; ...##... - **DETAILED SPRITE** - Complex pattern
-$BF9A: 3F       .byte $3F        ; ..###### - **DETAILED SPRITE** - Complex pattern
-$BF9B: 3D       .byte $3D        ; ..######  - **DETAILED SPRITE** - Complex pattern
-$BF9C: 3D       .byte $3D        ; ..######  - **DETAILED SPRITE** - Complex pattern  
-$BF9D: 3D       .byte $3D        ; ..######  - **DETAILED SPRITE** - Complex pattern
-$BF9E: 3D       .byte $3D        ; ..######  - **DETAILED SPRITE** - Complex pattern
-$BF9F: 3D       .byte $3D        ; ..######  - **DETAILED SPRITE** - Complex pattern
-$BFA0: 3C       .byte $3C        ; ..####..  - **DETAILED SPRITE** - Complex pattern
-$BFA1: 08       .byte $08        ; ....#...  - **DETAILED SPRITE** - Complex pattern
-$BFA2: 08       .byte $08        ; ....#...  - **DETAILED SPRITE** - Complex pattern
-$BFA3: 18       .byte $18        ; ...##...  - **DETAILED SPRITE** - Complex pattern
+        .byte $7E        ; .######. **DETAILED SPRITE** - Complex pattern
+        .byte $18        ; ...##... **DETAILED SPRITE** - Complex pattern
+        .byte $3F        ; ..###### **DETAILED SPRITE** - Complex pattern
+        .byte $3D        ; ..###### **DETAILED SPRITE** - Complex pattern
+        .byte $3D        ; ..###### **DETAILED SPRITE** - Complex pattern
+        .byte $3D        ; ..###### **DETAILED SPRITE** - Complex pattern
+        .byte $3D        ; ..###### **DETAILED SPRITE** - Complex pattern
+        .byte $3D        ; ..###### **DETAILED SPRITE** - Complex pattern
+        .byte $3C        ; ..####.. **DETAILED SPRITE** - Complex pattern
+        .byte $08        ; ....#... **DETAILED SPRITE** - Complex pattern
+        .byte $08        ; ....#... **DETAILED SPRITE** - Complex pattern
+        .byte $18        ; ...##... **DETAILED SPRITE** - Complex pattern
 
 ; ENEMY - WALKING RIGHT 1
-$BFA4: 7E       .byte $7E        ; .######.  - **DETAILED SPRITE** - Complex pattern
-$BFA5: 18       .byte $18        ; ...##...  - **DETAILED SPRITE** - Complex pattern
-$BFA6: FC       .byte $FC        ; ######..  - **DETAILED SPRITE** - Complex pattern
-$BFA7: BC       .byte $BC        ; #.####..  - **DETAILED SPRITE** - Complex pattern
-$BFA8: BC       .byte $BC        ; #.####..  - **DETAILED SPRITE** - Complex pattern
-$BFA9: BC       .byte $BC        ; #.####..  - **DETAILED SPRITE** - Complex pattern
-$BFAA: BC       .byte $BC        ; #.####..  - **DETAILED SPRITE** - Complex pattern
-$BFAB: BC       .byte $BC        ; #.####..  - **DETAILED SPRITE** - Complex pattern
-$BFAC: 3C       .byte $3C        ; ..####..  - **DETAILED SPRITE** - Complex pattern
-$BFAD: 24       .byte $24        ; ..#..#..  - **DETAILED SPRITE** - Complex pattern
-$BFAE: 24       .byte $24        ; ..#..#..  - **DETAILED SPRITE** - Complex pattern
-$BFAF: 36       .byte $36        ; ..##.##.  - **DETAILED SPRITE** - Complex pattern
+        .byte $7E        ; .######. **DETAILED SPRITE** - Complex pattern
+        .byte $18        ; ...##... **DETAILED SPRITE** - Complex pattern
+        .byte $FC        ; ######.. **DETAILED SPRITE** - Complex pattern
+        .byte $BC        ; #.####.. **DETAILED SPRITE** - Complex pattern
+        .byte $BC        ; #.####.. **DETAILED SPRITE** - Complex pattern
+        .byte $BC        ; #.####.. **DETAILED SPRITE** - Complex pattern
+        .byte $BC        ; #.####.. **DETAILED SPRITE** - Complex pattern
+        .byte $BC        ; #.####.. **DETAILED SPRITE** - Complex pattern
+        .byte $3C        ; ..####.. **DETAILED SPRITE** - Complex pattern
+        .byte $24        ; ..#..#.. **DETAILED SPRITE** - Complex pattern
+        .byte $24        ; ..#..#.. **DETAILED SPRITE** - Complex pattern
+        .byte $36        ; ..##.##. **DETAILED SPRITE** - Complex pattern
 
 ; ENEMY - WALKING RIGHT 2
-$BFB0: 7E       .byte $7E        ; .######.  - **DETAILED SPRITE** - Complex pattern
-$BFB1: 18       .byte $18        ; ...##...  - **DETAILED SPRITE** - Complex pattern
-$BFB2: FC       .byte $FC        ; ######..  - **DETAILED SPRITE** - Complex pattern
-$BFB3: BC       .byte $BC        ; #.####..  - **DETAILED SPRITE** - Complex pattern
-$BFB4: BC       .byte $BC        ; #.####..  - **DETAILED SPRITE** - Complex pattern
-$BFB5: BC       .byte $BC        ; #.####..  - **DETAILED SPRITE** - Complex pattern
-$BFB6: BC       .byte $BC        ; #.####..  - **DETAILED SPRITE** - Complex pattern
-$BFB7: BC       .byte $BC        ; #.####..  - **DETAILED SPRITE** - Complex pattern
-$BFB8: 3C       .byte $3C        ; ..####..  - **DETAILED SPRITE** - Complex pattern
-$BFB9: 10       .byte $10        ; ...#....  - **DETAILED SPRITE** - Complex pattern
-$BFBA: 10       .byte $10        ; ...#....  - **DETAILED SPRITE** - Complex pattern
-$BFBB: 18       .byte $18        ; ...##...  - **DETAILED SPRITE** - Complex pattern
+        .byte $7E        ; .######. **DETAILED SPRITE** - Complex pattern
+        .byte $18        ; ...##... **DETAILED SPRITE** - Complex pattern
+        .byte $FC        ; ######.. **DETAILED SPRITE** - Complex pattern
+        .byte $BC        ; #.####.. **DETAILED SPRITE** - Complex pattern
+        .byte $BC        ; #.####.. **DETAILED SPRITE** - Complex pattern
+        .byte $BC        ; #.####.. **DETAILED SPRITE** - Complex pattern
+        .byte $BC        ; #.####.. **DETAILED SPRITE** - Complex pattern
+        .byte $BC        ; #.####.. **DETAILED SPRITE** - Complex pattern
+        .byte $3C        ; ..####.. **DETAILED SPRITE** - Complex pattern
+        .byte $10        ; ...#.... **DETAILED SPRITE** - Complex pattern
+        .byte $10        ; ...#.... **DETAILED SPRITE** - Complex pattern
+        .byte $18        ; ...##... **DETAILED SPRITE** - Complex pattern
 
 ; ENEMY - WALKING UP/DOWN 1
-$BFBC: 7E       .byte $7E        ; .######.  - **DETAILED SPRITE** - Complex pattern
-$BFBD: 18       .byte $18        ; ...##...  - **DETAILED SPRITE** - Complex pattern
-$BFBE: FF       .byte $FF        ; ########  - **DETAILED SPRITE** - Complex pattern
-$BFBF: BD       .byte $BD        ; #.####.#  - **DETAILED SPRITE** - Complex pattern
-$BFC0: BD       .byte $BD        ; #.####.#  - **DETAILED SPRITE** - Complex pattern
-$BFC1: BD       .byte $BD        ; #.####.#  - **DETAILED SPRITE** - Complex pattern
-$BFC2: 3D       .byte $3D        ; ..######  - **DETAILED SPRITE** - Complex pattern
-$BFC3: 3D       .byte $3D        ; ..######  - **DETAILED SPRITE** - Complex pattern
-$BFC4: 3C       .byte $3C        ; ..####..  - **DETAILED SPRITE** - Complex pattern
-$BFC5: 26       .byte $26        ; ..#..##.  - **DETAILED SPRITE** - Complex pattern
-$BFC6: 20       .byte $20        ; ..#.....  - **DETAILED SPRITE** - Complex pattern
-$BFC7: 60       .byte $60        ; .##.....  - **DETAILED SPRITE** - Complex pattern
+        .byte $7E        ; .######. **DETAILED SPRITE** - Complex pattern
+        .byte $18        ; ...##... **DETAILED SPRITE** - Complex pattern
+        .byte $FF        ; ######## **DETAILED SPRITE** - Complex pattern
+        .byte $BD        ; #.####.# **DETAILED SPRITE** - Complex pattern
+        .byte $BD        ; #.####.# **DETAILED SPRITE** - Complex pattern
+        .byte $BD        ; #.####.# **DETAILED SPRITE** - Complex pattern
+        .byte $3D        ; ..###### **DETAILED SPRITE** - Complex pattern
+        .byte $3D        ; ..###### **DETAILED SPRITE** - Complex pattern
+        .byte $3C        ; ..####.. **DETAILED SPRITE** - Complex pattern
+        .byte $26        ; ..#..##. **DETAILED SPRITE** - Complex pattern
+        .byte $20        ; ..#..... **DETAILED SPRITE** - Complex pattern
+        .byte $60        ; .##..... **DETAILED SPRITE** - Complex pattern
 
 ; ENEMY - WALKING UP/DOWN 2
-$BFC8: 7E       .byte $7E        ; .######.  - **DETAILED SPRITE** - Complex pattern
-$BFC9: 18       .byte $18        ; ...##...  - **DETAILED SPRITE** - Complex pattern
-$BFCA: FF       .byte $FF        ; ########  - **DETAILED SPRITE** - Complex pattern
-$BFCB: BD       .byte $BD        ; #.####.#  - **DETAILED SPRITE** - Complex pattern
-$BFCC: BD       .byte $BD        ; #.####.#  - **DETAILED SPRITE** - Complex pattern
-$BFCD: BD       .byte $BD        ; #.####.#  - **DETAILED SPRITE** - Complex pattern
-$BFCE: BC       .byte $BC        ; #.####..  - **DETAILED SPRITE** - Complex pattern
-$BFCF: BC       .byte $BC        ; #.####..  - **DETAILED SPRITE** - Complex pattern
-$BFD0: 3C       .byte $3C        ; ..####..  - **DETAILED SPRITE** - Complex pattern
-$BFD1: 64       .byte $64        ; .##..#..  - **DETAILED SPRITE** - Complex pattern
-$BFD2: 04       .byte $04        ; .....#..  - **DETAILED SPRITE** - Complex pattern
-$BFD3: 06       .byte $06        ; .....##.  - **DETAILED SPRITE** - Complex pattern
+        .byte $7E        ; .######. **DETAILED SPRITE** - Complex pattern
+        .byte $18        ; ...##... **DETAILED SPRITE** - Complex pattern
+        .byte $FF        ; ######## **DETAILED SPRITE** - Complex pattern
+        .byte $BD        ; #.####.# **DETAILED SPRITE** - Complex pattern
+        .byte $BD        ; #.####.# **DETAILED SPRITE** - Complex pattern
+        .byte $BD        ; #.####.# **DETAILED SPRITE** - Complex pattern
+        .byte $BC        ; #.####.. **DETAILED SPRITE** - Complex pattern
+        .byte $BC        ; #.####.. **DETAILED SPRITE** - Complex pattern
+        .byte $3C        ; ..####.. **DETAILED SPRITE** - Complex pattern
+        .byte $64        ; .##..#.. **DETAILED SPRITE** - Complex pattern
+        .byte $04        ; .....#.. **DETAILED SPRITE** - Complex pattern
+        .byte $06        ; .....##. **DETAILED SPRITE** - Complex pattern
 
 ; ===============================================================================
 ; PLAYER STARTING POSITION TABLE ($BFD4-$BFD7)
