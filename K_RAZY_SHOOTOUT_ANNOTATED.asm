@@ -1825,8 +1825,8 @@ $A351: C9 03    CMP #$03
 $A353: F0 2D    BEQ $A382 ; Branch if equal/zero
 $A355: A5 A9    LDA $A9
 $A357: D0 E7    BNE $A340 ; Loop back if not zero
-$A359: 20 5B B5 JSR $B55B
-$A35C: 20 3A A8 JSR $A83A
+$A359: 20 5B B5 JSR render_enemy_sprites ; Render all 3 enemy sprites
+$A35C: 20 3A A8 JSR collision_detection_and_input ; Process collisions and player input
 $A35F: A5 AD    LDA $AD
 $A361: F0 0A    BEQ $A36D ; Branch if equal/zero
 $A363: A6 D5    LDX $D5
@@ -1846,76 +1846,10 @@ $A382: A6 D5    LDX $D5         ; Load current level counter
 $A384: F6 C5    INC $C5,X       ; Increment level statistics
 $A386: E6 D5    INC $D5         ; INCREMENT LEVEL COUNTER - triggers new sector
 $A388: 20 B6 A9 JSR init_sector ; Initialize new sector and generate arena
-$A38B: 20 81 A5 JSR $A581       ; Level setup (includes "ENTER SECTOR X" display)
+$A38B: 20 81 A5 JSR game_over_screen ; Display game over screen with skill ranking
 $A38E: 4C 2B A3 JMP $A32B       ; Jump to main game setup
 
-; ===============================================================================
-; COMPLETE LEVEL END DETECTION SYSTEM - SUMMARY
-; ===============================================================================
-; K-Razy Shoot-Out has TWO ways a level can end:
-;
-; 1. **TIME RUNS OUT** ($A37C-$A380):
-;    - Time counter $D9 decrements from 77 to 2
-;    - When $D9 = 2, automatic level advance to $A382
-;
-; 2. **PLAYER ESCAPES** ($A351-$A353):
-;    - Enemy AI ($B2B3) calls boundary check ($BD47) each frame
-;    - Boundary check: if player position ($69 + $0E) >= $C0, set $97 = 1
-;    - Display update ($B4BF) checks $97, calls escape processing ($B75E)
-;    - Escape processing increments $DA counter (0→1→2→3)
-;    - When $DA = 3, level advance to $A382
-;
-; **LEVEL ADVANCEMENT FLOW** ($A382):
-;    - Increment level counter $D5 (0=Sector 1, 1=Sector 2, etc.)
-;    - Call init_sector ($A9B6) - Initialize new sector with randomized arena
-;    - Call level setup ($A581) - displays "ENTER SECTOR X"
-;    - Reset all game state for new sector
-;
-; **ESCAPE SEQUENCE DETAILS** ($B75E):
-; The escape processing creates a dramatic multi-stage audiovisual effect:
-; 1. **Initialization**: Clear hardware registers, set up sprite effects
-; 2. **Counter Increment**: $DA increases (0→1→2→3), each escape more dramatic
-; 3. **Effect Loop**: Multiple animation frames with timed delays
-;    - Stage effects in $06xx memory areas
-;    - Copy to screen memory $2Exx to make visible
-;    - Use hardware registers $E800-$E808 for sprite control
-;    - Create precise timing with nested delay loops
-; 4. **Progressive Enhancement**: Each escape ($DA=1,2,3) has different effects
-; 5. **DRAMATIC SCREEN CLEAR**: Three-phase top-to-bottom screen wipe:
-;    - Phase 1: Clear rows $14-$59 (20-89) with timed delays
-;    - Phase 2: Clear rows $59-$9B (89-155) continuing the sweep
-;    - Phase 3: Clear rows $4F-$3F (79-63) with countdown effect
-;    - Each row cleared individually with visible timing delays
-;    - Creates classic "screen wipe" effect from top to bottom
-; 6. **Sound Effects**: Audio feedback during the clearing sequence
-; 7. **ENEMY KILL COUNT DISPLAY**: After screen clear, shows scoring summary:
-;    - Displays enemies killed by point value (100, 50, 10 points)
-;    - Each enemy type shown individually with sound effects
-;    - Uses hit counters $D2 and $D3 to track kills
-;    - Routine $AC26 displays enemy sprites to screen memory
-;    - Different screen locations for each point value:
-;      * 100-point enemies: Y=$64, displayed at $2C12, $2C26, $2C3A
-;      * 50-point enemies: Y=$32, displayed at $2C62  
-;      * 10-point enemies: Y=$0A, displayed at $2C9E
-;    - Each enemy appears one by one with timing delays ($AC0C)
-;    - Creates classic arcade "bonus tally" screen effect
-; 8. **BONUS POINTS DISPLAY**: Final climactic screen after enemy count:
-;    - Displays "BONUS POINTS" text stored at $ACA1-$ACAC with flashing effect
-;    - Text loaded by routine at $AB78 (LDA $ACA1)
-;    - **TIME-BASED BONUS CALCULATION**:
-;      * Time remaining >= 53: 10 bonus points (fast completion)
-;      * Time remaining >= 27: 3 bonus points (moderate completion)  
-;      * Time remaining < 27: No bonus points (slow completion)
-;    - Each bonus point flashes the text and plays sound via $BD66
-;    - Sound routine $BD66 actually adds points to score at $060B
-;    - Rewards players for efficient level completion
-; 9. **Final Trigger**: When $DA=3, main loop detects and advances level
-;
-; The escape sequence provides satisfying audiovisual feedback for successfully
-; completing the level objective (defeat enemies + escape through gaps).
-; The screen clear effect is a classic 1980s arcade game technique that provides
-; dramatic visual closure to the level completion.
-; ===============================================================================
+; Miscellaneous game text.
 
         .byte $20        ; $A391 - ' '
         .byte $20        ; $A392 - ' '
@@ -2168,111 +2102,109 @@ $A38E: 4C 2B A3 JMP $A32B       ; Jump to main game setup
         .byte $20        ; $A489 - ' '
         .byte $20        ; $A48A - ' '
         .byte $20        ; $A48B - ' '
-        .byte $A9        ; $A48C
-        .byte $38        ; $A48D - '8'
-        .byte $85        ; $A48E
-        .byte $06        ; $A48F
-        .byte $A9        ; $A490
-        .byte $00        ; $A491
-        .byte $85        ; $A492
-        .byte $05        ; $A493
-        .byte $A0        ; $A494
-        .byte $15        ; $A495
-        .byte $B9        ; $A496
-        .byte $E9        ; $A497
-        .byte $A4        ; $A498
-        .byte $99        ; $A499
-        .byte $00        ; $A49A
-        .byte $38        ; $A49B - '8'
-        .byte $88        ; $A49C
-        .byte $10        ; $A49D
-        .byte $F7        ; $A49E
-        .byte $A9        ; $A49F
-        .byte $22        ; $A4A0 - '"'
-        .byte $85        ; $A4A1
-        .byte $07        ; $A4A2
-        .byte $A2        ; $A4A3
-        .byte $00        ; $A4A4
-        .byte $86        ; $A4A5
-        .byte $64        ; $A4A6 - 'd'
-        .byte $86        ; $A4A7
-        .byte $92        ; $A4A8
-        .byte $AD        ; $A4A9
-        .byte $0B        ; $A4AA
-        .byte $D4        ; $A4AB
-        .byte $C9        ; $A4AC
-        .byte $40        ; $A4AD - '@'
-        .byte $D0        ; $A4AE
-        .byte $F9        ; $A4AF
-        .byte $8D        ; $A4B0
-        .byte $0A        ; $A4B1
-        .byte $D4        ; $A4B2
-        .byte $8D        ; $A4B3
-        .byte $0A        ; $A4B4
-        .byte $D4        ; $A4B5
-        .byte $A5        ; $A4B6
-        .byte $64        ; $A4B7 - 'd'
-        .byte $C6        ; $A4B8
-        .byte $64        ; $A4B9 - 'd'
-        .byte $29        ; $A4BA - ')'
-        .byte $07        ; $A4BB
-        .byte $8D        ; $A4BC
-        .byte $04        ; $A4BD
-        .byte $D4        ; $A4BE
-        .byte $A0        ; $A4BF
-        .byte $00        ; $A4C0
-        .byte $A6        ; $A4C1
-        .byte $92        ; $A4C2
-        .byte $BD        ; $A4C3
-        .byte $53        ; $A4C4 - 'S'
-        .byte $06        ; $A4C5
-        .byte $38        ; $A4C6 - '8'
-        .byte $E9        ; $A4C7
-        .byte $20        ; $A4C8 - ' '
-        .byte $99        ; $A4C9
-        .byte $80        ; $A4CA
-        .byte $39        ; $A4CB - '9'
-        .byte $E8        ; $A4CC
-        .byte $C8        ; $A4CD
-        .byte $C0        ; $A4CE
-        .byte $16        ; $A4CF
-        .byte $D0        ; $A4D0
-        .byte $F1        ; $A4D1
-        .byte $AD        ; $A4D2
-        .byte $10        ; $A4D3
-        .byte $C0        ; $A4D4
-        .byte $F0        ; $A4D5
-        .byte $11        ; $A4D6
-        .byte $A5        ; $A4D7
-        .byte $64        ; $A4D8 - 'd'
-        .byte $29        ; $A4D9 - ')'
-        .byte $07        ; $A4DA
-        .byte $C9        ; $A4DB
-        .byte $07        ; $A4DC
-        .byte $D0        ; $A4DD
-        .byte $CA        ; $A4DE
-        .byte $A6        ; $A4DF
-        .byte $92        ; $A4E0
-        .byte $E8        ; $A4E1
-        .byte $E0        ; $A4E2
-        .byte $87        ; $A4E3
-        .byte $90        ; $A4E4
-        .byte $C1        ; $A4E5
-        .byte $B0        ; $A4E6
-        .byte $BB        ; $A4E7
-        .byte $60        ; $A4E8 - '`'
-$A4E9: 70 70    BVS $A55B
-$A4EB: 70 70    BVS $A55D
-$A4ED: 70 70    BVS $A55F
-$A4EF: 70 57    BVS $A548
-$A4F1: 80       .byte $80        ; Data byte
-$A4F2: 39 70 70 AND $7070
-$A4F5: 70 70    BVS $A567
-$A4F7: 47       .byte $47        ; Data byte
-$A4F8: 00       BRK
-$A4F9: 39 07 07 AND $0707
-$A4FC: 41 00    EOR #$00
-$A4FE: 38       SEC
+; ===============================================================================
+; display_rank ($A48C-$A4E8)
+; Display rank screen with ANTIC display list configuration
+; 
+; Called after calculate_rank to set up the visual display of the player's
+; skill ranking on the game over screen.
+;
+; OPERATIONS:
+; 1. Copies 21-byte display list from $A4E9 to $3800 (ANTIC display list memory)
+; 2. Configures hardware registers for display timing
+; 3. Copies text data from $0653 to screen memory at $3980 (22 bytes)
+; 4. Converts ASCII to screen codes (subtracts $20)
+; 5. Synchronizes with hardware registers for smooth display updates
+;
+; The display list at $A4E9 defines the screen layout with vertical spacing
+; and various display modes for showing the rank text properly.
+; ===============================================================================
+display_rank:
+$A48C: A9 38    LDA #$38        ; Load display parameter
+$A48E: 85 06    STA $06         ; Store to zero page
+$A490: A9 00    LDA #$00        ; Clear accumulator
+$A492: 85 05    STA $05         ; Clear zero page location
+$A494: A0 15    LDY #$15        ; Set loop counter to 21 bytes
+$A496: B9 E9 A4 LDA $A4E9,Y     ; Load from display data table
+$A499: 99 00 38 STA $3800,Y     ; Store to screen memory at $3800
+$A49C: 88       DEY             ; Decrement counter
+$A49D: 10 F7    BPL $A496       ; Loop until all bytes copied
+$A49F: A9 22    LDA #$22        ; Load parameter value
+$A4A1: 85 07    STA $07         ; Store to zero page
+$A4A3: A2 00    LDX #$00        ; Initialize X register
+$A4A5: 86 64    STX $64         ; Clear $64
+$A4A7: 86 92    STX $92         ; Clear $92
+$A4A9: AD 0B D4 LDA $D40B       ; Read hardware register
+$A4AC: C9 40    CMP #$40        ; Check if value = $40
+$A4AE: D0 F9    BNE $A4A9       ; Loop until register = $40
+$A4B0: 8D 0A D4 STA $D40A       ; Write to hardware register
+$A4B3: 8D 0A D4 STA $D40A       ; Write again (double write)
+$A4B6: A5 64    LDA $64         ; Load counter
+$A4B8: C6 64    DEC $64         ; Decrement counter
+$A4BA: 29 07    AND #$07        ; Mask lower 3 bits
+$A4BC: 8D 04 D4 STA $D404       ; Write to hardware register
+$A4BF: A0 00    LDY #$00        ; Initialize Y counter
+$A4C1: A6 92    LDX $92         ; Load index from $92
+$A4C3: BD 53 06 LDA $0653,X     ; Load from data table
+$A4C6: 38       SEC             ; Set carry for subtraction
+$A4C7: E9 20    SBC #$20        ; Convert ASCII to screen code
+$A4C9: 99 80 39 STA $3980,Y     ; Store to screen memory
+$A4CC: E8       INX             ; Increment X
+$A4CD: C8       INY             ; Increment Y
+$A4CE: C0 16    CPY #$16        ; Check if 22 bytes copied
+$A4D0: D0 F1    BNE $A4C3       ; Loop until done
+$A4D2: AD 10 C0 LDA $C010       ; Read from memory
+$A4D5: F0 11    BEQ $A4E8       ; Branch if zero (exit routine)
+$A4D7: A5 64    LDA $64         ; Load counter
+$A4D9: 29 07    AND #$07        ; Mask lower 3 bits
+$A4DB: C9 07    CMP #$07        ; Check if = 7
+$A4DD: D0 CA    BNE $A4A9       ; Loop back if not 7
+$A4DF: A6 92    LDX $92         ; Load index
+$A4E1: E8       INX             ; Increment index
+$A4E2: E0 87    CPX #$87        ; Check if index = $87
+$A4E4: 90 C1    BCC $A4A7       ; Loop back if < $87
+$A4E6: B0 BB    BCS $A4A3       ; Branch back (always taken)
+$A4E8: 60       RTS             ; Return from display_rank routine
+; ===============================================================================
+; Display list data table used by display_rank routine ($A48C)
+; This is an Atari ANTIC display list structure that defines screen layout
+; 
+; Display list instructions:
+; $70 = Blank 8 scan lines (vertical spacing)
+; $57 = Display mode 7 with flags
+; $80 = Flag byte (DLI or LMS bit)
+; $39 = Display mode 9 or mode with flags
+; $47 = Display mode 7 with flags  
+; $41 = Display mode 1 with flags
+; $38 = Display mode 8
+; $07 = Display mode 7
+; $00 = Padding/end marker
+;
+; This display list is copied to $3800 to configure the screen layout
+; for the game over/ranking screen display
+; ===============================================================================
+$A4E9: 70       .byte $70        ; Blank 8 scan lines
+$A4EA: 70       .byte $70        ; Blank 8 scan lines
+$A4EB: 70       .byte $70        ; Blank 8 scan lines
+$A4EC: 70       .byte $70        ; Blank 8 scan lines
+$A4ED: 70       .byte $70        ; Blank 8 scan lines
+$A4EE: 70       .byte $70        ; Blank 8 scan lines
+$A4EF: 70       .byte $70        ; Blank 8 scan lines
+$A4F0: 57       .byte $57        ; Display mode 7 with flags
+$A4F1: 80       .byte $80        ; Flag byte (DLI/LMS)
+$A4F2: 39       .byte $39        ; Display mode instruction
+$A4F3: 70       .byte $70        ; Blank 8 scan lines
+$A4F4: 70       .byte $70        ; Blank 8 scan lines
+$A4F5: 70       .byte $70        ; Blank 8 scan lines
+$A4F6: 70       .byte $70        ; Blank 8 scan lines
+$A4F7: 47       .byte $47        ; Display mode 7 with flags
+$A4F8: 00       .byte $00        ; Padding/end marker
+$A4F9: 39       .byte $39        ; Display mode instruction
+$A4FA: 07       .byte $07        ; Display mode 7
+$A4FB: 07       .byte $07        ; Display mode 7
+$A4FC: 41       .byte $41        ; Display mode 1 with flags
+$A4FD: 00       .byte $00        ; Padding/end marker
+$A4FE: 38       .byte $38        ; Display mode 8
 ; ===============================================================================
 ; ENEMY_WAVE_CHECK ($A4FF)
 ; Enemy wave completion and exit activation system
@@ -2363,31 +2295,34 @@ $A57C: A9 30    LDA #$30 ; Set initial time/score value
 $A57E: 85 7B    STA $7B ; Store in time variable $7B
 $A580: 60       RTS ; Return from additional setup
 ; ===============================================================================
-; GAME_RESTART ($A581)
-; Game restart and high score handling
+; game_over_screen ($A581)
+; Game over screen display and high score handling
 ; This routine:
-; - Sets up display for new game/level
-; - Copies game text to screen memory including level progression messages
-; - Backs up current score and time
+; - Displays "PRESS TRIGGER TO PLAY AGAIN" message to screen memory
+;   (copies 52 bytes from $A5D7-$A60B to screen at $3900)
+; - Backs up current score and time to temporary storage
 ; - Compares current score with high score
-; - Updates high score table if needed
-; - Handles level transition displays
+; - Updates high score table if player achieved new high score
+; - Calls additional display routines (rank selection likely happens there)
 ; - Refreshes screen displays
+; 
+; NOTE: Skill rank text (ROOKIE, NOVICE, GUNNER, BLASTER, MARKSMAN) exists in
+; the data table at $A612-$A639 but is NOT copied by this routine.
 ; ===============================================================================
-
-$A581: 20 A2 BD JSR clear_collision_registers ; Clear collision detection for new level
-$A584: 20 B0 BD JSR prepare_display_and_input_scanning ; Initialize hardware for new level
+game_over_screen:
+$A581: 20 A2 BD JSR clear_collision_registers ; Clear collision detection
+$A584: 20 B0 BD JSR prepare_display_and_input_scanning ; Initialize hardware
 $A587: AD 0A E8 LDA $E80A ; Load hardware configuration
 $A58A: 29 F0    AND #$F0 ; Mask upper 4 bits
 $A58C: 09 08    ORA #$08 ; Set bit 3 (enable feature)
 $A58E: 85 0C    STA $0C ; Store configuration in $0C
 $A590: A2 34    LDX #$34 ; Set loop counter to $34 (52 bytes)
-$A592: BD D7 A5 LDA $A5D7 ; Load from game completion text data table
+$A592: BD D7 A5 LDA $A5D7,X ; Load from text table ($A5D7+X down to $A5D7+0)
 $A595: 38       SEC ; Set carry for subtraction
-$A596: E9 20    SBC #$20 ; Convert to screen code
-$A598: 9D 00 39 STA $3900 ; Store to screen memory $3900
+$A596: E9 20    SBC #$20 ; Convert ASCII to screen code (subtract $20)
+$A598: 9D 00 39 STA $3900,X ; Store to screen memory $3900
 $A59B: CA       DEX ; Decrement counter
-$A59C: 10 F4    BPL $A592 ; Continue copying data
+$A59C: 10 F4    BPL $A592 ; Loop: copy "PRESS TRIGGER TO PLAY AGAIN" (52 bytes)
 $A59E: A2 04    LDX #$04 ; Set up 5-byte copy operation
 $A5A0: BD 0B 06 LDA $060B ; Load from score area
 $A5A3: 9D 78 06 STA $0678 ; Copy to backup area
@@ -2411,14 +2346,26 @@ $A5C8: 9D 9A 06 STA $069A ; Store new high score digit
 $A5CB: E8       INX ; Increment table index
 $A5CC: E0 05    CPX #$05 ; Check if all digits updated
 $A5CE: D0 F5    BNE $A5C5 ; Continue updating high score
-$A5D0: 20 C0 BA JSR $BAC0 ; Call screen update routine
-$A5D3: 20 8C A4 JSR $A48C ; Call additional display routine
-$A5D6: 60       RTS ; Return from game restart
+$A5D0: 20 C0 BA JSR calculate_rank ; Calculate player rank and display rank text
+$A5D3: 20 8C A4 JSR display_rank ; Display rank screen with ANTIC display list
+$A5D6: 60       RTS ; Return from game over screen
 ; ===============================================================================
 ; GAME_COMPLETION_TEXT_DATA ($A5D7)
-; Text messages displayed during game completion and ranking screens
-; Contains various completion messages like "PRESS TRIGGER", "TO PLAY", 
-; "AGAIN", skill level names like "ROOKIE", "NOVICE", "GUNNER", etc.
+; Text data for game completion screens
+; 
+; $A5D7-$A60B (52 bytes): "   PRESS TRIGGER          TO PLAY             AGAIN"
+;   - Copied by game_over_screen routine to display continue prompt
+; 
+; $A60B-$A63A (48 bytes): Skill rank names in 8-byte chunks
+;   Used by calculate_rank ($BAC0) which calculates rank index (0-5) based on
+;   player performance, multiplies by 8, and copies 8 bytes to screen at $06BA
+;   - Rank 0 (offset 0):  "GOON  RO" ($A60B-$A612) - lowest rank
+;   - Rank 1 (offset 8):  "OOKIE  N" ($A613-$A61A) - continues "ROOKIE"
+;   - Rank 2 (offset 16): "OVICE  G" ($A61B-$A622) - continues "NOVICE"
+;   - Rank 3 (offset 24): "UNNER  B" ($A623-$A62A) - continues "GUNNER"
+;   - Rank 4 (offset 32): "LASTER M" ($A62B-$A632) - continues "BLASTER"
+;   - Rank 5 (offset 40): "ARKSMAN" ($A633-$A63A) - continues "MARKSMAN", highest rank
+;   NOTE: Rank names span chunk boundaries - display logic handles full text
 ; ===============================================================================
 $A5D7: 20       .byte $20        ; ' ' (space)
 $A5D8: 20       .byte $20        ; ' ' (space)  
@@ -2520,104 +2467,132 @@ $A637: 4D       .byte $4D        ; 'M'
 $A638: 41       .byte $41        ; 'A'
 $A639: 4E       .byte $4E        ; 'N'
 ; ===============================================================================
-; ANIMATION_ENGINE ($A63B)
-; **PLAYER SPRITE ANIMATION AND TIMING SYSTEM**
-; This routine manages the sophisticated player sprite animation system:
-; - Controls directional sprite selection (vertical vs horizontal heads)
-; - Manages walking animation frames for horizontal movement
-; - Handles sprite positioning and hardware register updates
-; - Processes animation timing and sequences
-; - Updates sprite character codes in $E805 based on movement state
-; - Coordinates multi-sprite player character display (head + body combinations)
+; UNUSED_NMI_HANDLER ($A63B-$A6CD)
+; **UNREACHABLE CODE - UNUSED INTERRUPT HANDLER**
+; 
+; WARNING: This code is never called. No references to $A63B exist in the ROM.
+; 
+; **WHAT THIS IS:**
+; This is an unused NMI (Non-Maskable Interrupt) handler that would run 60 times
+; per second during VBlank. The JMP $FCB2 at the end chains to the OS NMI handler,
+; which is the signature of a custom interrupt handler.
 ;
-; SPRITE ANIMATION LOGIC:
-; 1. Movement Detection: Monitors joystick input and collision registers
-; 2. Head Selection: Chooses Character $02 (sideways) or $04 (vertical)
-; 3. Body Selection: Chooses appropriate body sprite based on movement:
-;    - Stationary/Vertical: Character $1E (stationary body)
-;    - Horizontal Frame 1: Character $03 (walking frame 1)
-;    - Horizontal Frame 2: Character $05 (walking frame 2)
-; 4. Hardware Update: Loads selected characters into $E804/$E805 registers
-; ===============================================================================
-; - Manages sprite animation frames
-; - Controls animation timing and sequences
-; - Handles sprite movement and positioning
-; - Processes accuracy bonuses
-; - Updates animation counters and timers
+; **WHY IT'S UNUSED:**
+; The game likely used this during development but replaced it with a different
+; interrupt handling approach. The NMI vector at $BFFE-$BFFF points to $A2C8
+; (cartridge_init), not to this routine.
+;
+; **WHAT IT WOULD DO IF ACTIVE:**
+; This routine would handle per-frame game updates:
+;
+; 1. ANIMATION FRAME SEQUENCING ($A63B-$A662):
+;    - Manages 17-frame animation sequence ($B3: 0→17)
+;    - Cycles through 3-step animation phases ($B4: 0→1→2→0)
+;    - Updates hardware register $E806 with current frame
+;    - Sets completion state ($87) when frame 13 reached
+;
+; 2. ANIMATION SPEED CONTROL ($A673-$A686):
+;    - Gradually decrements speed value ($B2) in register $E807
+;    - Disables animations when speed reaches $80
+;    - Creates smooth animation slowdown effect
+;
+; 3. TIMER MANAGEMENT ($A688-$A69E):
+;    - Increments primary timer ($B6) in $E802 each frame
+;    - When timer reaches 32, decrements secondary timer ($B7) in $E803
+;    - Provides dual-timer system for animation timing
+;
+; 4. SPRITE POSITION ANIMATION ($A6A1-$A6B8):
+;    - Moves player sprite left by 4 pixels per frame ($B8)
+;    - Updates $E804 (player sprite X position)
+;    - Clears $E805 (player sprite character to $00) when sprite reaches edge
+;    - Disables sprite animation when position < 8 pixels
+;
+; 5. ACCURACY BONUS SYSTEM ($A6BA-$A6CB):
+;    - Calculates shooting accuracy: $D1 - $D4 (shots fired vs hits)
+;    - Awards bonus ($C9 to $08) if accuracy good (< 5 misses)
+;    - Only processes when trigger not active ($93 = 0)
+;
+; 6. CHAIN TO OS NMI HANDLER ($A6CD):
+;    - JMP $FCB2 - continues to OS ROM NMI handler
+;    - Allows OS to handle system-level interrupt processing
+;
+; This represents a complete per-frame game loop that was developed but never
+; integrated into the final game. The functionality may have been moved to
+; other routines or simplified for performance reasons.
 ; ===============================================================================
 
-$A63B: A9 40    LDA #$40 ; Initialize animation system
-$A63D: 85 00    STA $00 ; Clear animation state
-$A63F: 8D 0E E8 STA $E80E ; Store in animation control register
+$A63B: A9 40    LDA #$40 ; Load animation control value
+$A63D: 85 00    STA $00 ; Store to zero page animation state
+$A63F: 8D 0E E8 STA $E80E ; Store in hardware animation control register
 $A642: A5 BE    LDA $BE ; Check animation enable flag
 $A644: F0 1F    BEQ $A665 ; Branch if animations disabled
-$A646: A5 B3    LDA $B3 ; Load animation frame counter
-$A648: C9 11    CMP #$11 ; Check if frame limit reached
-$A64A: B0 27    BCS $A673 ; Branch if animation complete
-$A64C: A5 B4    LDA $B4 ; Load animation type flag
-$A64E: D0 15    BNE $A665 ; Branch if not this animation type
+$A646: A5 B3    LDA $B3 ; Load animation frame counter (0-17)
+$A648: C9 11    CMP #$11 ; Check if frame 17 reached
+$A64A: B0 27    BCS $A673 ; Branch to cleanup if animation complete
+$A64C: A5 B4    LDA $B4 ; Load animation phase (0-2)
+$A64E: D0 15    BNE $A665 ; Branch if not in phase 0
 $A650: A5 B3    LDA $B3 ; Load current frame number
 $A652: 18       CLC ; Clear carry for addition
 $A653: 69 01    ADC #$01 ; Increment frame counter
 $A655: 85 B3    STA $B3 ; Store new frame number
-$A657: 8D 06 E8 STA $E806 ; Update animation register
+$A657: 8D 06 E8 STA $E806 ; Update hardware animation frame register
 $A65A: C9 0D    CMP #$0D ; Check if reached frame 13
-$A65C: D0 07    BNE $A665 ; Branch if not at end
-$A65E: A9 87    LDA #$87 ; Load animation end value
+$A65C: D0 07    BNE $A665 ; Branch if not at frame 13
+$A65E: A9 87    LDA #$87 ; Load animation completion state
 $A660: 85 B2    STA $B2 ; Store animation state
 $A662: 4C 73 A6 JMP $A673 ; Jump to animation cleanup
-$A665: A6 B4    LDX $B4 ; Load animation sequence index
-$A667: E8       INX ; Increment sequence
-$A668: E0 03    CPX #$03 ; Check if sequence complete (3 steps)
-$A66A: D0 02    BNE $A66E ; Branch if more steps
-$A66C: A2 00    LDX #$00 ; Reset sequence to 0
-$A66E: 86 B4    STX $B4 ; Store sequence index
-$A670: 4C 88 A6 JMP $A688 ; Jump to next animation phase
+$A665: A6 B4    LDX $B4 ; Load animation phase index (0-2)
+$A667: E8       INX ; Increment to next phase
+$A668: E0 03    CPX #$03 ; Check if phase 3 (wrap around)
+$A66A: D0 02    BNE $A66E ; Branch if not wrapping
+$A66C: A2 00    LDX #$00 ; Reset phase to 0
+$A66E: 86 B4    STX $B4 ; Store updated phase index
+$A670: 4C 88 A6 JMP $A688 ; Jump to timer management
 $A673: A5 B2    LDA $B2 ; Load animation speed control
-$A675: 8D 07 E8 STA $E807 ; Store to speed register
-$A678: C9 80    CMP #$80 ; Check if speed at minimum
-$A67A: D0 07    BNE $A683 ; Branch if not minimum
-$A67C: A9 00    LDA #$00 ; Clear animation enable
-$A67E: 85 BE    STA $BE ; Store animation disable
-$A680: 4C 88 A6 JMP $A688 ; Jump to animation end
+$A675: 8D 07 E8 STA $E807 ; Store to hardware speed register
+$A678: C9 80    CMP #$80 ; Check if speed at minimum ($80)
+$A67A: D0 07    BNE $A683 ; Branch if not at minimum
+$A67C: A9 00    LDA #$00 ; Clear animation enable flag
+$A67E: 85 BE    STA $BE ; Disable animations
+$A680: 4C 88 A6 JMP $A688 ; Jump to timer management
 $A683: 38       SEC ; Set carry for subtraction
-$A684: E9 01    SBC #$01 ; Decrease animation speed
-$A686: 85 B2    STA $B2 ; Store new speed
-$A688: E6 B6    INC $B6 ; Increment animation timer
+$A684: E9 01    SBC #$01 ; Decrease animation speed (slowdown)
+$A686: 85 B2    STA $B2 ; Store new speed value
+$A688: E6 B6    INC $B6 ; Increment primary animation timer
 $A68A: A5 B6    LDA $B6 ; Load timer value
-$A68C: 8D 02 E8 STA $E802 ; Store to timer register
+$A68C: 8D 02 E8 STA $E802 ; Store to hardware timer register
 $A68F: C9 20    CMP #$20 ; Check if timer reached 32
-$A691: 90 0E    BCC $A6A1 ; Branch if timer not full
+$A691: 90 0E    BCC $A6A1 ; Branch if timer < 32
 $A693: A5 B7    LDA $B7 ; Load secondary timer
-$A695: C9 A0    CMP #$A0 ; Check if secondary timer at max
+$A695: C9 A0    CMP #$A0 ; Check if secondary timer at max ($A0)
 $A697: F0 08    BEQ $A6A1 ; Branch if timer complete
 $A699: 38       SEC ; Set carry for subtraction
 $A69A: E9 01    SBC #$01 ; Decrement secondary timer
 $A69C: 85 B7    STA $B7 ; Store new timer value
-$A69E: 8D 03 E8 STA $E803 ; Update timer register
-$A6A1: A5 B9    LDA $B9 ; Check sprite animation flag
-$A6A3: F0 15    BEQ $A6BA ; Branch if sprite animation off
-$A6A5: A5 B8    LDA $B8 ; Load sprite position
+$A69E: 8D 03 E8 STA $E803 ; Update hardware timer register
+$A6A1: A5 B9    LDA $B9 ; Check sprite animation enable flag
+$A6A3: F0 15    BEQ $A6BA ; Branch if sprite animation disabled
+$A6A5: A5 B8    LDA $B8 ; Load sprite X position
 $A6A7: 38       SEC ; Set carry for subtraction
-$A6A8: E9 04    SBC #$04 ; Move sprite 4 pixels
+$A6A8: E9 04    SBC #$04 ; Move sprite left 4 pixels
 $A6AA: 85 B8    STA $B8 ; Store new sprite position
-$A6AC: 8D 04 E8 STA $E804 ; **PLAYER SPRITE POSITION** - Update player sprite X position
-$A6AF: C9 08    CMP #$08 ; Check if sprite at edge (8 pixels)
+$A6AC: 8D 04 E8 STA $E804 ; Update player sprite X position register
+$A6AF: C9 08    CMP #$08 ; Check if sprite at left edge (8 pixels)
 $A6B1: B0 07    BCS $A6BA ; Branch if sprite not at edge
-$A6B3: A9 00    LDA #$00 ; Clear sprite animation
-$A6B5: 8D 05 E8 STA $E805 ; **PLAYER SPRITE CHARACTER** - Clear player sprite (load character $00)
-$A6B8: 85 B9    STA $B9 ; Store sprite disable flag
+$A6B3: A9 00    LDA #$00 ; Clear sprite character
+$A6B5: 8D 05 E8 STA $E805 ; Clear player sprite character (hide sprite)
+$A6B8: 85 B9    STA $B9 ; Disable sprite animation flag
 $A6BA: A5 93    LDA $93 ; Check game trigger flag
-$A6BC: D0 0F    BNE $A6CD ; Branch if trigger active
-$A6BE: A5 D1    LDA $D1 ; Load accuracy counter
+$A6BC: D0 0F    BNE $A6CD ; Branch if trigger active (skip bonus)
+$A6BE: A5 D1    LDA $D1 ; Load shot counter (total shots fired)
 $A6C0: 38       SEC ; Set carry for subtraction
-$A6C1: E5 D4    SBC #$D4 ; Calculate accuracy (shots - hits)
-$A6C3: 90 04    BCC $A6C9 ; Branch if negative (impossible)
-$A6C5: C9 05    CMP #$05 ; Check if accuracy good (< 5 misses)
-$A6C7: B0 04    BCS $A6CD ; Branch if accuracy poor
-$A6C9: A9 C9    LDA #$C9 ; Load bonus value for good accuracy
+$A6C1: E5 D4    SBC $D4 ; Subtract hit counter (calculate misses)
+$A6C3: 90 04    BCC $A6C9 ; Branch if underflow (shouldn't happen)
+$A6C5: C9 05    CMP #$05 ; Check if misses < 5 (good accuracy)
+$A6C7: B0 04    BCS $A6CD ; Branch if accuracy poor (≥5 misses)
+$A6C9: A9 C9    LDA #$C9 ; Load accuracy bonus value
 $A6CB: 85 08    STA $08 ; Store accuracy bonus
-$A6CD: 4C B2 FC JMP $FCB2 ; Jump to OS ROM routine (NMI handler)
+$A6CD: 4C B2 FC JMP $FCB2 ; Chain to OS ROM NMI handler
 
 ; ===============================================================================
 ; TITLE SCREEN ROUTINE ($A6D0)
@@ -2837,26 +2812,69 @@ $A837: .byte $23, $2F           ; "CO" (C=23, O=2F)
 $A839: .byte $0E                ; "." (period)
 
 ; ===============================================================================
-; MISC_UPDATE ($A83A)
-; Miscellaneous game updates and collision processing
-; This routine:
-; - Processes player actions
-; - Handles collision detection
-; - Updates hit statistics
-; - Triggers sound effects
-; - Manages game state changes
+; collision_detection_and_input ($A83A-$A99B)
+; Collision detection and player input processing system
+; 
+; Called once per frame from main game loop after enemy sprite rendering.
+; Handles all collision detection between player, enemies, and missiles,
+; processes player input, and manages game state updates.
+;
+; MAIN FUNCTIONS:
+;
+; 1. PLAYER-ENEMY COLLISION DETECTION ($A844-$A8DD):
+;    - Checks hardware collision registers for player hitting enemies
+;    - Processes 3 enemy slots independently ($94, $95, $96)
+;    - Reads GTIA collision registers:
+;      * $C00A (P2PF) - Player 2/Playfield collision
+;      * $C009 (P1PF) - Player 1/Playfield collision
+;      * $C00D-$C00F (M1PF-M3PF) - Missile/Playfield collisions
+;    - When collision detected:
+;      * Plays hit sound effect (JSR $BD6C)
+;      * Increments hit counters ($D2, $D3)
+;      * Marks enemy slot as DEFEATED (sets $94/$95/$96 = 1)
+;
+; 2. PLAYER MISSILE HIT DETECTION ($A8F6-$A930):
+;    - Checks if player's missile hit any of 3 enemies
+;    - Reads $C008 collision register with bit masks:
+;      * Bit 1 ($02): Missile hit enemy slot 1
+;      * Bit 2 ($04): Missile hit enemy slot 2
+;      * Bit 3 ($08): Missile hit enemy slot 3
+;    - When hit detected:
+;      * Marks enemy as defeated ($94/$95/$96 = 1)
+;      * Plays hit sound (JSR $BD66)
+;      * Increments shot counter $D4 (for accuracy tracking)
+;
+; 3. FIRE BUTTON INPUT PROCESSING ($A932-$A940):
+;    - Reads fire button state from $C008
+;    - Masks bits $0E to check fire button
+;    - Combines with joystick register $C000
+;    - Calls missile creation routine ($A99C) when fire pressed
+;
+; 4. JOYSTICK MOVEMENT DETECTION ($A941-$A967):
+;    - Checks player collision with playfield ($C009-$C00B)
+;    - Reads joystick X-axis input ($C004 bit 4)
+;    - Sets horizontal movement flag ($AD) when detected
+;    - Combines horizontal and vertical input ($C004 OR $C00C)
+;    - Sets input detection flag ($93) when joystick moved
+;
+; 5. ADDITIONAL INPUT PROCESSING ($A969-$A995):
+;    - Processes multiple input registers ($C009-$C00B)
+;    - Calls missile creation routine for different input states
+;    - Handles 4 different input combinations (X=0,1,2,3)
+;
+; 6. CLEANUP ($A996-$A99B):
+;    - Clears all collision registers via $C01E (GTIA HITCLR)
+;    - Returns to main game loop
+;
+; This routine is the core of the game's collision detection and input
+; handling, running 60 times per second to provide responsive gameplay.
 ; ===============================================================================
-
-$A83A: A6 D5    LDX $D5 ; Miscellaneous game updates routine
-$A83C: B5 C5    LDA $C5,X
-$A83E: 85 92    STA $92
-$A840: A5 94    LDA $94
-$A842: D0 30    BNE $A874 ; Loop back if not zero
-; ===============================================================================
-; PLAYER_ENEMY_COLLISION_DETECTION ($A844)
-; Player-enemy collision detection using hardware collision registers
-; ===============================================================================
-
+collision_detection_and_input:
+$A83A: A6 D5    LDX $D5         ; Load current level/sector number
+$A83C: B5 C5    LDA $C5,X       ; Load level statistics
+$A83E: 85 92    STA $92         ; Store to working register
+$A840: A5 94    LDA $94         ; Check enemy slot 1 status
+$A842: D0 30    BNE $A874       ; Skip if enemy already defeated
 $A844: AD 0A C0 LDA $C00A ; GTIA P2PF - Player 2/Playfield collision
 $A847: 0D 0B C0 ORA $C00B
 $A84A: 29 02    AND #$02
@@ -3027,9 +3045,9 @@ $A98C: 0D 03 C0 ORA $C003
 $A98F: F0 05    BEQ $A996 ; Branch if equal/zero
 $A991: A2 03    LDX #$03
 $A993: 20 9C A9 JSR $A99C
-$A996: A9 00    LDA #$00
-$A998: 8D 1E C0 STA $C01E ; GTIA HITCLR - Clear collision registers
-$A99B: 60       RTS
+$A996: A9 00    LDA #$00        ; Clear accumulator
+$A998: 8D 1E C0 STA $C01E       ; GTIA HITCLR - Clear all collision registers
+$A99B: 60       RTS             ; Return from collision_detection_and_input
 ; ===============================================================================
 ; MISSILE_CREATION_PROCESSING ($A99C)
 ; **PLAYER MISSILE CREATION AND JOYSTICK DIRECTION SAMPLING**
@@ -5169,68 +5187,112 @@ $B555: F0 F3    BEQ $B54A       ; Loop if same (avoid repeats)
 $B557: 85 B1    STA $B1
 $B559: A8       TAY
 $B55A: 60       RTS
-$B55B: A2 13    LDX #$13
-$B55D: E8       INX
-$B55E: 8A       TXA
-$B55F: 85 7A    STA $7A
-$B561: A9 0E    LDA #$0E
-$B563: 85 71    STA $71
-$B565: A2 01    LDX #$01
-$B567: 86 67    STX $67
-$B569: 86 74    STX $74
-$B56B: E6 7A    INC $7A
-$B56D: B5 93    LDA $93,X
-$B56F: F0 03    BEQ $B574 ; Branch if equal/zero
-$B571: 4C EB B6 JMP $B6EB
-$B574: A9 00    LDA #$00
-$B576: 85 A4    STA $A4
-$B578: 85 A5    STA $A5
-$B57A: A5 91    LDA $91
-$B57C: F0 03    BEQ $B581 ; Branch if equal/zero
-$B57E: 4C EB B6 JMP $B6EB
-$B581: B5 8C    LDA $8C,X
-$B583: C9 FF    CMP #$FF
-$B585: D0 0B    BNE $B592 ; Loop back if not zero
-$B587: A9 AC    LDA #$AC
-$B589: 8D 05 E8 STA $E805 ; **PLAYER SPRITE CHARACTER** - Load character $AC into player sprite
-$B58C: A9 20    LDA #$20
-$B58E: 85 B8    STA $B8
-$B590: 85 B9    STA $B9
-$B592: A0 00    LDY #$00
-$B594: A9 00    LDA #$00
-$B596: 85 6F    STA $6F
-$B598: A9 28    LDA #$28
-$B59A: 85 70    STA $70
-$B59C: B5 80    LDA $80,X
-$B59E: 85 78    STA $78
-$B5A0: C5 80    CMP #$80
-$B5A2: D0 03    BNE $B5A7 ; Loop back if not zero
-$B5A4: 4C 4D B6 JMP $B64D
-$B5A7: 30 09    BMI $B5B2
-$B5A9: 38       SEC
-$B5AA: E9 03    SBC #$03
-$B5AC: 85 6C    STA $6C
-$B5AE: A9 00    LDA #$00
-$B5B0: F0 07    BEQ $B5B9 ; Branch if equal/zero
-$B5B2: 18       CLC
-$B5B3: 69 0B    ADC #$0B
-$B5B5: 85 6C    STA $6C
-$B5B7: A9 01    LDA #$01
-$B5B9: 85 73    STA $73
-$B5BB: A9 02    LDA #$02
-$B5BD: 85 6B    STA $6B
-$B5BF: 20 09 BD JSR $BD09
-$B5C2: A6 67    LDX $67
-$B5C4: A5 6C    LDA $6C
-$B5C6: 38       SEC
-$B5C7: E9 18    SBC #$18
-$B5C9: 85 6C    STA $6C
-$B5CB: A9 04    LDA #$04
-$B5CD: 85 6B    STA $6B
-$B5CF: 20 09 BD JSR $BD09
-$B5D2: A6 67    LDX $67
-$B5D4: A5 6C    LDA $6C
-$B5D6: 85 92    STA $92
+; ===============================================================================
+; render_enemy_sprites ($B55B-$B708)
+; Enemy sprite positioning and display rendering system
+; 
+; Called once per frame from main game loop to process all 3 enemy sprites.
+; Calculates screen positions, updates sprite characters, and renders enemies.
+;
+; PROCESS:
+; 1. LOOP THROUGH 3 ENEMY SLOTS (X = 1, 2, 3):
+;    - Checks enemy slot status ($93,X)
+;    - Skips empty slots or if game in special state ($91)
+;
+; 2. LOAD ENEMY SPRITE DATA:
+;    - Loads sprite character from table ($8C,X)
+;    - Special case: if character = $FF, loads $AC (likely bug/debug code)
+;    - Loads enemy position data ($80,X for X, $84,X for Y)
+;
+; 3. CALCULATE SPRITE SCREEN POSITIONS:
+;    - Performs complex position calculations with offsets
+;    - Calls $BD09 multiple times for coordinate transformations
+;    - Calculates both X and Y screen coordinates
+;    - Handles positive/negative position values differently
+;
+; 4. BUILD DISPLAY DATA:
+;    - Loops 4 times building sprite display information
+;    - Accumulates data in working registers ($6B, $70)
+;    - Performs bit operations to combine sprite data
+;
+; 5. UPDATE SPRITE DISPLAY:
+;    - Calls $BD30 to update display hardware
+;    - Calls $BC7C twice for display updates
+;    - Stores updated positions back to enemy tables
+;
+; 6. LOOP MANAGEMENT:
+;    - Increments X and loops back for next enemy
+;    - Processes all 3 enemies per frame
+;    - Updates game state counter ($91) at end
+;
+; NOTE: Contains apparent bug at $B587-$B589 where character $AC (172) is
+; loaded into player sprite register $E805. Character $AC is beyond the 89
+; characters defined in ROM ($00-$58), suggesting this is unused debug code
+; or a bug that occurs when $8C,X = $FF (invalid state).
+; ===============================================================================
+render_enemy_sprites:
+$B55B: A2 13    LDX #$13        ; Initialize counter
+$B55D: E8       INX             ; Increment to $14
+$B55E: 8A       TXA             ; Transfer to accumulator
+$B55F: 85 7A    STA $7A         ; Store counter value
+$B561: A9 0E    LDA #$0E        ; Load sprite parameter
+$B563: 85 71    STA $71         ; Store sprite config
+$B565: A2 01    LDX #$01        ; Start with enemy slot 1
+$B567: 86 67    STX $67         ; Store current enemy slot index
+$B569: 86 74    STX $74         ; Store to secondary index
+$B56B: E6 7A    INC $7A         ; Increment counter
+$B56D: B5 93    LDA $93,X       ; Load enemy slot status (0=empty, 1=active)
+$B56F: F0 03    BEQ $B574       ; Branch if slot empty
+$B571: 4C EB B6 JMP $B6EB       ; Jump to next enemy slot
+$B574: A9 00    LDA #$00        ; Clear working registers
+$B576: 85 A4    STA $A4         ; Clear flag A4
+$B578: 85 A5    STA $A5         ; Clear flag A5
+$B57A: A5 91    LDA $91         ; Check game state flag
+$B57C: F0 03    BEQ $B581       ; Branch if normal state
+$B57E: 4C EB B6 JMP $B6EB       ; Skip this enemy if special state
+$B581: B5 8C    LDA $8C,X       ; Load enemy sprite character from table
+$B583: C9 FF    CMP #$FF        ; Check if character = $FF (invalid/special)
+$B585: D0 0B    BNE $B592       ; Branch if valid character
+$B587: A9 AC    LDA #$AC        ; BUG: Load invalid character $AC (beyond ROM charset)
+$B589: 8D 05 E8 STA $E805       ; BUG: Store to PLAYER sprite register (should be enemy?)
+$B58C: A9 20    LDA #$20        ; Load position value
+$B58E: 85 B8    STA $B8         ; Store sprite position
+$B590: 85 B9    STA $B9         ; Store sprite position copy
+$B592: A0 00    LDY #$00        ; Initialize Y counter
+$B594: A9 00    LDA #$00        ; Clear accumulator
+$B596: 85 6F    STA $6F         ; Clear pointer low byte
+$B598: A9 28    LDA #$28        ; Load pointer high byte ($28xx)
+$B59A: 85 70    STA $70         ; Store pointer high byte
+$B59C: B5 80    LDA $80,X       ; Load enemy X position from table
+$B59E: 85 78    STA $78         ; Store to working register
+$B5A0: C5 80    CMP $80         ; Compare with base position
+$B5A2: D0 03    BNE $B5A7       ; Branch if not equal
+$B5A4: 4C 4D B6 JMP $B64D       ; Jump to Y position processing
+$B5A7: 30 09    BMI $B5B2       ; Branch if negative position
+$B5A9: 38       SEC             ; Set carry for subtraction
+$B5AA: E9 03    SBC #$03        ; Subtract 3 (position offset)
+$B5AC: 85 6C    STA $6C         ; Store adjusted position
+$B5AE: A9 00    LDA #$00        ; Clear direction flag (positive)
+$B5B0: F0 07    BEQ $B5B9       ; Branch to continue
+$B5B2: 18       CLC             ; Clear carry for addition
+$B5B3: 69 0B    ADC #$0B        ; Add 11 (negative position adjustment)
+$B5B5: 85 6C    STA $6C         ; Store adjusted position
+$B5B7: A9 01    LDA #$01        ; Set direction flag (negative)
+$B5B9: 85 73    STA $73         ; Store direction flag
+$B5BB: A9 02    LDA #$02        ; Load calculation parameter
+$B5BD: 85 6B    STA $6B         ; Store parameter
+$B5BF: 20 09 BD JSR $BD09       ; Call calculation routine
+$B5C2: A6 67    LDX $67         ; Restore enemy slot index
+$B5C4: A5 6C    LDA $6C         ; Load calculated value
+$B5C6: 38       SEC             ; Set carry for subtraction
+$B5C7: E9 18    SBC #$18        ; Subtract 24 (screen offset)
+$B5C9: 85 6C    STA $6C         ; Store adjusted screen position
+$B5CB: A9 04    LDA #$04        ; Load calculation parameter
+$B5CD: 85 6B    STA $6B         ; Store parameter
+$B5CF: 20 09 BD JSR $BD09       ; Call calculation routine again
+$B5D2: A6 67    LDX $67         ; Restore enemy slot index
+$B5D4: A5 6C    LDA $6C         ; Load final X position
+$B5D6: 85 92    STA $92         ; Store X screen position
 $B5D8: EA       NOP
 $B5D9: B5 84    LDA $84,X
 $B5DB: 38       SEC
@@ -5367,21 +5429,23 @@ $B6E2: 95 8C    STA $8C
 $B6E4: B5 84    LDA $84,X
 $B6E6: 85 77    STA $77
 $B6E8: 20 30 BD JSR $BD30
-$B6EB: A6 67    LDX $67
-$B6ED: E8       INX
-$B6EE: E0 04    CPX #$04
-$B6F0: F0 03    BEQ $B6F5 ; Branch if equal/zero
-$B6F2: 4C 67 B5 JMP $B567
-$B6F5: A5 91    LDA $91
-$B6F7: 18       CLC
-$B6F8: 69 01    ADC #$01
-$B6FA: 85 91    STA $91
-$B6FC: C5 D8    CMP #$D8
-$B6FE: 30 08    BMI $B708
-$B700: A9 00    LDA #$00
-$B702: 85 91    STA $91
-$B704: A9 01    LDA #$01
-$B706: 85 65    STA $65
+$B6EB: A6 67    LDX $67         ; Restore enemy slot index
+$B6ED: E8       INX             ; Increment to next enemy slot
+$B6EE: E0 04    CPX #$04        ; Check if processed all 3 enemies (slots 1-3)
+$B6F0: F0 03    BEQ $B6F5       ; Branch if all enemies processed
+$B6F2: 4C 67 B5 JMP $B567       ; Loop back to process next enemy
+$B6F5: A5 91    LDA $91         ; Load game state counter
+$B6F7: 18       CLC             ; Clear carry for addition
+$B6F8: 69 01    ADC #$01        ; Increment counter
+$B6FA: 85 91    STA $91         ; Store updated counter
+$B6FC: C5 D8    CMP $D8         ; Compare with limit
+$B6FE: 30 08    BMI $B708       ; Branch if below limit
+$B700: A9 00    LDA #$00        ; Reset counter to 0
+$B702: 85 91    STA $91         ; Store reset counter
+$B704: A9 01    LDA #$01        ; Set flag
+$B706: 85 65    STA $65         ; Store flag
+$B708: 60       RTS             ; Return from render_enemy_sprites
+
 $B708: 60       RTS
 $B709: 48       PHA
 $B70A: A9 14    LDA #$14
@@ -6124,107 +6188,137 @@ $BABB: A9 B7    LDA #$B7        ; **COMPLETION MARKER** - Load completion value
 $BABD: 85 0C    STA $0C         ; Store completion state
 $BABF: 60       RTS             ; **ARENA GENERATION COMPLETE** - Return
 ; ===============================================================================
-; COMPLEX_CALCULATION_SYSTEM ($BAC0-$BB76)
+; calculate_rank ($BAC0-$BB63)
 ; ===============================================================================
-; **MULTI-ROUTINE CALCULATION AND DATA PROCESSING SYSTEM**
-; This section contains several interconnected routines that perform complex
-; calculations, data manipulation, and parameter processing for the arena
-; generation system. Includes mathematical operations, data copying, and
-; specialized calculation routines.
+; **PLAYER RANK CALCULATION AND DISPLAY SYSTEM**
+; Calculates player's skill rank based on score and time performance, then
+; displays the appropriate rank text on screen.
+;
+; RANK CALCULATION PROCESS:
+; 1. Processes score data from $060B using mathematical operations
+; 2. Processes time data and performs multi-byte subtraction
+; 3. Multiplies result by 8 to create index into rank text table
+; 4. Range-checks index (0-40, capped at 40 for max rank)
+; 5. Copies 8 bytes from rank table at $A60B+index to screen at $06BA
+; 6. Converts score/time values to displayable digits
+;
+; RANK LEVELS (index * 8):
+; - Index 0:  Lowest performance rank
+; - Index 8:  ROOKIE
+; - Index 16: NOVICE  
+; - Index 24: GUNNER
+; - Index 32: BLASTER
+; - Index 40: MARKSMAN (highest, capped at this value)
+;
+; The routine performs complex arithmetic on player stats to determine which
+; 8-byte chunk of the rank text table to display.
 ; ===============================================================================
-
-$BAC0: A2 00    LDX #$00        ; **CALCULATION ROUTINE 1** - Initialize counter
-$BAC2: 20 64 BB JSR $BB64       ; **CALL CALCULATION SUBROUTINE** - Perform math operation
+calculate_rank:
+$BAC0: A2 00    LDX #$00        ; Initialize score processing counter
+$BAC2: 20 64 BB JSR convert_score_to_numbers_for_calculation ; Calculate score value (multiply by 10, etc.)
 $BAC5: A9 31    LDA #$31        ; Load parameter value (49 decimal)
 $BAC7: 85 6B    STA $6B         ; Store calculation parameter
-$BAC9: 20 1C BD JSR $BD1C       ; **CALL PROCESSING ROUTINE** - Complex parameter processing
+$BAC9: 20 1C BD JSR $BD1C       ; Process parameter
 $BACC: A5 6A    LDA $6A         ; Load calculated result
-$BACE: 85 64    STA $64         ; **STORE RESULT 1** - Save first calculation
+$BACE: 85 64    STA $64         ; Store first calculation result
 $BAD0: A5 6D    LDA $6D         ; Load second calculated result
-$BAD2: 85 65    STA $65         ; **STORE RESULT 2** - Save second calculation
-$BAD4: A2 2B    LDX #$2B        ; **CALCULATION ROUTINE 2** - Load parameter (43 decimal)
-$BAD6: 20 64 BB JSR $BB64       ; **CALL CALCULATION SUBROUTINE** - Perform math operation
+$BAD2: 85 65    STA $65         ; Store second calculation result
+$BAD4: A2 2B    LDX #$2B        ; Load parameter (43 decimal)
+$BAD6: 20 64 BB JSR convert_score_to_numbers_for_calculation ; Calculate score value again
 $BAD9: A9 07    LDA #$07        ; Load parameter value
 $BADB: 85 6B    STA $6B         ; Store calculation parameter
-$BADD: 20 1C BD JSR $BD1C       ; **CALL PROCESSING ROUTINE** - Complex parameter processing
-$BAE0: 38       SEC             ; **SUBTRACTION OPERATION** - Set carry for subtraction
+$BADD: 20 1C BD JSR $BD1C       ; Process parameter
+$BAE0: 38       SEC             ; Set carry for subtraction
 $BAE1: A5 65    LDA $65         ; Load first operand
-$BAE3: E5 6D    SBC $6D         ; **SUBTRACT** - Perform subtraction operation
-$BAE5: 85 69    STA $69         ; **STORE DIFFERENCE** - Save subtraction result
+$BAE3: E5 6D    SBC $6D         ; Subtract to calculate performance delta
+$BAE5: 85 69    STA $69         ; Store difference (low byte)
 $BAE7: A5 64    LDA $64         ; Load second operand
-$BAE9: E5 6A    SBC $6A         ; **SUBTRACT WITH BORROW** - Multi-byte subtraction
+$BAE9: E5 6A    SBC $6A         ; Subtract with borrow (high byte)
 $BAEB: 85 68    STA $68         ; Store high byte result
-$BAED: 90 0D    BCC $BAFC       ; **BRANCH ON UNDERFLOW** - Handle negative result
-$BAEF: A5 69    LDA $69         ; **POSITIVE RESULT PATH** - Load low byte
+$BAED: 90 0D    BCC $BAFC       ; Branch if underflow (negative result)
+$BAEF: A5 69    LDA $69         ; Load low byte of positive result
 $BAF1: 38       SEC             ; Set carry
-$BAF2: E5 CF    SBC $CF         ; **ADDITIONAL SUBTRACTION** - Further processing
+$BAF2: E5 CF    SBC $CF         ; Subtract time/performance factor
 $BAF4: 85 69    STA $69         ; Store adjusted result
 $BAF6: A5 68    LDA $68         ; Load high byte
-$BAF8: E5 CE    SBC $CE         ; **SUBTRACT HIGH BYTE** - Complete multi-byte operation
-$BAFA: B0 04    BCS $BB00       ; **BRANCH ON SUCCESS** - Continue if no underflow
-$BAFC: A9 00    LDA #$00        ; **UNDERFLOW HANDLING** - Set result to zero
+$BAF8: E5 CE    SBC $CE         ; Subtract high byte with borrow
+$BAFA: B0 04    BCS $BB00       ; Branch if no underflow
+$BAFC: A9 00    LDA #$00        ; Underflow: set rank to 0 (lowest)
 $BAFE: 85 69    STA $69         ; Clear result
-$BB00: 0A       ASL             ; **MULTIPLY BY 8** - Shift left (×2)
+$BB00: 0A       ASL             ; Multiply rank by 8 (shift left ×2)
 $BB01: 0A       ASL             ; Shift left again (×4)
 $BB02: 0A       ASL             ; Shift left again (×8)
-$BB03: AA       TAX             ; **USE AS INDEX** - Transfer to X register
-$BB04: E0 30    CPX #$30        ; **RANGE CHECK** - Compare with limit (48)
-$BB06: 90 06    BCC $BB0E       ; **BRANCH IF IN RANGE** - Continue if < 48
-$BB08: A9 D0    LDA #$D0        ; **RANGE LIMIT** - Load maximum value (208)
-$BB0A: 85 69    STA $69         ; Store limited result
-$BB0C: A2 28    LDX #$28        ; **SET INDEX LIMIT** - Load index limit (40)
-$BB0E: A0 00    LDY #$00        ; **DATA COPY LOOP** - Initialize copy counter
-$BB10: BD 0B A6 LDA $A60B,X     ; **LOAD SOURCE DATA** - Read from data table
-$BB13: 99 BA 06 STA $06BA,Y     ; **STORE TO DESTINATION** - Write to target area
-$BB16: E8       INX             ; **INCREMENT SOURCE** - Move to next source byte
-$BB17: C8       INY             ; **INCREMENT DESTINATION** - Move to next destination
-$BB18: C0 08    CPY #$08        ; **CHECK COPY COUNT** - Compare with 8 bytes
-$BB1A: D0 F4    BNE $BB10       ; **LOOP** - Continue until 8 bytes copied
-$BB1C: A5 69    LDA $69         ; **LOAD CALCULATED VALUE** - Get processed result
-$BB1E: 85 6C    STA $6C         ; **STORE FOR FURTHER USE** - Save for next routine
+$BB03: AA       TAX             ; Transfer rank index to X register
+$BB04: E0 30    CPX #$30        ; Check if rank index >= 48
+$BB06: 90 06    BCC $BB0E       ; Branch if in valid range (< 48)
+$BB08: A9 D0    LDA #$D0        ; Cap exceeded: load max value
+$BB0A: 85 69    STA $69         ; Store capped result
+$BB0C: A2 28    LDX #$28        ; Set to max rank index (40 = MARKSMAN)
+$BB0E: A0 00    LDY #$00        ; Initialize copy counter
+$BB10: BD 0B A6 LDA $A60B,X     ; Load rank text byte from table ($A60B + rank*8)
+$BB13: 99 BA 06 STA $06BA,Y     ; Store to screen memory at $06BA
+$BB16: E8       INX             ; Increment source pointer
+$BB17: C8       INY             ; Increment destination pointer
+$BB18: C0 08    CPY #$08        ; Check if 8 bytes copied
+$BB1A: D0 F4    BNE $BB10       ; Loop until 8 bytes of rank text copied
+$BB1C: A5 69    LDA $69         ; Load calculated performance value
+$BB1E: 85 6C    STA $6C         ; Store for digit conversion
 $BB20: A9 34    LDA #$34        ; Load parameter (52 decimal)
 $BB22: 85 6B    STA $6B         ; Store parameter
-$BB24: 20 09 BD JSR $BD09       ; **CALL PROCESSING ROUTINE** - Additional processing
-$BB27: A9 35    LDA #$35        ; **CALCULATION PARAMETER** - Load value (53 decimal)
+$BB24: 20 09 BD JSR $BD09       ; Process parameter
+$BB27: A9 35    LDA #$35        ; Load value (53 decimal)
 $BB29: 38       SEC             ; Set carry for subtraction
-$BB2A: E5 6C    SBC $6C         ; **SUBTRACT CALCULATED VALUE** - Perform subtraction
-$BB2C: 8D CE 06 STA $06CE       ; **STORE RESULT** - Save to memory location
-$BB2F: A9 30    LDA #$30        ; **INITIALIZATION VALUE** - Load ASCII '0' (48)
-$BB31: 8D AC 06 STA $06AC       ; **INITIALIZE DIGIT 1** - Set first digit
-$BB34: 8D AD 06 STA $06AD       ; **INITIALIZE DIGIT 2** - Set second digit
-$BB37: 8D AE 06 STA $06AE       ; **INITIALIZE DIGIT 3** - Set third digit
-$BB3A: A5 CF    LDA $CF         ; **LOAD COUNTER VALUE** - Get loop counter
+$BB2A: E5 6C    SBC $6C         ; Subtract calculated value
+$BB2C: 8D CE 06 STA $06CE       ; Store result to memory
+$BB2F: A9 30    LDA #$30        ; Load ASCII '0' (48) for digit initialization
+$BB31: 8D AC 06 STA $06AC       ; Initialize first digit to '0'
+$BB34: 8D AD 06 STA $06AD       ; Initialize second digit to '0'
+$BB37: 8D AE 06 STA $06AE       ; Initialize third digit to '0'
+$BB3A: A5 CF    LDA $CF         ; Load counter value
 $BB3C: 85 6A    STA $6A         ; Store counter
 $BB3E: A5 CE    LDA $CE         ; Load second counter
 $BB40: 85 6D    STA $6D         ; Store second counter
-$BB42: A2 02    LDX #$02        ; **DIGIT PROCESSING LOOP** - Initialize digit counter
-$BB44: FE AC 06 INC $06AC,X     ; **INCREMENT DIGIT** - Increase digit value
-$BB47: BD AC 06 LDA $06AC,X     ; **LOAD DIGIT VALUE** - Read current digit
-$BB4A: C9 3A    CMP #$3A        ; **CHECK DIGIT OVERFLOW** - Compare with ':' (58, after '9')
-$BB4C: D0 08    BNE $BB56       ; **BRANCH IF VALID** - Continue if digit ≤ '9'
-$BB4E: A9 30    LDA #$30        ; **RESET TO '0'** - Reset overflowed digit
+$BB42: A2 02    LDX #$02        ; Initialize digit position (rightmost)
+$BB44: FE AC 06 INC $06AC,X     ; Increment digit at position X
+$BB47: BD AC 06 LDA $06AC,X     ; Load current digit value
+$BB4A: C9 3A    CMP #$3A        ; Check if digit > '9' (overflow to ':')
+$BB4C: D0 08    BNE $BB56       ; Branch if digit is valid (0-9)
+$BB4E: A9 30    LDA #$30        ; Reset overflowed digit to '0'
 $BB50: 9D AC 06 STA $06AC,X     ; Store reset digit
-$BB53: CA       DEX             ; **MOVE TO NEXT DIGIT** - Process higher digit
-$BB54: 10 EE    BPL $BB44       ; **LOOP** - Continue if more digits to process
-$BB56: A5 6A    LDA $6A         ; **LOAD COUNTER** - Get current counter value
+$BB53: CA       DEX             ; Move to next higher digit (carry)
+$BB54: 10 EE    BPL $BB44       ; Loop if more digits to process
+$BB56: A5 6A    LDA $6A         ; Load counter
 $BB58: 38       SEC             ; Set carry for subtraction
-$BB59: E9 34    SBC #$34        ; **DECREMENT COUNTER** - Subtract 52
+$BB59: E9 34    SBC #$34        ; Decrement counter by 52
 $BB5B: 85 6A    STA $6A         ; Store decremented counter
-$BB5D: B0 E3    BCS $BB42       ; **LOOP IF POSITIVE** - Continue if counter ≥ 0
-$BB5F: C6 6D    DEC $6D         ; **DECREMENT HIGH COUNTER** - Reduce high byte
-$BB61: 10 DF    BPL $BB42       ; **LOOP IF POSITIVE** - Continue if high counter ≥ 0
-$BB63: 60       RTS             ; **CALCULATION COMPLETE** - Return
-; **MATHEMATICAL CALCULATION SUBROUTINE** ($BB64-$BB76)
-$BB64: BD 0B 06 LDA $060B,X     ; **LOAD BASE VALUE** - Read from data table
-$BB67: 0A       ASL             ; **MULTIPLY BY 4** - Shift left (×2)
+$BB5D: B0 E3    BCS $BB42       ; Loop if counter still positive
+$BB5F: C6 6D    DEC $6D         ; Decrement high byte of counter
+$BB61: 10 DF    BPL $BB42       ; Loop if high counter still positive
+$BB63: 60       RTS             ; Return from rank calculation
+; ===============================================================================
+; convert_score_to_numbers_for_calculation ($BB64-$BB76)
+; Helper subroutine for calculate_rank
+; Converts BCD score digits to numeric value for rank calculation
+; 
+; INPUT: X = offset into score table at $060B
+; OUTPUT: $6C = calculated numeric value
+; 
+; ALGORITHM: Converts two BCD digits to decimal number
+; - Multiplies first digit by 10 (×4 + ×1 = ×5, then ×2 = ×10)
+; - Adds second digit
+; - Subtracts 16 (adjusts for ASCII/BCD offset)
+; ===============================================================================
+convert_score_to_numbers_for_calculation:
+$BB64: BD 0B 06 LDA $060B,X     ; Load score digit from table
+$BB67: 0A       ASL             ; Multiply by 4 (shift left ×2)
 $BB68: 0A       ASL             ; Shift left again (×4)
-$BB69: 7D 0B 06 ADC $060B,X     ; **ADD ORIGINAL** - Add base value (×4 + ×1 = ×5)
-$BB6C: 0A       ASL             ; **MULTIPLY BY 2** - Shift left (×5 × 2 = ×10)
+$BB69: 7D 0B 06 ADC $060B,X     ; Add original value (×4 + ×1 = ×5)
+$BB6C: 0A       ASL             ; Multiply by 2 (×5 × 2 = ×10)
 $BB6D: 18       CLC             ; Clear carry for addition
-$BB6E: 7D 0C 06 ADC $060C,X     ; **ADD OFFSET** - Add additional value
+$BB6E: 7D 0C 06 ADC $060C,X     ; Add next digit value
 $BB71: 38       SEC             ; Set carry for subtraction
-$BB72: E9 10    SBC #$10        ; **SUBTRACT CONSTANT** - Subtract 16
-$BB74: 85 6C    STA $6C         ; **STORE RESULT** - Save calculated value
+$BB72: E9 10    SBC #$10        ; Subtract 16 (adjust for ASCII/BCD offset)
+$BB74: 85 6C    STA $6C         ; Store calculated value
 $BB76: 60       RTS             ; Return from calculation
 ; ===============================================================================
 ; TIME_COUNTDOWN_AND_DISPLAY ($BB77)
