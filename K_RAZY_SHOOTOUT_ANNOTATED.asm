@@ -10,6 +10,86 @@
 ; Disassembly by: Tristan Greaves <tristan@extricate.org>
 ; ===============================================================================
 
+; ===============================================================================
+; IMPORTANT VARIABLES (Zero Page and RAM)
+; ===============================================================================
+;
+; GAME STATE & COUNTERS:
+; $60     - Joystick input value (direction codes: $F6-$FE, $FF=no input)
+; $64     - Current sprite character/offset being rendered
+; $65     - Player active flag / sprite row counter
+; $67     - Current enemy slot index (1-3)
+; $71     - Sprite width in bytes (inner loop counter)
+; $72     - Sprite pattern index (for $BF7C table lookup)
+; $73     - Sprite orientation/direction flag (0=decrement/up-left, 1=increment/down-right)
+; $77     - Sprite Y position / vertical offset
+; $78     - Sprite X position / horizontal position
+; $79/$7A - 16-bit pointer (low/high) for sprite data source/destination
+; $80,X   - Enemy X positions (slots 0-3)
+; $84,X   - Enemy Y positions (slots 0-3)
+; $8C,X   - Enemy sprite character codes (slots 0-3, $FF=spawning)
+; $91     - Game state counter / animation frame counter
+; $93,X   - Enemy slot status (0=empty, 1=active, $C0=spawn limit reached)
+; $97,X   - Death detection flags (player and enemies)
+; $A4     - Sprite rendering flag (horizontal movement processed)
+; $A5     - Sprite rendering flag (vertical movement processed)
+; $A7     - Enemy firing frequency counter
+; $A8     - Missile movement timing counter
+; $A9     - Player respawn flag
+; $AC     - Bonus point value for scoring
+; $AD     - Player exit flag (set when touching arena edge)
+;
+; DIFFICULTY & LEVEL PARAMETERS:
+; $D0     - Sound effect timer / special effect counter
+; $D1     - Enemy spawn limit (from difficulty table $BBE4)
+; $D2     - Enemy missile hit counter
+; $D3     - Enemy-to-enemy collision counter
+; $D4     - Enemies defeated by player (incremented on player missile hit)
+; $D5     - Current sector/level number (0-7)
+; $D6     - Missile speed threshold (from difficulty table)
+; $D7     - Enemy firing frequency limit (from difficulty table)
+; $D8     - Unknown difficulty parameter (from difficulty table)
+; $D9     - Time remaining counter
+; $DA     - Death counter (0-3, tracks lives used)
+;
+; SPRITE & GRAPHICS:
+; $E2-$E5 - Missile Y positions (M0=player, M1-M3=enemies)
+; $E800   - Hardware register for screen effects
+; $E801   - Hardware register for display mode
+; $E805   - Player sprite character register
+; $E806   - Hardware animation frame register
+; $E807   - AUDC4 - Audio control 4
+; $E808   - Sprite control register
+; $E80A   - Hardware random seed
+;
+; POINTERS & MEMORY:
+; $75/$76 - 16-bit pointer for destination memory (sprite masking)
+; $79/$7A - 16-bit pointer for source memory (sprite data)
+; $6F/$70 - 16-bit pointer for sprite calculations
+;
+; COLLISION REGISTERS (Hardware):
+; $C000-$C003 - HPOSP0-HPOSP3 (Player horizontal positions)
+; $C004       - P0PF (Player 0 to Playfield collision)
+; $C008       - M0PL (Missile 0 to Player collision)
+; $C009-$C00B - P1PF-P3PF (Enemy to Playfield collision)
+; $C00D-$C00F - M1PF-M3PF (Enemy missile to Playfield collision)
+; $C01D       - GTIA GRACTL (Enable PMG graphics)
+; $C01E       - GTIA HITCLR (Clear collision registers)
+; $C01F       - GTIA PRIOR (Priority control)
+;
+; SCREEN MEMORY:
+; $0600-$067F - Score and HUD display area
+; $2000-$21FF - Main playfield screen memory
+; $2400-$2DFF - Additional screen memory areas
+;
+; PMG MEMORY:
+; $1300-$13FF - Player 0 sprite memory (player character)
+; $1400-$14FF - Player 1 sprite memory (enemy 1)
+; $1500-$15FF - Player 2 sprite memory (enemy 2)
+; $1600-$16FF - Player 3 sprite memory (enemy 3)
+; $1700-$17FF - Missile graphics memory (M0-M3)
+; ===============================================================================
+
         .org $A000
 
 ; ===============================================================================
@@ -1492,14 +1572,23 @@ $A4FD: 00       .byte $00        ; Padding/end marker
 $A4FE: 38       .byte $38        ; Display mode 8
 ; ===============================================================================
 ; check_sector_cleared ($A4FF)
-; Enemy wave completion and exit activation system
-; This routine:
-; - Checks if all 3 enemy slots are defeated ($94 AND $95 AND $96)
-; - Controls exit activation: exits open when all slots = 0 (empty)
-; - Manages wave completion and new enemy spawning from $A6 pool
-; - Updates scoring based on enemy defeats and shot accuracy
-; - Integrates with time system ($D9) and total enemy count ($A6 = 24)
-; - Called when player moves horizontally ($AD set) to check for sector completion
+; Level completion check - determines if player advances to next level
+; 
+; This routine checks if ALL enemies in the level were defeated before escaping.
+; Only if all enemies are defeated will the level counter increment.
+; 
+; Key variables:
+; - $D4: Number of enemies defeated in current level
+; - $D1: Total number of enemies that spawn in current level
+; - $D5: Level progression counter (incremented only if all enemies defeated)
+; 
+; Logic:
+; 1. Check if all 3 enemy slots are currently defeated ($94 AND $95 AND $96)
+; 2. If all slots defeated, compare $D4 (enemies defeated) with $D1 (total enemies)
+; 3. If $D4 >= $D1 (all enemies defeated), increment level counter $D5
+; 4. If $D4 < $D1 (some enemies escaped), decrement level counter $D5
+; 
+; This means escaping without defeating all enemies forces replay of same level.
 ; ===============================================================================
 
 check_sector_cleared:
@@ -1509,15 +1598,15 @@ $A503: 25 96    AND $96         ; AND with enemy slot 3 state
                                 ; Result = 1 only if ALL 3 enemies defeated
                                 ; Result = 0 if ANY slot empty (exits open!)
 $A505: F0 0A    BEQ $A511       ; Branch if any enemy slot empty
-$A507: A5 D4    LDA $D4         ; Load shot counter (incremented when firing)
-$A509: C5 D1    CMP $D1         ; Compare with accuracy threshold
-$A50B: 90 04    BCC $A511       ; Branch if accuracy good (few misses)
-$A50D: E6 D5    INC $D5         ; Increment level progression counter
+$A507: A5 D4    LDA $D4         ; Load enemies defeated count
+$A509: C5 D1    CMP $D1         ; Compare with total enemies for this level
+$A50B: 90 04    BCC $A511       ; Branch if $D4 < $D1 (not all enemies defeated)
+$A50D: E6 D5    INC $D5         ; All enemies defeated! Increment level counter
 $A50F: D0 06    BNE $A517       ; Continue to next check
 $A511: A5 D5    LDA $D5         ; Load level progression counter
 $A513: F0 02    BEQ $A517       ; Branch if zero
-$A515: C6 D5    DEC $D5         ; Decrement level progression counter
-$A517: 60       RTS             ; Return from enemy wave check
+$A515: C6 D5    DEC $D5         ; Not all enemies defeated - decrement level counter
+$A517: 60       RTS             ; Return from level completion check
 ; ===============================================================================
 ; PREPARE NEW GAME ($A518)
 ; Game variable initialization and text display setup
