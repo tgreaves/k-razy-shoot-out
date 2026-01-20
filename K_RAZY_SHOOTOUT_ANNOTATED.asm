@@ -1469,20 +1469,25 @@ $A38E: 4C 2B A3 JMP go_back_to_prepare_new_game ; Jump to main game setup
         .byte $20        ; $A48B - ' '
 ; ===============================================================================
 ; display_rank ($A48C-$A4E8)
-; Display rank screen with ANTIC display list configuration
+; Horizontal scrolling rank text display routine
 ; 
-; Called after calculate_rank to set up the visual display of the player's
-; skill ranking on the game over screen.
+; Called after calculate_rank to display the player's skill ranking with
+; smooth horizontal scrolling animation on the game over screen.
 ;
-; OPERATIONS:
+; SCROLLING MECHANISM:
+; 1. Uses $D404 (HSCROL) hardware register for fine horizontal scrolling (0-7 pixels)
+; 2. $64 counter decrements to create scroll animation (masked to 0-7)
+; 3. $92 index advances through text data ($0653) from 0 to $87 (135 bytes)
+; 4. Copies 22-byte window of text to screen memory at $3980
+; 5. When fine scroll completes cycle (== 7), advances to next character
+; 6. Continues until all text has scrolled across screen
+;
+; DISPLAY SETUP:
 ; 1. Copies 21-byte display list from $A4E9 to $3800 (ANTIC display list memory)
-; 2. Configures hardware registers for display timing
-; 3. Copies text data from $0653 to screen memory at $3980 (22 bytes)
-; 4. Converts ASCII to screen codes (subtracts $20)
-; 5. Synchronizes with hardware registers for smooth display updates
+; 2. Synchronizes with VCOUNT register ($D40B) for smooth animation
+; 3. Converts ASCII to screen codes (subtracts $20)
 ;
-; The display list at $A4E9 defines the screen layout with vertical spacing
-; and various display modes for showing the rank text properly.
+; The scrolling creates a smooth left-to-right text animation effect.
 ; ===============================================================================
 display_rank:
 $A48C: A9 38    LDA #$38        ; Load display parameter
@@ -1490,46 +1495,46 @@ $A48E: 85 06    STA $06         ; Store to zero page
 $A490: A9 00    LDA #$00        ; Clear accumulator
 $A492: 85 05    STA $05         ; Clear zero page location
 $A494: A0 15    LDY #$15        ; Set loop counter to 21 bytes
-$A496: B9 E9 A4 LDA $A4E9,Y     ; Load from display data table
-$A499: 99 00 38 STA $3800,Y     ; Store to screen memory at $3800
+$A496: B9 E9 A4 LDA $A4E9,Y     ; Load from display list data table
+$A499: 99 00 38 STA $3800,Y     ; Store to ANTIC display list memory at $3800
 $A49C: 88       DEY             ; Decrement counter
-$A49D: 10 F7    BPL $A496       ; Loop until all bytes copied
+$A49D: 10 F7    BPL $A496       ; Loop until all 21 bytes copied
 $A49F: A9 22    LDA #$22        ; Load parameter value
 $A4A1: 85 07    STA $07         ; Store to zero page
 $A4A3: A2 00    LDX #$00        ; Initialize X register
-$A4A5: 86 64    STX $64         ; Clear $64
-$A4A7: 86 92    STX $92         ; Clear $92
-$A4A9: AD 0B D4 LDA $D40B       ; Read hardware register
-$A4AC: C9 40    CMP #$40        ; Check if value = $40
-$A4AE: D0 F9    BNE $A4A9       ; Loop until register = $40
-$A4B0: 8D 0A D4 STA $D40A       ; Write to hardware register
-$A4B3: 8D 0A D4 STA $D40A       ; Write again (double write)
-$A4B6: A5 64    LDA $64         ; Load counter
-$A4B8: C6 64    DEC $64         ; Decrement counter
-$A4BA: 29 07    AND #$07        ; Mask lower 3 bits
-$A4BC: 8D 04 D4 STA $D404       ; Write to hardware register
+$A4A5: 86 64    STX $64         ; Clear scroll counter $64
+$A4A7: 86 92    STX $92         ; Clear text index $92
+$A4A9: AD 0B D4 LDA $D40B       ; Read VCOUNT (vertical line counter)
+$A4AC: C9 40    CMP #$40        ; Wait for scanline $40
+$A4AE: D0 F9    BNE $A4A9       ; Loop until VCOUNT = $40 (sync timing)
+$A4B0: 8D 0A D4 STA $D40A       ; Write to WSYNC (wait for horizontal sync)
+$A4B3: 8D 0A D4 STA $D40A       ; Write again (ensure sync)
+$A4B6: A5 64    LDA $64         ; Load scroll counter
+$A4B8: C6 64    DEC $64         ; Decrement scroll counter (creates animation)
+$A4BA: 29 07    AND #$07        ; Mask to 0-7 (fine scroll range)
+$A4BC: 8D 04 D4 STA $D404       ; Write to HSCROL (horizontal scroll register)
 $A4BF: A0 00    LDY #$00        ; Initialize Y counter
-$A4C1: A6 92    LDX $92         ; Load index from $92
-$A4C3: BD 53 06 LDA $0653,X     ; Load from data table
+$A4C1: A6 92    LDX $92         ; Load text index from $92
+$A4C3: BD 53 06 LDA $0653,X     ; Load character from text data
 $A4C6: 38       SEC             ; Set carry for subtraction
 $A4C7: E9 20    SBC #$20        ; Convert ASCII to screen code
-$A4C9: 99 80 39 STA $3980,Y     ; Store to screen memory
-$A4CC: E8       INX             ; Increment X
-$A4CD: C8       INY             ; Increment Y
+$A4C9: 99 80 39 STA $3980,Y     ; Store to screen memory (22-byte window)
+$A4CC: E8       INX             ; Increment text index
+$A4CD: C8       INY             ; Increment screen position
 $A4CE: C0 16    CPY #$16        ; Check if 22 bytes copied
-$A4D0: D0 F1    BNE $A4C3       ; Loop until done
-$A4D2: AD 10 C0 LDA $C010       ; Read from memory
-$A4D5: F0 11    BEQ $A4E8       ; Branch if zero (exit routine)
-$A4D7: A5 64    LDA $64         ; Load counter
-$A4D9: 29 07    AND #$07        ; Mask lower 3 bits
-$A4DB: C9 07    CMP #$07        ; Check if = 7
-$A4DD: D0 CA    BNE $A4A9       ; Loop back if not 7
-$A4DF: A6 92    LDX $92         ; Load index
-$A4E1: E8       INX             ; Increment index
-$A4E2: E0 87    CPX #$87        ; Check if index = $87
-$A4E4: 90 C1    BCC $A4A7       ; Loop back if < $87
-$A4E6: B0 BB    BCS $A4A3       ; Branch back (always taken)
-$A4E8: 60       RTS             ; Return from display_rank routine
+$A4D0: D0 F1    BNE $A4C3       ; Loop until 22-byte window filled
+$A4D2: AD 10 C0 LDA $C010       ; Read abort flag
+$A4D5: F0 11    BEQ $A4E8       ; Exit if abort flag set
+$A4D7: A5 64    LDA $64         ; Load scroll counter
+$A4D9: 29 07    AND #$07        ; Mask to 0-7
+$A4DB: C9 07    CMP #$07        ; Check if scroll cycle complete
+$A4DD: D0 CA    BNE $A4A9       ; Continue scrolling if not complete
+$A4DF: A6 92    LDX $92         ; Load text index
+$A4E1: E8       INX             ; Advance to next character
+$A4E2: E0 87    CPX #$87        ; Check if reached end of text (135 chars)
+$A4E4: 90 C1    BCC $A4A7       ; Continue scrolling if more text remains
+$A4E6: B0 BB    BCS $A4A3       ; Loop back (restart scroll)
+$A4E8: 60       RTS             ; Return from scrolling display routine
 ; ===============================================================================
 ; Display list data table used by display_rank routine ($A48C)
 ; This is an Atari ANTIC display list structure that defines screen layout
