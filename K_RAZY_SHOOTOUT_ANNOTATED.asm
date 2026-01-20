@@ -10,6 +10,9 @@
 ; Disassembly by: Tristan Greaves <tristan@extricate.org>
 ; ===============================================================================
 
+; TODO: What is D8 doing.
+; TODO: Update copyright in LICENSE properly and here.
+
 ; ===============================================================================
 ; IMPORTANT VARIABLES (Zero Page and RAM)
 ; ===============================================================================

@@ -3,6 +3,19 @@
 ## Game Overview
 K-Razy Shoot-Out is a single-player action game where Space Commanders must escape through randomly-generated Alien Control Sectors by destroying Droids.
 
+## Game Screens Overview
+
+- The title screen (with the CBS electronics logo) appears first.
+- The game loop begins when the player presses the fire / trigger button.
+- Sector 1 is the first sector.
+- Before a sector is displayed, 'ENTERING SECTOR x' is shown on the screen.
+- The maze, game HUD and player + enemy sprites then appear, and the game begins.
+- When the player leaves the arena, the screen is cleared line by line.
+- A tally of killed droids appears.
+- Bonus points are awarded ('BONUS POINTS') if applicable due to time remaining.
+- The next sector starts IF all droids were killed, otherwise the same sector is replayed.
+- At game over, a 'PRESS TRIGGER TO PLAY AGAIN' screen is displayed, and a scrolling message along the top shows the player's score and rank.
+
 ## Lives System
 
 ### Starting Lives
@@ -29,11 +42,10 @@ K-Razy Shoot-Out is a single-player action game where Space Commanders must esca
 
 ### Death Conditions
 A Space Commander is lost when:
-1. Running into a barrier
+1. Running into a barrier (This includes walls at the edge of the arena)
 2. Hit by enemy fire
 3. Contact with a Droid
 4. Contact with radioactive debris (remains after Droid elimination)
-5. Going out of bounds (detected by boundary check at $BD47)
 
 ### Death Detection
 - **$97**: Death detection flag (set to 1 when death condition occurs)
@@ -42,43 +54,41 @@ A Space Commander is lost when:
 - **$B765**: Death music played ($B097)
 - **$B768**: Death counter $DA incremented
 
-### Special Death Rule
-If you eliminate all but 1-2 Droids and then die:
-- Reserve Commander appears in the Sector
-- **No Droids will confront the new Commander**
-- Reason: "Droid philosophy - need 3 to 1 odds minimum"
-
 ## Sector System
 
 ### Sector Levels
 - **7 Sector Levels total**
-- Each level progressively more challenging
+- Each level progressively more challenging.
+- A data look-up table defines the number of droids to defeat, how fast they move, and how aggressive they are.
+- Droids do NOT fire on the first sector.
 - Sectors are **randomly generated** with millions of combinations
 - No two Sectors are ever the same
-
-### Sector Progression
-- **Sector 1**: Simple, unarmed Droids
-- **Sector 2**: Droids begin returning laser fire
-- **Sector 5+**: Droids move and shoot extremely fast
 
 ### Sector Completion
 To advance to next Sector:
 1. Eliminate ALL Droids in current Sector
 2. Exit before Countdown Bar expires
 
-## Droid System
+Note that the player can escape before all droids are defeated, but this will NOT advance the sector count.  The sector will be replayed.
 
-### Droid Behavior by Sector
-- **Sector 1**: Unarmed, can destroy themselves by colliding
-- **Sector 2+**: Armed, return laser fire
-- **Sector 5+**: Very fast movement and shooting
+## Droid System
 
 ### Droid Spawning
 - Droids materialize at the **perimeters of the Sector**
 - Can spawn on top of player if not careful
+- A maximum of three droids can spawn at any one time.
+- The maximum number of permitted droids will always spawn where possible.
 
 ### Droid Count Indicator
 - **Space Commander turns green** when 6 or fewer Droids remain
+
+## Droid movement and AI
+
+- Data look-up table used to define behaviour on a per-sector basis.
+- Droids will avoid walking into barriers.
+- Droids will walk into each other -- not deliberately, but if movement towards the player makes this happen.
+- Each droid can only have one droid missile on screen at any one time.
+- Droids have infinite ammunition.
 
 ## Countdown Bar System
 
@@ -113,12 +123,14 @@ To advance to next Sector:
 ### Ammunition
 - **Unlimited power-pack casings**
 - Each casing contains **50 laser rounds**
-- Ammunition counter displayed during game
+- Casings used shown on the 'GAME OVER' screen in the scrolling text.
+- There is no reload mechanic.
 
 ### Firing Mechanics
 1. Press and hold trigger button
 2. Move joystick in desired direction while holding trigger
 3. Can fire in 8 directions: up, down, left, right, and 4 diagonals
+4. Only one player missile can be on screen at any one time.
 
 ## Rank & Classification System
 
@@ -139,14 +151,13 @@ To advance to next Sector:
 ## Special Features
 
 ### "Chickening Out" Penalty
+
+CHECK THIS: It's mentioned in the manual, but does game code confirm it?
+
 If player exits Sector before eliminating all Droids:
 - Must replay **up to 2 Sectors**
 - **No points scored** during replayed Sectors
 - Replayed Sectors are completely new designs
-
-### Game Over Conditions
-1. All Space Commanders lost
-2. Countdown Bar expires before all Droids eliminated
 
 ### Controls
 - **Joystick**: 8-directional movement
@@ -178,41 +189,3 @@ If player exits Sector before eliminating all Droids:
 3. **Watch Commander color** - turns green at 6 or fewer Droids
 4. **Avoid perimeters** - Droids spawn at edges
 5. **Aim carefully** - avoid near misses between Droid legs/shoulders
-
-## Code Analysis Notes
-
-### Lives System Implementation
-- **$DA (death counter)**: Tracks number of deaths (0-3)
-  - Initialized to 0 at $A57A (3 lives remaining)
-  - Incremented at $B768 on each death
-  - Checked at $A34F for game over condition
-- **$97 (death flag)**: Set to 1 when death condition detected
-  - Set by boundary check at $BD57
-  - Checked at $B4C1 to trigger death routine
-- **$B75E (player_death_and_respawn)**: Main death handling routine
-  - Plays death music
-  - Increments death counter
-  - Handles respawn animation
-  - Returns to game if lives remaining
-
-### Extra Life System
-- **Award threshold**: Every 10,000 points
-- **Maximum reserve**: 4 Commanders in reserve
-- **Implementation**: NOT YET FOUND in code
-  - Should check ten-thousands digit ($060B) for changes
-  - Should increment lives counter (or decrement death counter?)
-  - May not be fully implemented in this version
-
-### Key Memory Locations Found
-- **$DA**: Death counter (0-3, game over at 3)
-- **$97**: Death detection flag
-- **$060B-$060F**: Score (5 BCD digits)
-- **$7B**: Previous ten-thousands digit (for extra life detection?)
-- **$D5**: Current level/sector number
-- **$D9**: Time remaining counter
-
-### Key Memory Locations to Find
-- Extra life award mechanism (10,000 point check)
-- Droid count per Sector
-- Power-pack casing counter (50 rounds each)
-- Rank/Classification calculation
