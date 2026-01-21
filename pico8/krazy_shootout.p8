@@ -183,9 +183,17 @@ function update_player_missile()
 end
 
 function draw_player()
- -- draw player sprite based on direction and animation
- local spr=1+player.dir*2+player.anim_frame
- spr(spr,player.x-4,player.y-4)
+ -- draw player as simple shape (until sprites are added)
+ circfill(player.x,player.y,3,12)
+ 
+ -- draw direction indicator
+ local dx,dy=0,0
+ if player.dir==0 then dx=4
+ elseif player.dir==1 then dy=4
+ elseif player.dir==2 then dx=-4
+ elseif player.dir==3 then dy=-4
+ end
+ line(player.x,player.y,player.x+dx,player.y+dy,7)
  
  -- draw missile
  if player.missile then
@@ -325,7 +333,8 @@ end
 
 function draw_enemies()
  for e in all(enemies) do
-  spr(e.sprite,e.x-4,e.y-4)
+  -- draw enemy as simple shape (until sprites are added)
+  rectfill(e.x-3,e.y-3,e.x+3,e.y+3,8)
   
   -- draw missile
   if e.missile then
