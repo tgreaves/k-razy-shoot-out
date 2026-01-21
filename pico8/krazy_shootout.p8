@@ -86,16 +86,26 @@ end
 function update_player()
  -- movement
  local dx,dy=0,0
- if btn(0) then dx=-player_speed end
- if btn(1) then dx=player_speed end
- if btn(2) then dy=-player_speed end
- if btn(3) then dy=player_speed end
+ local moving=false
  
- -- update direction
- if dx<0 then player.dir=2
- elseif dx>0 then player.dir=0
- elseif dy<0 then player.dir=3
- elseif dy>0 then player.dir=1
+ if btn(0) then dx=-player_speed moving=true end
+ if btn(1) then dx=player_speed moving=true end
+ if btn(2) then dy=-player_speed moving=true end
+ if btn(3) then dy=player_speed moving=true end
+ 
+ -- update direction based on movement
+ -- prioritize horizontal movement for direction
+ if dx<0 then 
+  player.dir=2 -- left
+ elseif dx>0 then 
+  player.dir=0 -- right
+ elseif dy!=0 then
+  -- only use vertical direction if no horizontal movement
+  if dy<0 then 
+   player.dir=3 -- up
+  else 
+   player.dir=1 -- down
+  end
  end
  
  -- collision check with walls
@@ -110,8 +120,8 @@ function update_player()
  player.x=mid(8,player.x,120)
  player.y=mid(8,player.y,120)
  
- -- animation
- if dx!=0 or dy!=0 then
+ -- animation (only animate when moving)
+ if moving then
   player.anim_timer+=1
   if player.anim_timer>8 then
    player.anim_timer=0
@@ -119,6 +129,7 @@ function update_player()
   end
  else
   player.anim_frame=0
+  player.anim_timer=0
  end
  
  -- firing (from disassembly $A1D8)
@@ -199,12 +210,11 @@ function draw_player()
   spr_num=2+player.anim_frame
  elseif player.dir==0 then -- right
   spr_num=4+player.anim_frame
- elseif player.dir==1 or player.dir==3 then -- up/down
+ elseif player.dir==1 or player.dir==3 then -- up or down
   spr_num=6+player.anim_frame
  end
  
- -- draw player sprite (8x12 pixels, but PICO-8 sprites are 8x8)
- -- so we draw the top 8 rows and bottom 4 rows
+ -- draw player sprite (8x12 pixels)
  spr(spr_num,player.x-4,player.y-6,1,1.5)
  
  -- draw missile
