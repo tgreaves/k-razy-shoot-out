@@ -123,7 +123,7 @@ function update_player()
  -- animation (only animate when moving)
  if moving then
   player.anim_timer+=1
-  if player.anim_timer>8 then
+  if player.anim_timer>4 then
    player.anim_timer=0
    player.anim_frame=(player.anim_frame+1)%2
   end
