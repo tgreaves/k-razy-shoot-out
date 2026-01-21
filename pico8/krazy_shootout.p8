@@ -194,24 +194,24 @@ function update_player_missile()
 end
 
 function draw_player()
- -- sprite mapping (8x12 pixels each, rows 0-11):
- -- 1: stationary
- -- 2: walking left 1
- -- 3: walking left 2
- -- 4: walking right 1
- -- 5: walking right 2
- -- 6: walking up/down 1
- -- 7: walking up/down 2
+ -- sprite mapping (sprites 0-6 in PICO-8):
+ -- 0: stationary
+ -- 1: walking left 1
+ -- 2: walking left 2
+ -- 3: walking right 1
+ -- 4: walking right 2
+ -- 5: walking up/down 1
+ -- 6: walking up/down 2
  
- local spr_num=1 -- default stationary
+ local spr_num=0 -- default stationary
  
  -- determine sprite based on direction and animation
  if player.dir==2 then -- left
-  spr_num=2+player.anim_frame
+  spr_num=1+player.anim_frame
  elseif player.dir==0 then -- right
-  spr_num=4+player.anim_frame
+  spr_num=3+player.anim_frame
  elseif player.dir==1 or player.dir==3 then -- up or down
-  spr_num=6+player.anim_frame
+  spr_num=5+player.anim_frame
  end
  
  -- draw player sprite (8x12 pixels)
