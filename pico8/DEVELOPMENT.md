@@ -132,3 +132,30 @@ Remaining: ~6700 tokens (plenty of room!)
    - Match original game feel
    - Balance difficulty
    - Add visual effects
+
+
+## Sprite Implementation (8x12 Format)
+
+**Approach**: Using 8x12 sprites from the original Atari 5200 game, rendered with PICO-8's scaling feature.
+
+**Implementation**:
+- Sprites stored with full 12 rows of pixel data in the sprite sheet
+- Each sprite takes 12 rows vertically in the sprite sheet
+- Rendered using `spr(n,x,y,1,1.5)` to scale 8-pixel width to 12-pixel height
+- Player sprites (0-6): White (color 7)
+- Enemy sprites (7-13): Red (color 8)  
+- Explosion sprites (14-27): Orange (color 9)
+
+**Known Good Sprites**:
+- Player and enemy sprites are working correctly with this approach
+- All 7 player animation frames render properly
+- All 7 enemy animation frames render properly
+
+**Explosion Sprites**:
+- 14 frames of explosion animation from original game
+- Currently may have rendering issues - needs investigation
+- Sprite data is correct from disassembly (lines 6611-6813)
+
+**Files**:
+- `generate_working_spritesheet.py` - Generates the sprite sheet with 8x12 sprites
+- Uses full 12-byte sprite data from original game
