@@ -232,13 +232,21 @@ function init_enemies()
 end
 
 function spawn_enemy()
- -- spawn at random edge
+ -- spawn at random edge, avoiding walls
  local x,y
  local edge=flr(rnd(4))
- if edge==0 then x=8 y=rnd(120)
- elseif edge==1 then x=120 y=rnd(120)
- elseif edge==2 then x=rnd(120) y=8
- else x=rnd(120) y=120
+ if edge==0 then 
+  x=16 
+  y=16+rnd(96)
+ elseif edge==1 then 
+  x=112 
+  y=16+rnd(96)
+ elseif edge==2 then 
+  x=16+rnd(96) 
+  y=16
+ else 
+  x=16+rnd(96) 
+  y=112
  end
  
  add(enemies,{
@@ -260,20 +268,35 @@ end
 function update_enemy(e)
  -- simple ai: move toward player
  e.move_timer+=1
- if e.move_timer>20 then
+ if e.move_timer>15 then
   e.move_timer=0
   
-  local dx=sgn(player.x-e.x)
-  local dy=sgn(player.y-e.y)
+  local dx=sgn(player.x-e.x)*enemy_speed
+  local dy=sgn(player.y-e.y)*enemy_speed
   
-  -- try horizontal movement
+  -- try horizontal movement first
   if abs(player.x-e.x)>abs(player.y-e.y) then
-   if not check_wall_collision(e.x+dx*enemy_speed,e.y) then
-    e.x+=dx*enemy_speed
+   local newx=e.x+dx
+   if not check_wall_collision(newx,e.y) then
+    e.x=newx
+   else
+    -- if blocked horizontally, try vertical
+    local newy=e.y+dy
+    if not check_wall_collision(e.x,newy) then
+     e.y=newy
+    end
    end
   else
-   if not check_wall_collision(e.x,e.y+dy*enemy_speed) then
-    e.y+=dy*enemy_speed
+   -- try vertical movement first
+   local newy=e.y+dy
+   if not check_wall_collision(e.x,newy) then
+    e.y=newy
+   else
+    -- if blocked vertically, try horizontal
+    local newx=e.x+dx
+    if not check_wall_collision(newx,e.y) then
+     e.x=newx
+    end
    end
   end
   
