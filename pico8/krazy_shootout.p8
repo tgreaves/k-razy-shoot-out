@@ -13,10 +13,16 @@ state_game=2
 state_death_freeze=3
 state_gameover=4
 state_arena_clear=5
+state_tally=6
+state_bonus=7
 
 -- game constants (from disassembly)
 max_enemies=3
 player_speed=1
+
+-- test mode: scaled sprites (toggle with tab key)
+test_scaled_sprites=false
+sprite_scale=0.75  -- 75% scale (6x9 instead of 8x12)
 
 -- exit positions (set during arena generation)
 left_exit_y=0
@@ -61,6 +67,8 @@ function _init()
  lives=3
  sector_intro_timer=0
  death_freeze_timer=0
+ title_anim_timer=0
+ title_anim_frame=0
 end
 
 function _update()
@@ -76,6 +84,10 @@ function _update()
   update_gameover()
  elseif state==state_arena_clear then
   update_arena_clear()
+ elseif state==state_tally then
+  update_tally()
+ elseif state==state_bonus then
+  update_bonus()
  end
 end
 
@@ -93,11 +105,22 @@ function _draw()
   draw_gameover()
  elseif state==state_arena_clear then
   draw_arena_clear()
+ elseif state==state_tally then
+  draw_tally()
+ elseif state==state_bonus then
+  draw_bonus()
  end
 end
 
 -- title screen
 function update_title()
+ -- animate title screen enemies
+ title_anim_timer+=1
+ if title_anim_timer>=15 then
+  title_anim_timer=0
+  title_anim_frame=(title_anim_frame==0) and 1 or 0
+ end
+ 
  if btnp(4) or btnp(5) then
   state=state_sector_intro
   sector_intro_timer=0
@@ -105,10 +128,47 @@ function update_title()
 end
 
 function draw_title()
- print("k-razy shoot-out",20,40,7)
- print("press ❎ to start",20,60,6)
- print("based on atari 5200",16,100,5)
- print("original by k.dreyer",14,108,5)
+ cls()
+ 
+ -- animated enemies in corners (using up/down sprites 12 and 13)
+ local spr_num=(title_anim_frame==0) and 12 or 13
+ 
+ -- top-left corner (green)
+ pal(8,11)
+ spr(spr_num,4,4,1,2)
+ pal()
+ 
+ -- top-right corner (red)
+ pal(8,8)
+ spr(spr_num,116,4,1,2)
+ pal()
+ 
+ -- bottom-left corner (yellow)
+ pal(8,10)
+ spr(spr_num,4,108,1,2)
+ pal()
+ 
+ -- bottom-right corner (blue)
+ pal(8,12)
+ spr(spr_num,116,108,1,2)
+ pal()
+ 
+ -- title and text (centered)
+ -- "k-razy shoot-out" = 17 chars * 4px = 68px, center = (128-68)/2 = 30
+ print("k-razy shoot-out",30,40,7)
+ 
+ -- "press ❎ to start" = 17 chars * 4px = 68px, center = 30
+ print("press ❎ to start",30,60,6)
+ 
+ -- credits at bottom center
+ -- "original by" = 11 chars * 4px = 44px, center = (128-44)/2 = 42
+ print("original by",42,84,5)
+ 
+ -- "cbs electronics" = 15 chars * 4px = 60px, center = (128-60)/2 = 34
+ print("cbs electronics",34,92,5)
+ 
+ -- "demake by tristan greaves" = 25 chars * 4px = 100px, center = (128-100)/2 = 14
+ print("demake by tristan greaves",14,100,5)
 end
 
 -- sector intro screen
@@ -137,7 +197,11 @@ function init_game()
  init_player()  -- then spawn player (needs arena for collision check)
  init_enemies()
  explosions={}
+ enemy_missiles={}  -- independent enemy missiles
  enemies_defeated=0
+ enemies_defeated_100pt=0
+ enemies_defeated_50pt=0
+ enemies_defeated_10pt=0
  time_remaining=77
  time_counter=0
  spawn_queue={}  -- queue of pending enemy spawns
@@ -285,7 +349,7 @@ function update_player()
    -- collision check with enemies - both die
    for e in all(enemies) do
     if check_sprite_collision(newx,newy,e.x,e.y) then
-     kill_enemy(e)
+     kill_enemy(e,"collision")
      player_hit()
      return
     end
@@ -406,11 +470,19 @@ function update_player_missile()
   return
  end
  
+ -- check explosion collision (missile point vs explosion sprite box)
+ for ex in all(explosions) do
+  if check_box_collision(m.x-1,m.y-1,2,2,ex.x-4,ex.y-4,8,8) then
+   player.missile=nil
+   return
+  end
+ end
+ 
  -- check enemy collision (missile point vs enemy sprite box)
  for e in all(enemies) do
   if check_box_collision(m.x-1,m.y-1,2,2,e.x-4,e.y-6,8,12) then
    player.missile=nil
-   kill_enemy(e)
+   kill_enemy(e,"player")
    return
   end
  end
@@ -447,9 +519,13 @@ function draw_player()
   end
  end
  
- -- draw player sprite (8x12 pixels)
- -- use 1,2 to render 2 sprite slots vertically (8x16) which includes our 12 rows
- spr(spr_num,player.x-4,player.y-8,1,2)
+ -- draw player sprite
+ if test_scaled_sprites then
+  draw_scaled_sprite(spr_num,player.x,player.y,sprite_scale)
+ else
+  -- normal 8x12 sprite (8x16 with 1,2 to render 2 sprite slots vertically)
+  spr(spr_num,player.x-4,player.y-8,1,2)
+ end
  
  -- draw missile as line
  if player.missile then
@@ -500,8 +576,8 @@ function spawn_enemy()
   -- check if position is safe
   safe=true
   
-  -- check walls
-  if check_wall_collision(x,y) then
+  -- check walls (with enemy buffer)
+  if check_wall_collision_enemy(x,y) then
    safe=false
   end
   
@@ -547,7 +623,6 @@ function spawn_enemy()
   dir=0, -- 0=right,1=down,2=left,3=up
   move_timer=0,
   anim_frame=0,
-  missile=nil,
   fire_timer=0,  -- firing timer
   color=enemy_color
  })
@@ -587,13 +662,13 @@ function update_enemy(e)
   if try_diagonal then
    newx=e.x+dx
    newy=e.y+dy
-   if not check_wall_collision(newx,newy) then
+   if not check_wall_collision_enemy(newx,newy) then
     -- check collision with other enemies
     local enemy_collision=false
     for other in all(enemies) do
      if other!=e and check_sprite_collision(newx,newy,other.x,other.y) then
-      kill_enemy(e)
-      kill_enemy(other)
+      kill_enemy(e,"collision")
+      kill_enemy(other,"collision")
       enemy_collision=true
       break
      end
@@ -602,7 +677,7 @@ function update_enemy(e)
     if not enemy_collision then
      for ex in all(explosions) do
       if check_sprite_collision(newx,newy,ex.x,ex.y) then
-       kill_enemy(e)
+       kill_enemy(e,"explosion")
        return
       end
      end
@@ -622,13 +697,13 @@ function update_enemy(e)
   if not moved and dx!=0 and not close_x then
    newx=e.x+dx
    newy=e.y
-   if not check_wall_collision(newx,newy) then
+   if not check_wall_collision_enemy(newx,newy) then
     -- check collision with other enemies
     local enemy_collision=false
     for other in all(enemies) do
      if other!=e and check_sprite_collision(newx,newy,other.x,other.y) then
-      kill_enemy(e)
-      kill_enemy(other)
+      kill_enemy(e,"collision")
+      kill_enemy(other,"collision")
       enemy_collision=true
       break
      end
@@ -637,7 +712,7 @@ function update_enemy(e)
     if not enemy_collision then
      for ex in all(explosions) do
       if check_sprite_collision(newx,newy,ex.x,ex.y) then
-       kill_enemy(e)
+       kill_enemy(e,"explosion")
        return
       end
      end
@@ -656,13 +731,13 @@ function update_enemy(e)
   if not moved and dy!=0 and not close_y then
    newx=e.x
    newy=e.y+dy
-   if not check_wall_collision(newx,newy) then
+   if not check_wall_collision_enemy(newx,newy) then
     -- check collision with other enemies
     local enemy_collision=false
     for other in all(enemies) do
      if other!=e and check_sprite_collision(newx,newy,other.x,other.y) then
-      kill_enemy(e)
-      kill_enemy(other)
+      kill_enemy(e,"collision")
+      kill_enemy(other,"collision")
       enemy_collision=true
       break
      end
@@ -671,7 +746,7 @@ function update_enemy(e)
     if not enemy_collision then
      for ex in all(explosions) do
       if check_sprite_collision(newx,newy,ex.x,ex.y) then
-       kill_enemy(e)
+       kill_enemy(e,"explosion")
        return
       end
      end
@@ -703,20 +778,15 @@ function update_enemy(e)
   if e.fire_timer>=enemy_fire_freq then
    e.fire_timer=0
    -- random chance to fire (25% like original)
-   if rnd(1)<0.25 and e.missile==nil then
+   if rnd(1)<0.25 then
     fire_enemy_missile(e)
    end
   end
  end
  
- -- update missile
- if e.missile then
-  update_enemy_missile(e)
- end
- 
  -- check collision with player - both die
  if check_sprite_collision(e.x,e.y,player.x,player.y) then
-  kill_enemy(e)
+  kill_enemy(e,"collision")
   player_hit()
  end
 end
@@ -760,60 +830,73 @@ function fire_enemy_missile(e)
   end
  end
  
- e.missile={
+ -- add to independent missile list with owner reference
+ add(enemy_missiles,{
   x=e.x,
   y=e.y,
   dx=mdx,
-  dy=mdy
- }
+  dy=mdy,
+  owner=e  -- track which enemy fired this
+ })
  
  sfx(0) -- weapon sound
 end
 
-function update_enemy_missile(e)
- local m=e.missile
- m.x+=m.dx
- m.y+=m.dy
- 
- -- check bounds
- if m.x<0 or m.x>128 or m.y<0 or m.y>128 then
-  e.missile=nil
-  return
- end
- 
- -- check wall collision at tip of missile (3 pixels ahead)
- local tip_x=m.x
- local tip_y=m.y
- if m.dx>0 then tip_x=m.x+3
- elseif m.dx<0 then tip_x=m.x-3
- end
- if m.dy>0 then tip_y=m.y+3
- elseif m.dy<0 then tip_y=m.y-3
- end
- 
- if check_missile_wall_collision(tip_x,tip_y) then
-  e.missile=nil
-  return
- end
- 
- -- check player collision (missile point vs player sprite box)
- if check_box_collision(m.x-1,m.y-1,2,2,player.x-4,player.y-6,8,12) then
-  e.missile=nil
-  player_hit()
-  return
- end
- 
- -- check collision with other enemies (missile point vs enemy sprite box)
- for other in all(enemies) do
-  if other!=e and check_box_collision(m.x-1,m.y-1,2,2,other.x-4,other.y-6,8,12) then
-   e.missile=nil
-   kill_enemy(other)
-   return
+function update_enemy_missiles()
+ for m in all(enemy_missiles) do
+  m.x+=m.dx
+  m.y+=m.dy
+  
+  -- check bounds
+  if m.x<0 or m.x>128 or m.y<0 or m.y>128 then
+   del(enemy_missiles,m)
+  else
+   -- check wall collision at tip of missile (3 pixels ahead)
+   local tip_x=m.x
+   local tip_y=m.y
+   if m.dx>0 then tip_x=m.x+3
+   elseif m.dx<0 then tip_x=m.x-3
+   end
+   if m.dy>0 then tip_y=m.y+3
+   elseif m.dy<0 then tip_y=m.y-3
+   end
+   
+   if check_missile_wall_collision(tip_x,tip_y) then
+    del(enemy_missiles,m)
+   else
+    -- check explosion collision (missile point vs explosion sprite box)
+    local hit_explosion=false
+    for ex in all(explosions) do
+     if check_box_collision(m.x-1,m.y-1,2,2,ex.x-4,ex.y-4,8,8) then
+      del(enemy_missiles,m)
+      hit_explosion=true
+      break
+     end
+    end
+    
+    if not hit_explosion then
+     -- check player collision (missile point vs player sprite box)
+     if check_box_collision(m.x-1,m.y-1,2,2,player.x-4,player.y-6,8,12) then
+      del(enemy_missiles,m)
+      player_hit()
+     else
+      -- check collision with enemies (missile point vs enemy sprite box)
+      -- but NOT with the enemy that fired it
+      for e in all(enemies) do
+       if e!=m.owner and check_box_collision(m.x-1,m.y-1,2,2,e.x-4,e.y-6,8,12) then
+        del(enemy_missiles,m)
+        kill_enemy(e,"enemy_missile")
+        break
+       end
+      end
+     end
+    end
+   end
   end
  end
 end
 
-function kill_enemy(e)
+function kill_enemy(e,killed_by)
  -- create explosion at enemy position
  add(explosions,{
   x=e.x,
@@ -823,7 +906,30 @@ function kill_enemy(e)
  })
  
  del(enemies,e)
- score+=100
+ 
+ -- award points and track by defeat method
+ -- tally categories: 100pt=player shot, 50pt=enemy missile, 10pt=collision
+ local points=100
+ 
+ if killed_by=="enemy_missile" then
+  -- enemy shot by another enemy's missile (50 points)
+  points=50
+  enemies_defeated_50pt+=1
+ elseif killed_by=="collision" then
+  -- enemy died from collision with another enemy (10 points)
+  points=10
+  enemies_defeated_10pt+=1
+ else
+  -- player shot the enemy (100 points, or 200 in sectors 4+)
+  if level>=4 then
+   points=200
+  else
+   points=100
+  end
+  enemies_defeated_100pt+=1
+ end
+ 
+ score+=points
  enemies_defeated+=1
  sfx(1) -- explosion sound
  
@@ -860,37 +966,39 @@ function draw_enemies()
    end
   end
   
-  -- swap color 8 (red) to enemy's color
-  pal(8,e.color)
-  
-  -- draw enemy sprite (8x12 pixels)
-  -- use 1,2 to render 2 sprite slots vertically (8x16) which includes our 12 rows
-  spr(spr_num,e.x-4,e.y-8,1,2)
-  
-  -- reset palette
-  pal()
-  
-  -- draw missile as line
-  if e.missile then
-   local m=e.missile
-   local x1,y1,x2,y2=m.x,m.y,m.x,m.y
-   
-   -- extend line based on direction
-   if m.dx>0 then x2=m.x+3 -- right
-   elseif m.dx<0 then x2=m.x-3 -- left
-   end
-   if m.dy>0 then y2=m.y+3 -- down
-   elseif m.dy<0 then y2=m.y-3 -- up
-   end
-   
-   line(x1,y1,x2,y2,8)
+  -- draw enemy sprite
+  if test_scaled_sprites then
+   draw_scaled_sprite(spr_num,e.x,e.y,sprite_scale,e.color)
+  else
+   -- swap color 8 (red) to enemy's color
+   pal(8,e.color)
+   -- normal 8x12 sprite (8x16 with 1,2 to render 2 sprite slots vertically)
+   spr(spr_num,e.x-4,e.y-8,1,2)
+   -- reset palette
+   pal()
   end
+ end
+ 
+ -- draw enemy missiles
+ for m in all(enemy_missiles) do
+  local x1,y1,x2,y2=m.x,m.y,m.x,m.y
+  
+  -- extend line based on direction
+  if m.dx>0 then x2=m.x+3 -- right
+  elseif m.dx<0 then x2=m.x-3 -- left
+  end
+  if m.dy>0 then y2=m.y+3 -- down
+  elseif m.dy<0 then y2=m.y-3 -- up
+  end
+  
+  line(x1,y1,x2,y2,8)
  end
 end
 
 function player_escaped()
  -- clear enemies and explosions immediately
  enemies={}
+ enemy_missiles={}
  explosions={}
  spawn_queue={}
  
@@ -900,9 +1008,8 @@ function player_escaped()
  
  -- check if all enemies defeated
  if enemies_defeated>=total_enemies then
-  -- all enemies defeated - progress to next sector
-  level+=1
-  next_state_after_clear=state_sector_intro
+  -- all enemies defeated - show tally then progress to next sector
+  next_state_after_clear=state_tally
  else
   -- enemies remain - replay the wave (same sector)
   next_state_after_clear=state_sector_intro
@@ -942,6 +1049,7 @@ function update_death_freeze()
   if lives<=0 then
    -- game over after freeze - clear arena first
    enemies={}
+   enemy_missiles={}
    explosions={}
    spawn_queue={}
    clear_line=0
@@ -954,6 +1062,7 @@ function update_death_freeze()
    
    -- clear all enemies and respawn
    enemies={}
+   enemy_missiles={}
    for i=1,max_enemies do
     spawn_enemy()
    end
@@ -982,26 +1091,26 @@ function init_arena()
  right_exit_y=20+right_exit_pos*20
  
  -- top wall
- for x=0,124,4 do
+ for x=0,126,2 do
   add(arena,{x=x,y=8})
  end
  
  -- bottom wall
- for x=0,124,4 do
+ for x=0,126,2 do
   add(arena,{x=x,y=116})
  end
  
  -- left wall with exit gap
- for y=12,112,4 do
+ for y=10,114,2 do
   if y<left_exit_y-8 or y>left_exit_y+8 then
    add(arena,{x=0,y=y})
   end
  end
  
  -- right wall with exit gap
- for y=12,112,4 do
+ for y=10,114,2 do
   if y<right_exit_y-8 or y>right_exit_y+8 then
-   add(arena,{x=124,y=y})
+   add(arena,{x=126,y=y})
   end
  end
  
@@ -1068,8 +1177,8 @@ function init_arena()
     
     if can_place then
      -- place wall (single block wide)
-     for dy=0,height,4 do
-      if y+dy<=112 then
+     for dy=0,height,2 do
+      if y+dy<=114 then
        add(arena,{x=x,y=y+dy})
       end
      end
@@ -1098,8 +1207,8 @@ function init_arena()
     
     if can_place then
      -- place wall (single block tall)
-     for dx=0,width,4 do
-      if x+dx<=120 then
+     for dx=0,width,2 do
+      if x+dx<=124 then
        add(arena,{x=x+dx,y=y})
       end
      end
@@ -1119,23 +1228,23 @@ function init_arena()
     
     -- place wall
     if dir==0 then
-     for d=0,size,4 do
-      if y+d<=112 then add(arena,{x=x,y=y+d}) end
-      if x+d<=120 then add(arena,{x=x+d,y=y}) end
+     for d=0,size,2 do
+      if y+d<=114 then add(arena,{x=x,y=y+d}) end
+      if x+d<=124 then add(arena,{x=x+d,y=y}) end
      end
     elseif dir==1 then
-     for d=0,size,4 do
-      if y+d<=112 then add(arena,{x=x,y=y+d}) end
+     for d=0,size,2 do
+      if y+d<=114 then add(arena,{x=x,y=y+d}) end
       if x-d>=8 then add(arena,{x=x-d,y=y}) end
      end
     elseif dir==2 then
-     for d=0,size,4 do
-      if y-d>=12 then add(arena,{x=x,y=y-d}) end
-      if x+d<=120 then add(arena,{x=x+d,y=y}) end
+     for d=0,size,2 do
+      if y-d>=10 then add(arena,{x=x,y=y-d}) end
+      if x+d<=124 then add(arena,{x=x+d,y=y}) end
      end
     else
-     for d=0,size,4 do
-      if y-d>=12 then add(arena,{x=x,y=y-d}) end
+     for d=0,size,2 do
+      if y-d>=10 then add(arena,{x=x,y=y-d}) end
       if x-d>=8 then add(arena,{x=x-d,y=y}) end
      end
     end
@@ -1152,7 +1261,7 @@ end
 collision_radius_player=4
 collision_radius_enemy=4
 collision_radius_missile=2
-collision_radius_wall=2
+collision_radius_wall=1  -- walls are now 2x2 pixels
 
 -- circle collision (for general use)
 function check_collision(x1,y1,x2,y2,dist)
@@ -1175,12 +1284,25 @@ function check_sprite_collision(x1,y1,x2,y2)
 end
 
 function check_wall_collision(x,y)
- -- check 4x4 walls with proper box collision
+ -- check 2x2 walls with proper box collision
  for w in all(arena) do
   -- entity is 8x12 sprite centered at x,y
   -- sprite box is from (x-4,y-6) to (x+4,y+6)
-  -- wall is 4x4 at w.x,w.y
-  if check_box_collision(x-4,y-6,8,12,w.x,w.y,4,4) then
+  -- wall is 2x2 at w.x,w.y
+  if check_box_collision(x-4,y-6,8,12,w.x,w.y,2,2) then
+   return true
+  end
+ end
+ return false
+end
+
+function check_wall_collision_enemy(x,y)
+ -- check 2x2 walls with slightly larger box for enemies (1px buffer)
+ for w in all(arena) do
+  -- entity is 8x12 sprite centered at x,y
+  -- sprite box is from (x-5,y-7) to (x+5,y+7) - 1px larger on all sides
+  -- wall is 2x2 at w.x,w.y
+  if check_box_collision(x-5,y-7,10,14,w.x,w.y,2,2) then
    return true
   end
  end
@@ -1191,8 +1313,8 @@ function check_missile_wall_collision(x,y)
  -- check missile (single point) against walls
  for w in all(arena) do
   -- missile is a point at x,y
-  -- wall is 4x4 at w.x,w.y
-  if x>=w.x and x<w.x+4 and y>=w.y and y<w.y+4 then
+  -- wall is 2x2 at w.x,w.y
+  if x>=w.x and x<w.x+2 and y>=w.y and y<w.y+2 then
    return true
   end
  end
@@ -1201,13 +1323,18 @@ end
 
 function draw_arena()
  for w in all(arena) do
-  rectfill(w.x,w.y,w.x+3,w.y+3,arena_color)
+  rectfill(w.x,w.y,w.x+1,w.y+1,arena_color)
  end
 end
 
 -- game update/draw
 function update_game()
- -- debug: skip to next sector with 'n' key
+ -- toggle scaled sprite test mode with Z key (but not if X is held)
+ if btnp(4) and not btn(5) then  -- Z pressed, X not held
+  test_scaled_sprites=not test_scaled_sprites
+ end
+ 
+ -- debug: skip to next sector with both buttons
  if btn(4) and btn(5) then  -- both action buttons together
   level+=1
   if level>7 then level=7 end
@@ -1218,6 +1345,7 @@ function update_game()
  
  update_player()
  update_enemies()
+ update_enemy_missiles()
  update_explosions()
  update_timer()
  update_spawn_queue()
@@ -1249,7 +1377,7 @@ end
 
 function update_timer()
  time_counter+=1
- if time_counter>=127 then
+ if time_counter>=60 then  -- decrement every 60 frames = 1 second
   time_counter=0
   time_remaining-=1
   
@@ -1257,6 +1385,7 @@ function update_timer()
   if time_remaining<=2 then
    -- time's up - clear arena then game over
    enemies={}
+   enemy_missiles={}
    explosions={}
    spawn_queue={}
    clear_line=0
@@ -1290,6 +1419,8 @@ function update_arena_clear()
    state=next_state_after_clear
    if state==state_sector_intro then
     sector_intro_timer=0
+   elseif state==state_tally then
+    init_tally_screen()
    end
   end
  end
@@ -1341,41 +1472,41 @@ function draw_game()
  print("score:"..score,44,120,7)
  print("sector:"..level,2,120,7)
  print("lives:"..lives,90,120,7)
+ 
+ -- show test mode indicator
+ if test_scaled_sprites then
+  print("test:75%",2,2,10)
+ end
+ 
  -- debug: show fire freq and enemies remaining
- print("freq:"..enemy_fire_freq,2,2,7)
+ print("freq:"..enemy_fire_freq,2,8,7)
  local remaining=total_enemies-enemies_defeated
- print("left:"..remaining.."/"..total_enemies,2,8,7)
- print("speed:"..enemy_speed,2,14,7)
+ print("left:"..remaining.."/"..total_enemies,2,14,7)
+ print("speed:"..enemy_speed,2,20,7)
  
  -- draw timer bar at top (LAST so nothing covers it)
  draw_timer_bar()
 end
 
 function draw_timer_bar()
- -- DEBUG: draw a bright white bar across the entire top
- rectfill(0,0,127,3,7)
+ -- timer bar at top of screen (scaled to fit screen width)
+ -- max width: 120 pixels (leaving 4px margin on each side)
+ -- time_remaining starts at 77, so scale: 120/77 ≈ 1.56 pixels per time unit
  
- -- timer bar at top of screen (like original)
- local bar_segments=flr(time_remaining/4)
- local remainder=time_remaining%4
+ local max_width=120
+ local bar_width=flr((time_remaining*max_width)/77)
  
  -- determine color based on time remaining
- local bar_color=11 -- cyan
+ local bar_color=11 -- green for safe
  if time_remaining<=26 then
   bar_color=8 -- red for critical
  elseif time_remaining<=52 then
-  bar_color=9 -- orange for warning
+  bar_color=10 -- yellow for warning
  end
  
- -- draw filled segments (thicker bar, 4 pixels tall)
- for i=0,bar_segments-1 do
-  rectfill(i*4,0,i*4+3,3,bar_color)
- end
- 
- -- draw partial segment based on remainder
- if remainder>0 then
-  local width=remainder
-  rectfill(bar_segments*4,0,bar_segments*4+width-1,3,bar_color)
+ -- draw the bar (4 pixels tall, starting at x=4)
+ if bar_width>0 then
+  rectfill(4,0,4+bar_width-1,3,bar_color)
  end
 end
 
@@ -1386,6 +1517,183 @@ function draw_explosions()
   local spr_num=32+ex.frame
   if spr_num<40 then
    spr(spr_num,ex.x-4,ex.y-4)
+  end
+ end
+end
+
+-- tally screen (shows enemies defeated)
+function update_tally()
+ tally_timer+=1
+ 
+ -- display enemies one at a time (every 4 frames = twice as fast)
+ if tally_timer%4==0 and tally_display_count<tally_total_count then
+  tally_display_count+=1
+  sfx(0) -- pew sound for each enemy
+ end
+ 
+ -- wait a bit after all displayed
+ if tally_display_count>=tally_total_count and tally_timer>tally_total_count*4+60 then
+  -- check if bonus points should be awarded
+  if time_remaining>=27 then
+   -- award bonus
+   init_bonus_screen()
+   state=state_bonus
+  else
+   -- no bonus, go to next sector
+   level+=1
+   state=state_sector_intro
+   sector_intro_timer=0
+  end
+ end
+end
+
+function draw_tally()
+ cls()
+ 
+ -- title
+ print("enemies vanquished",24,20,7)
+ 
+ -- display enemy sprites in rows
+ -- use sprite 7 (stationary enemy)
+ local y_pos=40
+ local x_start=16
+ local spacing=10  -- increased from 8 to 10 for more space
+ local per_row=11  -- reduced from 13 to 11 to fit with wider spacing
+ 
+ -- draw 100pt enemies (if any)
+ if enemies_defeated_100pt>0 then
+  print("100 points",x_start,y_pos-8,10)
+  for i=1,min(tally_display_count,enemies_defeated_100pt) do
+   local x=x_start+((i-1)%per_row)*spacing
+   local y=y_pos+flr((i-1)/per_row)*spacing
+   spr(7,x,y)
+  end
+  y_pos+=flr((enemies_defeated_100pt-1)/per_row+1)*spacing+16
+ end
+ 
+ -- draw 50pt enemies (if any)
+ local count_50=tally_display_count-enemies_defeated_100pt
+ if enemies_defeated_50pt>0 and count_50>0 then
+  print("50 points",x_start,y_pos-8,9)
+  for i=1,min(count_50,enemies_defeated_50pt) do
+   local x=x_start+((i-1)%per_row)*spacing
+   local y=y_pos+flr((i-1)/per_row)*spacing
+   spr(7,x,y)
+  end
+  y_pos+=flr((enemies_defeated_50pt-1)/per_row+1)*spacing+16
+ end
+ 
+ -- draw 10pt enemies (if any)
+ local count_10=tally_display_count-enemies_defeated_100pt-enemies_defeated_50pt
+ if enemies_defeated_10pt>0 and count_10>0 then
+  print("10 points",x_start,y_pos-8,8)
+  for i=1,min(count_10,enemies_defeated_10pt) do
+   local x=x_start+((i-1)%per_row)*spacing
+   local y=y_pos+flr((i-1)/per_row)*spacing
+   spr(7,x,y)
+  end
+ end
+end
+
+-- initialize tally screen
+function init_tally_screen()
+ tally_timer=0
+ tally_display_count=0
+ tally_total_count=enemies_defeated_100pt+enemies_defeated_50pt+enemies_defeated_10pt
+end
+
+-- bonus points screen
+function init_bonus_screen()
+ -- determine bonus amount based on time remaining
+ if time_remaining>=53 then
+  bonus_amount=10
+  bonus_points_each=1000
+ elseif time_remaining>=27 then
+  bonus_amount=3
+  bonus_points_each=300
+ else
+  bonus_amount=0
+  bonus_points_each=0
+ end
+ 
+ bonus_timer=0
+ bonus_flash_timer=0
+ bonus_awarded=0
+end
+
+function update_bonus()
+ bonus_timer+=1
+ bonus_flash_timer+=1
+ 
+ -- award points every 4 frames (twice as fast)
+ if bonus_flash_timer>=4 then
+  bonus_flash_timer=0
+  
+  -- award points
+  if bonus_awarded<bonus_amount then
+   bonus_awarded+=1
+   score+=bonus_points_each
+   sfx(0) -- pew sound
+  end
+ end
+ 
+ -- after all bonus awarded, wait then continue
+ if bonus_awarded>=bonus_amount and bonus_timer>bonus_amount*8+60 then
+  level+=1
+  state=state_sector_intro
+  sector_intro_timer=0
+ end
+end
+
+function draw_bonus()
+ cls()
+ 
+ -- always show "bonus points" text (no flashing)
+ print("bonus points",36,50,10)
+ 
+ -- show how many awarded
+ print(bonus_awarded.."/"..bonus_amount,56,70,7)
+ print("+"..bonus_awarded*bonus_points_each,52,80,11)
+end
+
+-- scaled sprite drawing (for testing smaller sprites)
+function draw_scaled_sprite(spr_num,cx,cy,scale,color_swap)
+ -- draw a sprite at reduced scale
+ -- cx,cy = center position
+ -- scale = scale factor (0.75 = 75%)
+ -- color_swap = optional color to replace color 8
+ 
+ local sw=8  -- sprite width
+ local sh=12 -- sprite height (using 2 vertical slots)
+ local dw=flr(sw*scale)
+ local dh=flr(sh*scale)
+ 
+ -- calculate top-left corner
+ local dx=cx-flr(dw/2)
+ local dy=cy-flr(dh*2/3)  -- offset for sprite center
+ 
+ -- sample and draw pixels
+ for py=0,dh-1 do
+  for px=0,dw-1 do
+   -- map scaled pixel back to source sprite
+   local sx=flr(px/scale)
+   local sy=flr(py/scale)
+   
+   -- read pixel from sprite sheet
+   -- sprites are 8x8, but we use 2 vertical (8x16)
+   local spr_x=(spr_num%16)*8+sx
+   local spr_y=flr(spr_num/16)*8+sy
+   local c=sget(spr_x,spr_y)
+   
+   -- apply color swap if specified
+   if color_swap and c==8 then
+    c=color_swap
+   end
+   
+   -- draw pixel if not transparent
+   if c!=0 then
+    pset(dx+px,dy+py,c)
+   end
   end
  end
 end
