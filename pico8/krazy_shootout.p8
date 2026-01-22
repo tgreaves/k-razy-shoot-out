@@ -12,10 +12,20 @@ state_sector_intro=1
 state_game=2
 state_death_freeze=3
 state_gameover=4
+state_arena_clear=5
 
 -- game constants (from disassembly)
 max_enemies=3
 player_speed=1
+
+-- exit positions (set during arena generation)
+left_exit_y=0
+right_exit_y=0
+
+-- arena clearing animation
+clear_line=0
+clear_timer=0
+next_state_after_clear=state_sector_intro
 
 -- difficulty table (from $bbe4)
 -- format: {spawn_limit, fire_freq, speed, anim_timing}
@@ -64,6 +74,8 @@ function _update()
   update_death_freeze()
  elseif state==state_gameover then
   update_gameover()
+ elseif state==state_arena_clear then
+  update_arena_clear()
  end
 end
 
@@ -79,6 +91,8 @@ function _draw()
   draw_game()  -- show frozen game state
  elseif state==state_gameover then
   draw_gameover()
+ elseif state==state_arena_clear then
+  draw_arena_clear()
  end
 end
 
@@ -290,9 +304,27 @@ function update_player()
    player.y=newy
    moving=true
    
-   -- keep in bounds
-   player.x=mid(8,player.x,120)
-   player.y=mid(8,player.y,120)
+   -- check for exit escape (when player goes off-screen through exit)
+   -- check left exit (x < 0, within exit gap)
+   if player.x<0 and abs(player.y-left_exit_y)<=8 then
+    player_escaped()
+    return
+   end
+   
+   -- check right exit (x > 128, within exit gap)
+   if player.x>128 and abs(player.y-right_exit_y)<=8 then
+    player_escaped()
+    return
+   end
+   
+   -- keep in bounds only if NOT in an exit gap
+   local in_left_exit=(player.x<=8 and abs(player.y-left_exit_y)<=8)
+   local in_right_exit=(player.x>=120 and abs(player.y-right_exit_y)<=8)
+   
+   if not in_left_exit and not in_right_exit then
+    player.x=mid(8,player.x,120)
+    player.y=mid(8,player.y,120)
+   end
    
    -- animation
    if moving then
@@ -799,13 +831,6 @@ function kill_enemy(e)
  if enemies_defeated<total_enemies then
   add(spawn_queue,{timer=60})  -- 60 frames = 1 second
  end
- 
- -- check level complete
- if enemies_defeated>=total_enemies and #enemies==0 then
-  level+=1
-  state=state_sector_intro
-  sector_intro_timer=0
- end
 end
 
 function draw_enemies()
@@ -863,6 +888,29 @@ function draw_enemies()
  end
 end
 
+function player_escaped()
+ -- clear enemies and explosions immediately
+ enemies={}
+ explosions={}
+ spawn_queue={}
+ 
+ -- start arena clearing animation
+ clear_line=0
+ clear_timer=0
+ 
+ -- check if all enemies defeated
+ if enemies_defeated>=total_enemies then
+  -- all enemies defeated - progress to next sector
+  level+=1
+  next_state_after_clear=state_sector_intro
+ else
+  -- enemies remain - replay the wave (same sector)
+  next_state_after_clear=state_sector_intro
+ end
+ 
+ state=state_arena_clear
+end
+
 function player_hit()
  -- hide player sprite
  player.alive=false
@@ -892,8 +940,14 @@ function update_death_freeze()
  death_freeze_timer-=1
  if death_freeze_timer<=0 then
   if lives<=0 then
-   -- game over after freeze
-   state=state_gameover
+   -- game over after freeze - clear arena first
+   enemies={}
+   explosions={}
+   spawn_queue={}
+   clear_line=0
+   clear_timer=0
+   next_state_after_clear=state_gameover
+   state=state_arena_clear
   else
    -- respawn everything except arena
    init_player()
@@ -907,8 +961,7 @@ function update_death_freeze()
    -- clear spawn queue
    spawn_queue={}
    
-   -- reset enemy defeat counter but keep total
-   enemies_defeated=0
+   -- keep enemies_defeated counter (progress persists across deaths)
    
    -- resume game
    state=state_game
@@ -924,9 +977,9 @@ function init_arena()
  local left_exit_pos=flr(rnd(5))
  local right_exit_pos=flr(rnd(5))
  
- -- calculate exit y positions
- local left_exit_y=20+left_exit_pos*20
- local right_exit_y=20+right_exit_pos*20
+ -- calculate exit y positions and store globally
+ left_exit_y=20+left_exit_pos*20
+ right_exit_y=20+right_exit_pos*20
  
  -- top wall
  for x=0,124,4 do
@@ -1202,9 +1255,14 @@ function update_timer()
   
   -- check if time ran out
   if time_remaining<=2 then
-   level+=1
-   state=state_sector_intro
-   sector_intro_timer=0
+   -- time's up - clear arena then game over
+   enemies={}
+   explosions={}
+   spawn_queue={}
+   clear_line=0
+   clear_timer=0
+   next_state_after_clear=state_gameover
+   state=state_arena_clear
   end
  end
 end
@@ -1218,6 +1276,38 @@ function draw_explosions()
    spr(spr_num,ex.x-4,ex.y-4)
   end
  end
+end
+
+-- arena clearing animation
+function update_arena_clear()
+ clear_timer+=1
+ if clear_timer>=2 then  -- advance every 2 frames
+  clear_timer=0
+  clear_line+=4  -- clear 4 pixels at a time
+  
+  if clear_line>=128 then
+   -- clearing complete, transition to next state
+   state=next_state_after_clear
+   if state==state_sector_intro then
+    sector_intro_timer=0
+   end
+  end
+ end
+end
+
+function draw_arena_clear()
+ -- draw the game state (arena still visible)
+ draw_arena()
+ 
+ -- draw black rectangle to clear from top down to clear_line
+ if clear_line>0 then
+  rectfill(0,0,127,clear_line-1,0)
+ end
+ 
+ -- draw HUD
+ print("score:"..score,44,120,7)
+ print("sector:"..level,2,120,7)
+ print("lives:"..lives,90,120,7)
 end
 
 -- game over
