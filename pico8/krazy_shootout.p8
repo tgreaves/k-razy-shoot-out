@@ -563,17 +563,17 @@ function update_enemy(e)
    e.anim_frame=0
    e.anim_timer=0
   end
+ end
+ 
+ -- firing logic with frequency check (OUTSIDE move_timer block)
+ if enemy_fire_freq>0 then  -- sector 1 has freq=0 (no firing)
+  e.fire_timer+=1
   
-  -- firing logic with frequency check
-  if enemy_fire_freq>0 then  -- sector 1 has freq=0 (no firing)
-   e.fire_timer+=1
-   
-   if e.fire_timer>=enemy_fire_freq then
-    e.fire_timer=0
-    -- random chance to fire (25% like original)
-    if rnd(1)<0.25 and e.missile==nil then
-     fire_enemy_missile(e)
-    end
+  if e.fire_timer>=enemy_fire_freq then
+   e.fire_timer=0
+   -- random chance to fire (25% like original)
+   if rnd(1)<0.25 and e.missile==nil then
+    fire_enemy_missile(e)
    end
   end
  end
@@ -1091,6 +1091,9 @@ function draw_game()
  print("score:"..score,44,120,7)
  print("sector:"..level,2,120,7)
  print("lives:"..lives,90,120,7)
+ -- debug: show fire freq and enemy count
+ print("freq:"..enemy_fire_freq,2,2,7)
+ print("enemies:"..#enemies,2,8,7)
  
  -- draw timer bar at top (LAST so nothing covers it)
  draw_timer_bar()
