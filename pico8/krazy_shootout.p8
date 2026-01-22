@@ -8,28 +8,51 @@ __lua__
 
 -- game states
 state_title=0
-state_game=1
-state_gameover=2
+state_sector_intro=1
+state_game=2
+state_death_freeze=3
+state_gameover=4
 
 -- game constants (from disassembly)
 max_enemies=3
 player_speed=1
+
+-- difficulty table (from $bbe4)
+-- format: {spawn_limit, fire_freq, speed, anim_timing}
+difficulty_table={
+ {14,0,2,21},   -- sector 1 (tutorial)
+ {20,96,2,18},  -- sector 2
+ {26,64,3,8},   -- sector 3
+ {29,48,4,6},   -- sector 4
+ {32,37,10,4},  -- sector 5
+ {36,19,80,3},  -- sector 6
+ {54,6,255,1}   -- sector 7
+}
+
+-- difficulty variables
+enemy_fire_freq=0
 enemy_speed=0.5
 missile_speed=2
+anim_timing=0
 
 function _init()
  state=state_title
  score=0
  level=1
  lives=3
- init_game()
+ sector_intro_timer=0
+ death_freeze_timer=0
 end
 
 function _update()
  if state==state_title then
   update_title()
+ elseif state==state_sector_intro then
+  update_sector_intro()
  elseif state==state_game then
   update_game()
+ elseif state==state_death_freeze then
+  update_death_freeze()
  elseif state==state_gameover then
   update_gameover()
  end
@@ -39,8 +62,12 @@ function _draw()
  cls()
  if state==state_title then
   draw_title()
+ elseif state==state_sector_intro then
+  draw_sector_intro()
  elseif state==state_game then
   draw_game()
+ elseif state==state_death_freeze then
+  draw_game()  -- show frozen game state
  elseif state==state_gameover then
   draw_gameover()
  end
@@ -49,8 +76,8 @@ end
 -- title screen
 function update_title()
  if btnp(4) or btnp(5) then
-  state=state_game
-  init_game()
+  state=state_sector_intro
+  sector_intro_timer=0
  end
 end
 
@@ -61,27 +88,90 @@ function draw_title()
  print("original by k.dreyer",14,108,5)
 end
 
+-- sector intro screen
+function update_sector_intro()
+ sector_intro_timer+=1
+ if sector_intro_timer>=60 then  -- 1 second at 60fps
+  state=state_game
+  init_game()
+ end
+end
+
+function draw_sector_intro()
+ cls()
+ -- large text in center
+ local text="entering sector "..level
+ print(text,32,60,7)
+end
+
 -- game initialization
 function init_game()
- init_player()
+ init_arena()  -- create arena first
+ load_sector_difficulty()  -- load difficulty params
+ init_player()  -- then spawn player (needs arena for collision check)
  init_enemies()
- init_arena()
  explosions={}
  enemies_defeated=0
- total_enemies=10+level*2
+ time_remaining=77
+ time_counter=0
+ spawn_queue={}  -- queue of pending enemy spawns
+end
+
+-- load difficulty parameters
+function load_sector_difficulty()
+ -- clamp sector to 1-7
+ local sector=mid(1,level,7)
+ 
+ local params=difficulty_table[sector]
+ 
+ total_enemies=params[1]      -- spawn limit
+ enemy_fire_freq=params[2]    -- firing frequency
+ local game_speed=params[3]   -- speed multiplier
+ anim_timing=params[4]        -- animation timing
+ 
+ -- scale speeds based on game_speed
+ if game_speed<=10 then
+  -- sectors 1-5: normal speed
+  enemy_speed=0.5
+  missile_speed=2
+ elseif game_speed<=80 then
+  -- sector 6: faster
+  enemy_speed=0.75
+  missile_speed=2.5
+ else
+  -- sector 7: maximum speed
+  enemy_speed=1.0
+  missile_speed=3.0
+ end
 end
 
 -- player (from disassembly $75-$7A)
 function init_player()
+ -- find safe spawn position (not on a wall)
+ local spawn_x, spawn_y
+ local attempts=0
+ repeat
+  spawn_x=32+flr(rnd(64))  -- center area
+  spawn_y=32+flr(rnd(64))
+  attempts+=1
+ until not check_wall_collision(spawn_x,spawn_y) or attempts>50
+ 
+ -- fallback to center if no safe spot found
+ if attempts>50 then
+  spawn_x=64
+  spawn_y=64
+ end
+ 
  player={
-  x=64,
-  y=64,
+  x=spawn_x,
+  y=spawn_y,
   sprite=1,
   dir=0, -- 0=right,1=down,2=left,3=up (for animation)
   fire_dir=0, -- 0-7 for 8-way firing
   anim_frame=0,
   anim_timer=0,
-  missile=nil
+  missile=nil,
+  alive=true
  }
 end
 
@@ -141,14 +231,29 @@ function update_player()
     player.dir=(dy<0) and 3 or 1 -- up or down
    end
    
-   -- collision check with walls
+   -- calculate new position
    local newx=player.x+move_dx
    local newy=player.y+move_dy
-   if not check_wall_collision(newx,newy) then
-    player.x=newx
-    player.y=newy
-    moving=true
+   
+   -- collision check with walls - instant death
+   if check_wall_collision(newx,newy) then
+    player_hit()
+    return
    end
+   
+   -- collision check with enemies - both die
+   for e in all(enemies) do
+    if check_collision(newx,newy,e.x,e.y,8) then
+     kill_enemy(e)
+     player_hit()
+     return
+    end
+   end
+   
+   -- safe to move
+   player.x=newx
+   player.y=newy
+   moving=true
    
    -- keep in bounds
    player.x=mid(8,player.x,120)
@@ -156,10 +261,16 @@ function update_player()
    
    -- animation
    if moving then
-    player.anim_timer+=1
-    if player.anim_timer>4 then
+    -- start animation immediately if not already animating
+    if player.anim_frame==0 then
+     player.anim_frame=1
      player.anim_timer=0
-     player.anim_frame=(player.anim_frame+1)%2
+    else
+     player.anim_timer+=1
+     if player.anim_timer>4 then
+      player.anim_timer=0
+      player.anim_frame=(player.anim_frame==1) and 2 or 1  -- toggle between 1 and 2
+     end
     end
    end
   else
@@ -221,7 +332,7 @@ function update_player_missile()
  
  -- check enemy collision
  for e in all(enemies) do
-  if check_collision(m.x,m.y,e.x,e.y,6) then
+  if check_collision(m.x,m.y,e.x,e.y,8) then
    player.missile=nil
    kill_enemy(e)
    return
@@ -230,6 +341,11 @@ function update_player_missile()
 end
 
 function draw_player()
+ -- only draw if alive
+ if not player.alive then
+  return
+ end
+ 
  -- sprite mapping (sprites 0-6 in PICO-8):
  -- 0: stationary
  -- 1: walking left 1
@@ -241,13 +357,18 @@ function draw_player()
  
  local spr_num=0 -- default stationary
  
- -- determine sprite based on direction and animation
- if player.dir==2 then -- left
-  spr_num=1+player.anim_frame
- elseif player.dir==0 then -- right
-  spr_num=3+player.anim_frame
- elseif player.dir==1 or player.dir==3 then -- up or down
-  spr_num=5+player.anim_frame
+ -- only show walking animation if anim_frame > 0
+ if player.anim_frame>0 then
+  -- anim_frame is 1 or 2, convert to 0 or 1 for sprite offset
+  local frame_offset=player.anim_frame-1
+  -- determine sprite based on direction and animation
+  if player.dir==2 then -- left
+   spr_num=1+frame_offset
+  elseif player.dir==0 then -- right
+   spr_num=3+frame_offset
+  elseif player.dir==1 or player.dir==3 then -- up or down
+   spr_num=5+frame_offset
+  end
  end
  
  -- draw player sprite (8x12 pixels)
@@ -302,7 +423,8 @@ function spawn_enemy()
   move_timer=0,
   anim_frame=0,
   anim_timer=0,
-  missile=nil
+  missile=nil,
+  fire_timer=0  -- firing timer
  })
 end
 
@@ -313,7 +435,7 @@ function update_enemies()
 end
 
 function update_enemy(e)
- -- simple ai: move toward player
+ -- ai: move toward player (diagonal if possible)
  e.move_timer+=1
  if e.move_timer>15 then
   e.move_timer=0
@@ -322,53 +444,137 @@ function update_enemy(e)
   local dy=sgn(player.y-e.y)*enemy_speed
   
   local moved=false
+  local newx,newy
   
-  -- try horizontal movement first
-  if abs(player.x-e.x)>abs(player.y-e.y) then
-   local newx=e.x+dx
-   if not check_wall_collision(newx,e.y) then
-    e.x=newx
-    e.dir=(dx<0) and 2 or 0 -- left or right
-    moved=true
-   else
-    -- if blocked horizontally, try vertical
-    local newy=e.y+dy
-    if not check_wall_collision(e.x,newy) then
+  -- try diagonal movement first (if moving in both directions)
+  if dx!=0 and dy!=0 then
+   newx=e.x+dx
+   newy=e.y+dy
+   if not check_wall_collision(newx,newy) then
+    -- check collision with other enemies
+    local enemy_collision=false
+    for other in all(enemies) do
+     if other!=e and check_collision(newx,newy,other.x,other.y,6) then
+      kill_enemy(e)
+      kill_enemy(other)
+      enemy_collision=true
+      break
+     end
+    end
+    if not enemy_collision then
+     e.x=newx
      e.y=newy
-     e.dir=(dy<0) and 3 or 1 -- up or down
+     e.dir=(dx<0) and 2 or 0 -- use sideways animation
      moved=true
+    else
+     return
     end
    end
-  else
-   -- try vertical movement first
-   local newy=e.y+dy
-   if not check_wall_collision(e.x,newy) then
-    e.y=newy
-    e.dir=(dy<0) and 3 or 1 -- up or down
-    moved=true
-   else
-    -- if blocked vertically, try horizontal
-    local newx=e.x+dx
-    if not check_wall_collision(newx,e.y) then
+  end
+  
+  -- if diagonal failed or not needed, try single axis movement
+  if not moved then
+   -- try horizontal movement first
+   if abs(player.x-e.x)>abs(player.y-e.y) then
+    newx=e.x+dx
+    newy=e.y
+    if not check_wall_collision(newx,newy) then
+     -- check collision with other enemies
+     for other in all(enemies) do
+      if other!=e and check_collision(newx,newy,other.x,other.y,6) then
+       kill_enemy(e)
+       kill_enemy(other)
+       return
+      end
+     end
      e.x=newx
      e.dir=(dx<0) and 2 or 0 -- left or right
      moved=true
+    else
+     -- blocked horizontally, try vertical
+     newx=e.x
+     newy=e.y+dy
+     if not check_wall_collision(newx,newy) then
+      -- check collision with other enemies
+      for other in all(enemies) do
+       if other!=e and check_collision(newx,newy,other.x,other.y,6) then
+        kill_enemy(e)
+        kill_enemy(other)
+        return
+       end
+      end
+      e.y=newy
+      e.dir=(dy<0) and 3 or 1 -- up or down
+      moved=true
+     end
+    end
+   else
+    -- try vertical movement first
+    newx=e.x
+    newy=e.y+dy
+    if not check_wall_collision(newx,newy) then
+     -- check collision with other enemies
+     for other in all(enemies) do
+      if other!=e and check_collision(newx,newy,other.x,other.y,6) then
+       kill_enemy(e)
+       kill_enemy(other)
+       return
+      end
+     end
+     e.y=newy
+     e.dir=(dy<0) and 3 or 1 -- up or down
+     moved=true
+    else
+     -- blocked vertically, try horizontal
+     newx=e.x+dx
+     newy=e.y
+     if not check_wall_collision(newx,newy) then
+      -- check collision with other enemies
+      for other in all(enemies) do
+       if other!=e and check_collision(newx,newy,other.x,other.y,6) then
+        kill_enemy(e)
+        kill_enemy(other)
+        return
+       end
+      end
+      e.x=newx
+      e.dir=(dx<0) and 2 or 0 -- left or right
+      moved=true
+     end
     end
    end
   end
   
-  -- animate when moving
+  -- animate when moving, reset to stationary when blocked
   if moved then
-   e.anim_timer+=1
-   if e.anim_timer>1 then
+   -- start animation immediately if not already animating
+   if e.anim_frame==0 then
+    e.anim_frame=1
     e.anim_timer=0
-    e.anim_frame=(e.anim_frame+1)%2
+   else
+    e.anim_timer+=1
+    if e.anim_timer>1 then
+     e.anim_timer=0
+     e.anim_frame=(e.anim_frame==1) and 2 or 1  -- toggle between 1 and 2
+    end
    end
+  else
+   -- stationary - reset animation frame immediately
+   e.anim_frame=0
+   e.anim_timer=0
   end
   
-  -- random firing
-  if rnd(1)<0.1 and e.missile==nil then
-   fire_enemy_missile(e)
+  -- firing logic with frequency check
+  if enemy_fire_freq>0 then  -- sector 1 has freq=0 (no firing)
+   e.fire_timer+=1
+   
+   if e.fire_timer>=enemy_fire_freq then
+    e.fire_timer=0
+    -- random chance to fire (25% like original)
+    if rnd(1)<0.25 and e.missile==nil then
+     fire_enemy_missile(e)
+    end
+   end
   end
  end
  
@@ -377,8 +583,9 @@ function update_enemy(e)
   update_enemy_missile(e)
  end
  
- -- check collision with player
- if check_collision(e.x,e.y,player.x,player.y,6) then
+ -- check collision with player - both die
+ if check_collision(e.x,e.y,player.x,player.y,8) then
+  kill_enemy(e)
   player_hit()
  end
 end
@@ -388,22 +595,38 @@ function fire_enemy_missile(e)
  local dx=player.x-e.x
  local dy=player.y-e.y
  
+ -- normalize to determine primary direction
+ local abs_dx=abs(dx)
+ local abs_dy=abs(dy)
+ 
  -- determine which of 8 directions is closest
- local angle=atan2(dx,dy)
- 
- -- snap to nearest 1/8 (45 degree increments)
- local dir=flr(angle*8+0.5)%8
- 
- -- convert to dx/dy based on 8 directions
  local mdx,mdy=0,0
- if dir==0 then mdx=missile_speed mdy=0 -- right
- elseif dir==1 then mdx=missile_speed mdy=missile_speed -- down-right
- elseif dir==2 then mdx=0 mdy=missile_speed -- down
- elseif dir==3 then mdx=-missile_speed mdy=missile_speed -- down-left
- elseif dir==4 then mdx=-missile_speed mdy=0 -- left
- elseif dir==5 then mdx=-missile_speed mdy=-missile_speed -- up-left
- elseif dir==6 then mdx=0 mdy=-missile_speed -- up
- elseif dir==7 then mdx=missile_speed mdy=-missile_speed -- up-right
+ 
+ if abs_dx>abs_dy*2.5 then
+  -- primarily horizontal
+  if dx>0 then
+   mdx=missile_speed mdy=0 -- right
+  else
+   mdx=-missile_speed mdy=0 -- left
+  end
+ elseif abs_dy>abs_dx*2.5 then
+  -- primarily vertical
+  if dy>0 then
+   mdx=0 mdy=missile_speed -- down
+  else
+   mdx=0 mdy=-missile_speed -- up
+  end
+ else
+  -- diagonal
+  if dx>0 and dy>0 then
+   mdx=missile_speed mdy=missile_speed -- down-right
+  elseif dx<0 and dy>0 then
+   mdx=-missile_speed mdy=missile_speed -- down-left
+  elseif dx<0 and dy<0 then
+   mdx=-missile_speed mdy=-missile_speed -- up-left
+  else
+   mdx=missile_speed mdy=-missile_speed -- up-right
+  end
  end
  
  e.missile={
@@ -434,10 +657,19 @@ function update_enemy_missile(e)
  end
  
  -- check player collision
- if check_collision(m.x,m.y,player.x,player.y,4) then
+ if check_collision(m.x,m.y,player.x,player.y,6) then
   e.missile=nil
   player_hit()
   return
+ end
+ 
+ -- check collision with other enemies
+ for other in all(enemies) do
+  if other!=e and check_collision(m.x,m.y,other.x,other.y,6) then
+   e.missile=nil
+   kill_enemy(other)
+   return
+  end
  end
 end
 
@@ -455,15 +687,16 @@ function kill_enemy(e)
  enemies_defeated+=1
  sfx(2) -- explosion sound
  
- -- spawn new enemy if more remain
+ -- queue new enemy spawn if more remain (1 second delay)
  if enemies_defeated<total_enemies then
-  spawn_enemy()
+  add(spawn_queue,{timer=60})  -- 60 frames = 1 second
  end
  
  -- check level complete
  if enemies_defeated>=total_enemies and #enemies==0 then
   level+=1
-  init_game()
+  state=state_sector_intro
+  sector_intro_timer=0
  end
 end
 
@@ -480,13 +713,17 @@ function draw_enemies()
   
   local spr_num=7 -- default stationary
   
-  -- determine sprite based on direction and animation
-  if e.dir==2 then -- left
-   spr_num=8+e.anim_frame
-  elseif e.dir==0 then -- right
-   spr_num=10+e.anim_frame
-  elseif e.dir==1 or e.dir==3 then -- up or down
-   spr_num=12+e.anim_frame
+  -- only show walking animation if anim_frame > 0
+  -- (anim_frame is reset to 0 when stationary)
+  if e.anim_frame>0 then
+   -- determine sprite based on direction and animation
+   if e.dir==2 then -- left
+    spr_num=8+e.anim_frame
+   elseif e.dir==0 then -- right
+    spr_num=10+e.anim_frame
+   elseif e.dir==1 or e.dir==3 then -- up or down
+    spr_num=12+e.anim_frame
+   end
   end
   
   -- draw enemy sprite (8x12 pixels)
@@ -512,6 +749,9 @@ function draw_enemies()
 end
 
 function player_hit()
+ -- hide player sprite
+ player.alive=false
+ 
  -- create explosion at player position
  add(explosions,{
   x=player.x,
@@ -520,40 +760,228 @@ function player_hit()
   timer=0
  })
  
+ sfx(2) -- explosion sound
+ 
  lives-=1
- if lives<=0 then
-  state=state_gameover
- else
-  -- respawn player
-  player.x=64
-  player.y=64
+ 
+ -- always freeze for 1 second to show explosion
+ state=state_death_freeze
+ death_freeze_timer=60  -- 60 frames = 1 second
+end
+
+-- death freeze state
+function update_death_freeze()
+ -- only update explosions during freeze
+ update_explosions()
+ 
+ death_freeze_timer-=1
+ if death_freeze_timer<=0 then
+  if lives<=0 then
+   -- game over after freeze
+   state=state_gameover
+  else
+   -- respawn everything except arena
+   init_player()
+   
+   -- clear all enemies and respawn
+   enemies={}
+   for i=1,max_enemies do
+    spawn_enemy()
+   end
+   
+   -- clear spawn queue
+   spawn_queue={}
+   
+   -- reset enemy defeat counter but keep total
+   enemies_defeated=0
+   
+   -- resume game
+   state=state_game
+  end
  end
 end
 
--- arena (from disassembly $BA74)
+-- arena generation
 function init_arena()
- -- simple arena with walls
  arena={}
  
- -- outer walls
- for i=0,15 do
-  add(arena,{x=i*8,y=0})
-  add(arena,{x=i*8,y=120})
-  add(arena,{x=0,y=i*8})
-  add(arena,{x=120,y=i*8})
+ -- random exit positions (0-4 for 5 options)
+ local left_exit_pos=flr(rnd(5))
+ local right_exit_pos=flr(rnd(5))
+ 
+ -- calculate exit y positions
+ local left_exit_y=20+left_exit_pos*20
+ local right_exit_y=20+right_exit_pos*20
+ 
+ -- top wall
+ for x=0,124,4 do
+  add(arena,{x=x,y=8})
  end
  
- -- random interior walls
- for i=1,10 do
-  local wx=flr(rnd(14))*8+8
-  local wy=flr(rnd(14))*8+8
-  add(arena,{x=wx,y=wy})
+ -- bottom wall
+ for x=0,124,4 do
+  add(arena,{x=x,y=116})
+ end
+ 
+ -- left wall with exit gap
+ for y=12,112,4 do
+  if y<left_exit_y-8 or y>left_exit_y+8 then
+   add(arena,{x=0,y=y})
+  end
+ end
+ 
+ -- right wall with exit gap
+ for y=12,112,4 do
+  if y<right_exit_y-8 or y>right_exit_y+8 then
+   add(arena,{x=124,y=y})
+  end
+ end
+ 
+ -- track occupied grid cells
+ local occupied={}
+ for gx=0,7 do
+  occupied[gx]={}
+  for gy=0,6 do
+   occupied[gx][gy]=false
+  end
+ end
+ 
+ -- helper to safely mark cell
+ function mark_cell(gx,gy)
+  if gx>=0 and gx<=7 and gy>=0 and gy<=6 then
+   occupied[gx][gy]=true
+  end
+ end
+ 
+ -- add random interior walls
+ -- use systematic placement for better coverage
+ local num_walls=4+flr(rnd(2))  -- 4-5 walls (reduced to ensure gaps)
+ local attempts=0
+ local placed=0
+ 
+ -- divide arena into zones and place walls in different zones
+ local zones={{1,2,1,2},{3,4,1,2},{1,2,3,4},{3,4,3,4}}
+ local zone_idx=1
+ 
+ while placed<num_walls and attempts<50 do
+  attempts+=1
+  
+  local wall_type=flr(rnd(3))
+  
+  -- try to place in current zone first, then random
+  local grid_x,grid_y
+  if zone_idx<=#zones and rnd(1)<0.7 then
+   local zone=zones[zone_idx]
+   grid_x=zone[1]+flr(rnd(zone[2]-zone[1]+1))
+   grid_y=zone[3]+flr(rnd(zone[4]-zone[3]+1))
+   zone_idx+=1
+  else
+   grid_x=1+flr(rnd(6))
+   grid_y=1+flr(rnd(5))
+  end
+  
+  if not occupied[grid_x][grid_y] then
+   local x=grid_x*16
+   local y=grid_y*16+8
+   
+   if wall_type==0 then
+    -- vertical wall
+    local height=16+flr(rnd(3))*8
+    local cells=flr(height/16)
+    
+    -- check all cells this wall will occupy
+    local can_place=true
+    for c=0,cells do
+     if grid_y+c>6 or occupied[grid_x][grid_y+c] then
+      can_place=false
+      break
+     end
+    end
+    
+    if can_place then
+     -- place wall (single block wide)
+     for dy=0,height,4 do
+      if y+dy<=112 then
+       add(arena,{x=x,y=y+dy})
+      end
+     end
+     -- mark all cells and buffers
+     for c=0,cells do
+      mark_cell(grid_x,grid_y+c)
+      mark_cell(grid_x-1,grid_y+c)  -- left buffer
+      mark_cell(grid_x+1,grid_y+c)  -- right buffer
+     end
+     placed+=1
+    end
+    
+   elseif wall_type==1 then
+    -- horizontal wall
+    local width=16+flr(rnd(3))*8
+    local cells=flr(width/16)
+    
+    -- check all cells this wall will occupy
+    local can_place=true
+    for c=0,cells do
+     if grid_x+c>7 or occupied[grid_x+c][grid_y] then
+      can_place=false
+      break
+     end
+    end
+    
+    if can_place then
+     -- place wall (single block tall)
+     for dx=0,width,4 do
+      if x+dx<=120 then
+       add(arena,{x=x+dx,y=y})
+      end
+     end
+     -- mark all cells and buffers
+     for c=0,cells do
+      mark_cell(grid_x+c,grid_y)
+      mark_cell(grid_x+c,grid_y-1)  -- top buffer
+      mark_cell(grid_x+c,grid_y+1)  -- bottom buffer
+     end
+     placed+=1
+    end
+    
+   else
+    -- l-shape wall (can connect to other walls at right angles)
+    local size=12+flr(rnd(2))*8
+    local dir=flr(rnd(4))
+    
+    -- place wall
+    if dir==0 then
+     for d=0,size,4 do
+      if y+d<=112 then add(arena,{x=x,y=y+d}) end
+      if x+d<=120 then add(arena,{x=x+d,y=y}) end
+     end
+    elseif dir==1 then
+     for d=0,size,4 do
+      if y+d<=112 then add(arena,{x=x,y=y+d}) end
+      if x-d>=8 then add(arena,{x=x-d,y=y}) end
+     end
+    elseif dir==2 then
+     for d=0,size,4 do
+      if y-d>=12 then add(arena,{x=x,y=y-d}) end
+      if x+d<=120 then add(arena,{x=x+d,y=y}) end
+     end
+    else
+     for d=0,size,4 do
+      if y-d>=12 then add(arena,{x=x,y=y-d}) end
+      if x-d>=8 then add(arena,{x=x-d,y=y}) end
+     end
+    end
+    -- only mark center cell (allow L-shapes to connect to other walls)
+    mark_cell(grid_x,grid_y)
+    placed+=1
+   end
+  end
  end
 end
 
 function check_wall_collision(x,y)
  for w in all(arena) do
-  if check_collision(x,y,w.x+4,w.y+4,6) then
+  if check_collision(x,y,w.x+2,w.y+2,6) then
    return true
   end
  end
@@ -562,7 +990,7 @@ end
 
 function draw_arena()
  for w in all(arena) do
-  rectfill(w.x,w.y,w.x+7,w.y+7,5)
+  rectfill(w.x,w.y,w.x+3,w.y+3,5)
  end
 end
 
@@ -578,6 +1006,18 @@ function update_game()
  update_player()
  update_enemies()
  update_explosions()
+ update_timer()
+ update_spawn_queue()
+end
+
+function update_spawn_queue()
+ for sq in all(spawn_queue) do
+  sq.timer-=1
+  if sq.timer<=0 then
+   spawn_enemy()
+   del(spawn_queue,sq)
+  end
+ end
 end
 
 function update_explosions()
@@ -586,36 +1026,36 @@ function update_explosions()
   if ex.timer>3 then
    ex.timer=0
    ex.frame+=1
-   if ex.frame>=14 then
+   if ex.frame>=8 then  -- 8 frames of explosion
     del(explosions,ex)
    end
   end
  end
 end
 
-function draw_game()
- -- draw arena
- draw_arena()
- 
- -- draw entities
- draw_player()
- draw_enemies()
- draw_explosions()
- 
- -- draw hud
- print("score:"..score,2,2,7)
- print("level:"..level,2,122,7)
- print("lives:"..lives,90,2,7)
+
+function update_timer()
+ time_counter+=1
+ if time_counter>=127 then
+  time_counter=0
+  time_remaining-=1
+  
+  -- check if time ran out
+  if time_remaining<=2 then
+   level+=1
+   state=state_sector_intro
+   sector_intro_timer=0
+  end
+ end
 end
 
 function draw_explosions()
  for ex in all(explosions) do
-  -- explosion sprites are at positions 14-27 (14 frames)
-  -- they're on the second row of the sprite sheet
-  local spr_num=14+ex.frame
-  if spr_num<28 then
-   -- use 1,2 to render 2 sprite slots vertically (8x16) which includes our 12 rows
-   spr(spr_num,ex.x-4,ex.y-8,1,2)
+  -- explosion sprites are at positions 32-39 (8 frames)
+  -- render as simple 8x8 sprites (no 1,2 scaling needed)
+  local spr_num=32+ex.frame
+  if spr_num<40 then
+   spr(spr_num,ex.x-4,ex.y-4)
   end
  end
 end
@@ -631,9 +1071,68 @@ function update_gameover()
 end
 
 function draw_gameover()
+ cls()
  print("game over",40,50,8)
  print("score:"..score,40,60,7)
  print("press ❎",40,80,6)
+end
+
+
+function draw_game()
+ -- draw arena
+ draw_arena()
+ 
+ -- draw entities
+ draw_player()
+ draw_enemies()
+ draw_explosions()
+ 
+ -- draw hud
+ print("score:"..score,44,120,7)
+ print("sector:"..level,2,120,7)
+ print("lives:"..lives,90,120,7)
+ 
+ -- draw timer bar at top (LAST so nothing covers it)
+ draw_timer_bar()
+end
+
+function draw_timer_bar()
+ -- DEBUG: draw a bright white bar across the entire top
+ rectfill(0,0,127,3,7)
+ 
+ -- timer bar at top of screen (like original)
+ local bar_segments=flr(time_remaining/4)
+ local remainder=time_remaining%4
+ 
+ -- determine color based on time remaining
+ local bar_color=11 -- cyan
+ if time_remaining<=26 then
+  bar_color=8 -- red for critical
+ elseif time_remaining<=52 then
+  bar_color=9 -- orange for warning
+ end
+ 
+ -- draw filled segments (thicker bar, 4 pixels tall)
+ for i=0,bar_segments-1 do
+  rectfill(i*4,0,i*4+3,3,bar_color)
+ end
+ 
+ -- draw partial segment based on remainder
+ if remainder>0 then
+  local width=remainder
+  rectfill(bar_segments*4,0,bar_segments*4+width-1,3,bar_color)
+ end
+end
+
+function draw_explosions()
+ for ex in all(explosions) do
+  -- explosion sprites are at positions 32-39 (8 frames)
+  -- render as simple 8x8 sprites (no 1,2 scaling needed)
+  local spr_num=32+ex.frame
+  if spr_num<40 then
+   spr(spr_num,ex.x-4,ex.y-4)
+  end
+ end
 end
 
 __gfx__
@@ -645,28 +1144,24 @@ __gfx__
 00007000000070000000700000070000000700000070700000007070808888080088880800888808808888008088880080888808808888080000000000000000
 00077700070777000000770000777070007700000007770000077700808888080088880800888808808888008088880080888808808888080000000000000000
 00707070007070700000770007070700007700000000707000707000808888080088880800888808808888008088880080888808808888080000000000000000
-00707070000070070077770070070000007777000000707000707000808888080088880800888808808888008088880000888808808888000000900000000000
-00007000000070700000700007070000000700000000700000007000808888080088880800888808808888008088880000888808808888000000900000090000
-00070700000770000007700000077000000770000007070000070700008888000088880000888800008888000088880000888800008888000000000000999000
-00070700007007000000770000700700007700000007077000770700008008000080080000008000008008000008000000800880088008000000000000090000
+00707070000070070077770070070000007777000000707000707000808888080088880800888808808888008088880000888808808888000000000000000000
+00007000000070700000700007070000000700000000700000007000808888080088880800888808808888008088880000888808808888000000000000000000
+00070700000770000007700000077000000770000007070000070700008888000088880000888800008888000088880000888800008888000000000000000000
+00070700007007000000770000700700007700000007077000770700008008000080080000008000008008000008000000800880088008000000000000000000
 00070700007007770000707077700700070700000007000000000700008008000080080000008000008008000008000000800000000008000000000000000000
 00770770077000070007770070000770007770000077000000000770088008800880880000088000008808800008800008800000000008800000000000000000
 00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+00000000000000000000000000000000000909000090009009000009000000000000000000000000000000000000000000000000000000000000000000000000
+00000000000000000000900000090900009000900900000900000000000000000000000000000000000000000000000000000000000000000000000000000000
+00000000000090000009090000999990090999099000900000090900000000000000000000000000000000000000000000000000000000000000000000000000
+00009000000999000099999009999999909999909009090000000000000909000000000000000000000000000000000000000000000000000000000000000000
+00009000000999000099999009999999909999909009090000000000000909000000000000000000000000000000000000000000000000000000000000000000
+00000000000090000009090000999990090999099000900000090900000000000000000000000000000000000000000000000000000000000000000000000000
+00000000000000000000900000090900009000900900000900000000000000000000000000000000000000000000000000000000000000000000000000000000
+00000000000000000000000000000000000909000090009009000009000000000000000000000000000000000000000000000000000000000000000000000000
 00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000009090000909009000909009090009090000000000000009000000000000000000000000000000000000000000000000
-00000000000909000090990009099000900900900090090009090090000000000000000000000000900000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000090009000009090090909090000000000990000000000000000000000000000000000000000000000000000000
-00000000000000000909000090909090090990009090090090900900090900900000000000000000000000090000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000900900090000090900900090900900000000000000000000000000000000000000000000000000000000
-00000000000000000009000009090900900000909090000090900900009009000909000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000009000900000909000090000009009000000000000000000000000000000000000000000000
-00000000000000000000000009090900090909000000000090000000009009009090000900090000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000009000090000000009000000000000000000000000000000000000000000000000000000000000000000000000
-00090900000900000099900000000000909000000000000000000000900000000000000009000000000900000000000000000000000000000000000000000000
-00000000000000000000000009009000000900000909090990000000000000090000000000000000000000000000000000000000000000000000000000000000
-00909900090990009009009000090000090009000000000000000000000000009000000000000090000000000000000000000000000000000000000000000000
 00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
@@ -765,360 +1260,12 @@ __gfx__
 00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-
-Done! Use spr(n,x,y,1,2) to render 8x12 sprites (padded to 16 rows)
-Total sprites: 28
-Each sprite uses 16 rows: 2 empty + 12 data + 2 empty
-00909900090990009009009000090000090009000000000000000000000000009000000000000090000000000000000000000000000000000000000000000000
 00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-
-Done! Use spr(n,x,y,1,2) to render 8x12 sprites (padded to 16 rows)
-Total sprites: 28
-Each sprite uses 16 rows: 2 empty + 12 data + 2 empty
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-
-Done! Use spr(n,x,y,1,1.5) to render 8x12 sprites
-Total sprites: 28
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-
-Done! Sprites are now proper 8x8 format.
-Total sprites: 28
-Use spr(n,x,y) without scaling - no need for 1.5x multiplier
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-
-Done! Copy the above __gfx__ section into your .p8 file
-Total sprites: 28
 __sfx__
 000100000c0500c0500c0500c05000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 000100001c0501c0501c0501c0501c0501c0501c0501c0501c0501c0501c0501c0501c0501c0501c0501c0501c0501c0501c0501c0501c0501c0501c0501c0501c0501c0501c0501c0501c0501c0501c0501c050
-000200001f0501f0501f0501f0501f0501f0501f0501f0501f0501f0501f0501f0501f0501f0501f0501f0501f0501f0501f0501f0501f0501f0501f0501f0501f0501f0501f0501f0501f0501f0501f0501f050
+010400003f6553f6453f6353f6253f6153f6053f5053f4053f3053f2053f1053f0050000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+
