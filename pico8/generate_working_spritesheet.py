@@ -26,22 +26,24 @@ enemy_sprites = [
     [0x7E, 0x18, 0xFF, 0xBD, 0xBD, 0xBD, 0xBC, 0xBC, 0x3C, 0x64, 0x04, 0x06],  # 13: up/down 2
 ]
 
-# Explosion sprites (14-27) - FULL 12 ROWS from disassembly
+# Explosion sprites (14-21) - Simple 8-frame explosion animation (8x8 pixels)
 explosion_sprites = [
-    [0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x08, 0x08, 0x00, 0x00, 0x00, 0x00],  # 14
-    [0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x10, 0x38, 0x10, 0x00, 0x00],  # 15
-    [0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x14, 0x00, 0x2C],  # 16
-    [0x00, 0x14, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x10, 0x00, 0x58],  # 17
-    [0x00, 0x2C, 0x00, 0x50, 0x00, 0x10, 0x00, 0x00, 0x00, 0x38, 0x00, 0x92],  # 18
-    [0x00, 0x58, 0x00, 0xAA, 0x00, 0x54, 0x00, 0x54, 0x00, 0x00, 0x48, 0x10],  # 19
-    [0x28, 0x92, 0x01, 0x58, 0x00, 0x82, 0x00, 0x54, 0x00, 0xA0, 0x10, 0x44],  # 20
-    [0x52, 0x24, 0x10, 0xA4, 0x09, 0xA0, 0x00, 0x00, 0x84, 0x00, 0x55, 0x00],  # 21
-    [0x29, 0x52, 0x52, 0xA4, 0x10, 0xA4, 0x01, 0x80, 0x01, 0x00, 0x80, 0x00],  # 22
-    [0x45, 0x00, 0xA8, 0x52, 0x52, 0x24, 0x10, 0x24, 0x00, 0x80, 0x01, 0x00],  # 23
-    [0x00, 0x00, 0x01, 0x00, 0x29, 0x50, 0x50, 0xA1, 0x00, 0x00, 0x00, 0x80],  # 24
-    [0x01, 0x00, 0x80, 0x00, 0x00, 0x00, 0x81, 0x10, 0x00, 0x40, 0x00, 0x02],  # 25
-    [0x00, 0x80, 0x00, 0x01, 0x00, 0x00, 0x20, 0x00, 0x00, 0x10, 0x00, 0x00],  # 26
-    [0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00],  # 27
+    # Frame 0: Single pixel
+    [0x00, 0x00, 0x00, 0x08, 0x08, 0x00, 0x00, 0x00],
+    # Frame 1: Small cross
+    [0x00, 0x00, 0x08, 0x1C, 0x1C, 0x08, 0x00, 0x00],
+    # Frame 2: Expanding
+    [0x00, 0x08, 0x14, 0x3E, 0x3E, 0x14, 0x08, 0x00],
+    # Frame 3: Full explosion
+    [0x00, 0x14, 0x3E, 0x7F, 0x7F, 0x3E, 0x14, 0x00],
+    # Frame 4: Peak with gaps
+    [0x14, 0x22, 0x5D, 0xBE, 0xBE, 0x5D, 0x22, 0x14],
+    # Frame 5: Dispersing
+    [0x22, 0x41, 0x88, 0x94, 0x94, 0x88, 0x41, 0x22],
+    # Frame 6: Fading
+    [0x41, 0x00, 0x14, 0x00, 0x00, 0x14, 0x00, 0x41],
+    # Frame 7: Last sparks
+    [0x00, 0x00, 0x00, 0x14, 0x14, 0x00, 0x00, 0x00],
 ]
 
 def byte_to_pico8_row(byte_val, color):
@@ -81,27 +83,51 @@ def generate_sprite_sheet():
         else:
             color = 9  # Orange for explosions
         
-        # Calculate position in sprite sheet
-        # We arrange sprites horizontally in rows of 16
-        sprite_col = sprite_idx % 16
-        sprite_row_base = (sprite_idx // 16) * 16  # Each sprite takes 16 rows (for 1,2 rendering)
-        
-        # Add padding: 2 empty rows at top, 12 rows of data, 2 empty rows at bottom
-        padded_sprite = [0x00, 0x00] + sprite_data + [0x00, 0x00]
-        
-        # Add all 16 rows of padded sprite data
-        for row_idx, byte_val in enumerate(padded_sprite):
-            actual_row = sprite_row_base + row_idx
+        # Player/enemy sprites need padding for 8x12 rendering with spr(n,x,y,1,2)
+        # Explosion sprites are simple 8x8, no padding needed
+        if sprite_idx < 14:
+            # Calculate position in sprite sheet
+            sprite_col = sprite_idx % 16
+            sprite_row_base = (sprite_idx // 16) * 16  # Each sprite takes 16 rows (for 1,2 rendering)
             
-            if actual_row < len(rows):
-                sprite_pixels = byte_to_pico8_row(byte_val, color)
-                pixel_col_start = sprite_col * 8
+            # Add padding: 2 empty rows at top, 12 rows of data, 2 empty rows at bottom
+            padded_sprite = [0x00, 0x00] + sprite_data + [0x00, 0x00]
+            
+            # Add all 16 rows of padded sprite data
+            for row_idx, byte_val in enumerate(padded_sprite):
+                actual_row = sprite_row_base + row_idx
                 
-                # Insert sprite pixels into row
-                row_list = list(rows[actual_row])
-                for i, char in enumerate(sprite_pixels):
-                    row_list[pixel_col_start + i] = char
-                rows[actual_row] = "".join(row_list)
+                if actual_row < len(rows):
+                    sprite_pixels = byte_to_pico8_row(byte_val, color)
+                    pixel_col_start = sprite_col * 8
+                    
+                    # Insert sprite pixels into row
+                    row_list = list(rows[actual_row])
+                    for i, char in enumerate(sprite_pixels):
+                        row_list[pixel_col_start + i] = char
+                    rows[actual_row] = "".join(row_list)
+        else:
+            # Explosions: simple 8x8 sprites
+            # Place them starting at row 2 (sprites 32+) to avoid conflict with player/enemy bottom halves
+            explosion_idx = sprite_idx - 14  # 0-7 for explosion frames
+            actual_sprite_slot = 32 + explosion_idx  # Sprites 32-39
+            
+            sprite_col = actual_sprite_slot % 16
+            sprite_row_base = (actual_sprite_slot // 16) * 8  # Each sprite is 8 rows
+            
+            # Add 8 rows of sprite data
+            for row_idx, byte_val in enumerate(sprite_data):
+                actual_row = sprite_row_base + row_idx
+                
+                if actual_row < len(rows):
+                    sprite_pixels = byte_to_pico8_row(byte_val, color)
+                    pixel_col_start = sprite_col * 8
+                    
+                    # Insert sprite pixels into row
+                    row_list = list(rows[actual_row])
+                    for i, char in enumerate(sprite_pixels):
+                        row_list[pixel_col_start + i] = char
+                    rows[actual_row] = "".join(row_list)
     
     return rows
 

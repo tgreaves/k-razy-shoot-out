@@ -35,6 +35,15 @@ enemy_speed=0.5
 missile_speed=2
 anim_timing=0
 
+-- atari 5200 color palette (excluding white/black and dark colors)
+-- pico-8 colors: 8=red, 9=orange, 10=yellow, 11=green, 
+--                12=light blue, 13=indigo, 14=pink, 15=peach
+atari_colors={8,9,10,11,12,13,14,15}
+
+-- color variables
+arena_color=5
+enemy_colors={}
+
 function _init()
  state=state_title
  score=0
@@ -106,6 +115,9 @@ end
 
 -- game initialization
 function init_game()
+ -- randomize arena color for this sector
+ arena_color=atari_colors[flr(rnd(#atari_colors))+1]
+ 
  init_arena()  -- create arena first
  load_sector_difficulty()  -- load difficulty params
  init_player()  -- then spawn player (needs arena for collision check)
@@ -129,19 +141,32 @@ function load_sector_difficulty()
  local game_speed=params[3]   -- speed multiplier
  anim_timing=params[4]        -- animation timing
  
- -- scale speeds based on game_speed
- if game_speed<=10 then
-  -- sectors 1-5: normal speed
-  enemy_speed=0.5
+ -- scale speeds based on game_speed parameter
+ -- use integer speeds to avoid position drift/jitter
+ -- sectors 1-2: speed=2 (base speed)
+ -- sector 3: speed=3 (slightly faster)
+ -- sector 4: speed=4 (faster)
+ -- sector 5: speed=10 (much faster)
+ -- sector 6: speed=80 (very fast)
+ -- sector 7: speed=255 (maximum)
+ if game_speed<=2 then
+  enemy_speed=1
   missile_speed=2
+ elseif game_speed<=3 then
+  enemy_speed=1
+  missile_speed=2
+ elseif game_speed<=4 then
+  enemy_speed=1
+  missile_speed=2
+ elseif game_speed<=10 then
+  enemy_speed=1
+  missile_speed=3
  elseif game_speed<=80 then
-  -- sector 6: faster
-  enemy_speed=0.75
-  missile_speed=2.5
+  enemy_speed=2
+  missile_speed=3
  else
-  -- sector 7: maximum speed
-  enemy_speed=1.0
-  missile_speed=3.0
+  enemy_speed=2
+  missile_speed=4
  end
 end
 
@@ -243,8 +268,16 @@ function update_player()
    
    -- collision check with enemies - both die
    for e in all(enemies) do
-    if check_collision(newx,newy,e.x,e.y,8) then
+    if check_sprite_collision(newx,newy,e.x,e.y) then
      kill_enemy(e)
+     player_hit()
+     return
+    end
+   end
+   
+   -- collision check with explosions - player dies
+   for ex in all(explosions) do
+    if check_sprite_collision(newx,newy,ex.x,ex.y) then
      player_hit()
      return
     end
@@ -324,15 +357,24 @@ function update_player_missile()
   return
  end
  
- -- check wall collision
- if check_wall_collision(m.x,m.y) then
+ -- check wall collision at tip of missile (3 pixels ahead)
+ local tip_x=m.x
+ local tip_y=m.y
+ if m.dx>0 then tip_x=m.x+3
+ elseif m.dx<0 then tip_x=m.x-3
+ end
+ if m.dy>0 then tip_y=m.y+3
+ elseif m.dy<0 then tip_y=m.y-3
+ end
+ 
+ if check_missile_wall_collision(tip_x,tip_y) then
   player.missile=nil
   return
  end
  
- -- check enemy collision
+ -- check enemy collision (missile point vs enemy sprite box)
  for e in all(enemies) do
-  if check_collision(m.x,m.y,e.x,e.y,8) then
+  if check_box_collision(m.x-1,m.y-1,2,2,e.x-4,e.y-6,8,12) then
    player.missile=nil
    kill_enemy(e)
    return
@@ -399,22 +441,71 @@ function init_enemies()
 end
 
 function spawn_enemy()
- -- spawn at random edge, avoiding walls
+ -- spawn at random edge, avoiding collisions
  local x,y
- local edge=flr(rnd(4))
- if edge==0 then 
-  x=16 
-  y=16+rnd(96)
- elseif edge==1 then 
-  x=112 
-  y=16+rnd(96)
- elseif edge==2 then 
-  x=16+rnd(96) 
-  y=16
- else 
-  x=16+rnd(96) 
-  y=112
- end
+ local attempts=0
+ local safe=false
+ 
+ repeat
+  attempts+=1
+  local edge=flr(rnd(4))
+  if edge==0 then 
+   x=16 
+   y=16+rnd(96)
+  elseif edge==1 then 
+   x=112 
+   y=16+rnd(96)
+  elseif edge==2 then 
+   x=16+rnd(96) 
+   y=16
+  else 
+   x=16+rnd(96) 
+   y=112
+  end
+  
+  -- check if position is safe
+  safe=true
+  
+  -- check walls
+  if check_wall_collision(x,y) then
+   safe=false
+  end
+  
+  -- check player (use larger safety distance)
+  if safe and check_sprite_collision(x,y,player.x,player.y) then
+   safe=false
+  end
+  
+  -- check other enemies (use larger safety distance)
+  if safe then
+   for e in all(enemies) do
+    if check_sprite_collision(x,y,e.x,e.y) then
+     safe=false
+     break
+    end
+   end
+  end
+  
+  -- check explosions (use circle collision for safety)
+  if safe then
+   for ex in all(explosions) do
+    if check_collision(x,y,ex.x,ex.y,12) then
+     safe=false
+     break
+    end
+   end
+  end
+  
+ until safe or attempts>50
+ 
+ -- if we couldn't find a safe spot after 50 tries, spawn anyway
+ -- (better than blocking the game)
+ 
+ -- pick a random color different from arena
+ local enemy_color
+ repeat
+  enemy_color=atari_colors[flr(rnd(#atari_colors))+1]
+ until enemy_color!=arena_color
  
  add(enemies,{
   x=x,
@@ -422,9 +513,9 @@ function spawn_enemy()
   dir=0, -- 0=right,1=down,2=left,3=up
   move_timer=0,
   anim_frame=0,
-  anim_timer=0,
   missile=nil,
-  fire_timer=0  -- firing timer
+  fire_timer=0,  -- firing timer
+  color=enemy_color
  })
 end
 
@@ -435,36 +526,55 @@ function update_enemies()
 end
 
 function update_enemy(e)
- -- ai: move toward player (diagonal if possible)
+ -- ai: move toward player
  e.move_timer+=1
  if e.move_timer>15 then
   e.move_timer=0
   
-  local dx=sgn(player.x-e.x)*enemy_speed
-  local dy=sgn(player.y-e.y)*enemy_speed
+  local dist_x=player.x-e.x
+  local dist_y=player.y-e.y
+  
+  local dx=sgn(dist_x)*enemy_speed
+  local dy=sgn(dist_y)*enemy_speed
   
   local moved=false
   local newx,newy
   
-  -- try diagonal movement first (if moving in both directions)
-  if dx!=0 and dy!=0 then
+  -- only try diagonal if both axes need significant movement
+  -- if close on one axis (within 2 pixels), skip diagonal and use single-axis
+  local close_threshold=2
+  local close_x=(abs(dist_x)<=close_threshold)
+  local close_y=(abs(dist_y)<=close_threshold)
+  local try_diagonal=(not close_x and not close_y and dx!=0 and dy!=0)
+  
+  -- try diagonal movement first (only if not close on either axis)
+  if try_diagonal then
    newx=e.x+dx
    newy=e.y+dy
    if not check_wall_collision(newx,newy) then
     -- check collision with other enemies
     local enemy_collision=false
     for other in all(enemies) do
-     if other!=e and check_collision(newx,newy,other.x,other.y,6) then
+     if other!=e and check_sprite_collision(newx,newy,other.x,other.y) then
       kill_enemy(e)
       kill_enemy(other)
       enemy_collision=true
       break
      end
     end
+    -- check collision with explosions
+    if not enemy_collision then
+     for ex in all(explosions) do
+      if check_sprite_collision(newx,newy,ex.x,ex.y) then
+       kill_enemy(e)
+       return
+      end
+     end
+    end
     if not enemy_collision then
      e.x=newx
      e.y=newy
-     e.dir=(dx<0) and 2 or 0 -- use sideways animation
+     e.dir=(dx<0) and 2 or 0 -- use horizontal sprite for diagonal
      moved=true
     else
      return
@@ -472,96 +582,81 @@ function update_enemy(e)
    end
   end
   
-  -- if diagonal failed or not needed, try single axis movement
-  if not moved then
-   -- try horizontal movement first
-   if abs(player.x-e.x)>abs(player.y-e.y) then
-    newx=e.x+dx
-    newy=e.y
-    if not check_wall_collision(newx,newy) then
-     -- check collision with other enemies
-     for other in all(enemies) do
-      if other!=e and check_collision(newx,newy,other.x,other.y,6) then
+  -- if diagonal failed or not needed, try horizontal (if not already aligned)
+  if not moved and dx!=0 and not close_x then
+   newx=e.x+dx
+   newy=e.y
+   if not check_wall_collision(newx,newy) then
+    -- check collision with other enemies
+    local enemy_collision=false
+    for other in all(enemies) do
+     if other!=e and check_sprite_collision(newx,newy,other.x,other.y) then
+      kill_enemy(e)
+      kill_enemy(other)
+      enemy_collision=true
+      break
+     end
+    end
+    -- check collision with explosions
+    if not enemy_collision then
+     for ex in all(explosions) do
+      if check_sprite_collision(newx,newy,ex.x,ex.y) then
        kill_enemy(e)
-       kill_enemy(other)
        return
       end
      end
+    end
+    if not enemy_collision then
      e.x=newx
      e.dir=(dx<0) and 2 or 0 -- left or right
      moved=true
     else
-     -- blocked horizontally, try vertical
-     newx=e.x
-     newy=e.y+dy
-     if not check_wall_collision(newx,newy) then
-      -- check collision with other enemies
-      for other in all(enemies) do
-       if other!=e and check_collision(newx,newy,other.x,other.y,6) then
-        kill_enemy(e)
-        kill_enemy(other)
-        return
-       end
-      end
-      e.y=newy
-      e.dir=(dy<0) and 3 or 1 -- up or down
-      moved=true
+     return
+    end
+   end
+  end
+  
+  -- if still not moved, try vertical (if not already aligned)
+  if not moved and dy!=0 and not close_y then
+   newx=e.x
+   newy=e.y+dy
+   if not check_wall_collision(newx,newy) then
+    -- check collision with other enemies
+    local enemy_collision=false
+    for other in all(enemies) do
+     if other!=e and check_sprite_collision(newx,newy,other.x,other.y) then
+      kill_enemy(e)
+      kill_enemy(other)
+      enemy_collision=true
+      break
      end
     end
-   else
-    -- try vertical movement first
-    newx=e.x
-    newy=e.y+dy
-    if not check_wall_collision(newx,newy) then
-     -- check collision with other enemies
-     for other in all(enemies) do
-      if other!=e and check_collision(newx,newy,other.x,other.y,6) then
+    -- check collision with explosions
+    if not enemy_collision then
+     for ex in all(explosions) do
+      if check_sprite_collision(newx,newy,ex.x,ex.y) then
        kill_enemy(e)
-       kill_enemy(other)
        return
       end
      end
+    end
+    if not enemy_collision then
      e.y=newy
      e.dir=(dy<0) and 3 or 1 -- up or down
      moved=true
     else
-     -- blocked vertically, try horizontal
-     newx=e.x+dx
-     newy=e.y
-     if not check_wall_collision(newx,newy) then
-      -- check collision with other enemies
-      for other in all(enemies) do
-       if other!=e and check_collision(newx,newy,other.x,other.y,6) then
-        kill_enemy(e)
-        kill_enemy(other)
-        return
-       end
-      end
-      e.x=newx
-      e.dir=(dx<0) and 2 or 0 -- left or right
-      moved=true
-     end
+     return
     end
    end
   end
   
   -- animate when moving, reset to stationary when blocked
   if moved then
-   -- start animation immediately if not already animating
-   if e.anim_frame==0 then
-    e.anim_frame=1
-    e.anim_timer=0
-   else
-    e.anim_timer+=1
-    if e.anim_timer>1 then
-     e.anim_timer=0
-     e.anim_frame=(e.anim_frame==1) and 2 or 1  -- toggle between 1 and 2
-    end
-   end
+   -- toggle animation frame on each move
+   e.anim_frame=(e.anim_frame==1) and 2 or 1
   else
-   -- stationary - reset animation frame immediately
+   -- stationary - reset animation frame
    e.anim_frame=0
-   e.anim_timer=0
   end
  end
  
@@ -584,7 +679,7 @@ function update_enemy(e)
  end
  
  -- check collision with player - both die
- if check_collision(e.x,e.y,player.x,player.y,8) then
+ if check_sprite_collision(e.x,e.y,player.x,player.y) then
   kill_enemy(e)
   player_hit()
  end
@@ -636,7 +731,7 @@ function fire_enemy_missile(e)
   dy=mdy
  }
  
- sfx(1) -- enemy fire sound
+ sfx(0) -- weapon sound
 end
 
 function update_enemy_missile(e)
@@ -650,22 +745,31 @@ function update_enemy_missile(e)
   return
  end
  
- -- check wall collision
- if check_wall_collision(m.x,m.y) then
+ -- check wall collision at tip of missile (3 pixels ahead)
+ local tip_x=m.x
+ local tip_y=m.y
+ if m.dx>0 then tip_x=m.x+3
+ elseif m.dx<0 then tip_x=m.x-3
+ end
+ if m.dy>0 then tip_y=m.y+3
+ elseif m.dy<0 then tip_y=m.y-3
+ end
+ 
+ if check_missile_wall_collision(tip_x,tip_y) then
   e.missile=nil
   return
  end
  
- -- check player collision
- if check_collision(m.x,m.y,player.x,player.y,6) then
+ -- check player collision (missile point vs player sprite box)
+ if check_box_collision(m.x-1,m.y-1,2,2,player.x-4,player.y-6,8,12) then
   e.missile=nil
   player_hit()
   return
  end
  
- -- check collision with other enemies
+ -- check collision with other enemies (missile point vs enemy sprite box)
  for other in all(enemies) do
-  if other!=e and check_collision(m.x,m.y,other.x,other.y,6) then
+  if other!=e and check_box_collision(m.x-1,m.y-1,2,2,other.x-4,other.y-6,8,12) then
    e.missile=nil
    kill_enemy(other)
    return
@@ -717,18 +821,25 @@ function draw_enemies()
   -- (anim_frame is reset to 0 when stationary)
   if e.anim_frame>0 then
    -- determine sprite based on direction and animation
+   -- anim_frame is 1 or 2, we need to map to correct sprite indices
    if e.dir==2 then -- left
-    spr_num=8+e.anim_frame
+    spr_num=(e.anim_frame==1) and 8 or 9
    elseif e.dir==0 then -- right
-    spr_num=10+e.anim_frame
+    spr_num=(e.anim_frame==1) and 10 or 11
    elseif e.dir==1 or e.dir==3 then -- up or down
-    spr_num=12+e.anim_frame
+    spr_num=(e.anim_frame==1) and 12 or 13
    end
   end
+  
+  -- swap color 8 (red) to enemy's color
+  pal(8,e.color)
   
   -- draw enemy sprite (8x12 pixels)
   -- use 1,2 to render 2 sprite slots vertically (8x16) which includes our 12 rows
   spr(spr_num,e.x-4,e.y-8,1,2)
+  
+  -- reset palette
+  pal()
   
   -- draw missile as line
   if e.missile then
@@ -979,9 +1090,52 @@ function init_arena()
  end
 end
 
+-- collision detection
+-- collision radii constants
+collision_radius_player=4
+collision_radius_enemy=4
+collision_radius_missile=2
+collision_radius_wall=2
+
+-- circle collision (for general use)
+function check_collision(x1,y1,x2,y2,dist)
+ local dx=x1-x2
+ local dy=y1-y2
+ -- use squared distance to avoid sqrt
+ return (dx*dx+dy*dy)<(dist*dist)
+end
+
+-- box collision (more accurate for sprites)
+function check_box_collision(x1,y1,w1,h1,x2,y2,w2,h2)
+ return x1<x2+w2 and x2<x1+w1 and y1<y2+h2 and y2<y1+h1
+end
+
+-- sprite collision (8x12 sprites)
+function check_sprite_collision(x1,y1,x2,y2)
+ -- sprites are 8x12, centered at x,y
+ -- so box is from (x-4,y-6) to (x+4,y+6)
+ return check_box_collision(x1-4,y1-6,8,12,x2-4,y2-6,8,12)
+end
+
 function check_wall_collision(x,y)
+ -- check 4x4 walls with proper box collision
  for w in all(arena) do
-  if check_collision(x,y,w.x+2,w.y+2,6) then
+  -- entity is 8x12 sprite centered at x,y
+  -- sprite box is from (x-4,y-6) to (x+4,y+6)
+  -- wall is 4x4 at w.x,w.y
+  if check_box_collision(x-4,y-6,8,12,w.x,w.y,4,4) then
+   return true
+  end
+ end
+ return false
+end
+
+function check_missile_wall_collision(x,y)
+ -- check missile (single point) against walls
+ for w in all(arena) do
+  -- missile is a point at x,y
+  -- wall is 4x4 at w.x,w.y
+  if x>=w.x and x<w.x+4 and y>=w.y and y<w.y+4 then
    return true
   end
  end
@@ -990,19 +1144,21 @@ end
 
 function draw_arena()
  for w in all(arena) do
-  rectfill(w.x,w.y,w.x+3,w.y+3,5)
+  rectfill(w.x,w.y,w.x+3,w.y+3,arena_color)
  end
-end
-
--- collision detection
-function check_collision(x1,y1,x2,y2,dist)
- local dx=x1-x2
- local dy=y1-y2
- return sqrt(dx*dx+dy*dy)<dist
 end
 
 -- game update/draw
 function update_game()
+ -- debug: skip to next sector with 'n' key
+ if btn(4) and btn(5) then  -- both action buttons together
+  level+=1
+  if level>7 then level=7 end
+  state=state_sector_intro
+  sector_intro_timer=0
+  return
+ end
+ 
  update_player()
  update_enemies()
  update_explosions()
@@ -1091,9 +1247,11 @@ function draw_game()
  print("score:"..score,44,120,7)
  print("sector:"..level,2,120,7)
  print("lives:"..lives,90,120,7)
- -- debug: show fire freq and enemy count
+ -- debug: show fire freq and enemies remaining
  print("freq:"..enemy_fire_freq,2,2,7)
- print("enemies:"..#enemies,2,8,7)
+ local remaining=total_enemies-enemies_defeated
+ print("left:"..remaining.."/"..total_enemies,2,8,7)
+ print("speed:"..enemy_speed,2,14,7)
  
  -- draw timer bar at top (LAST so nothing covers it)
  draw_timer_bar()
@@ -1268,7 +1426,7 @@ __gfx__
 00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 __sfx__
-000100000c0500c0500c0500c05000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-000100001c0501c0501c0501c0501c0501c0501c0501c0501c0501c0501c0501c0501c0501c0501c0501c0501c0501c0501c0501c0501c0501c0501c0501c0501c0501c0501c0501c0501c0501c0501c0501c050
+000100003c7503c7403c7303c7203c7103c7003c6003c5000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+000100001c6501c6501c6501c6501865014650106500c6500865004650016500005000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 010400003f6553f6453f6353f6253f6153f6053f5053f4053f3053f2053f1053f0050000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 
