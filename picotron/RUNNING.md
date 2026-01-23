@@ -11,11 +11,13 @@
 
 3. **Load the cartridge:**
    - Type in the terminal: `load krazy_shootout.p64`
-   - Or double-click `krazy_shootout.p64.lua` in the file navigator
+   - Or double-click the `krazy_shootout.p64` folder in the file navigator
 
 4. **Run the game:**
    - Press `CTRL-R` to run
    - Or type `run` in the terminal
+
+**Alternative:** Run from your Mac terminal with `./picotron/run.sh`
 
 ## Controls
 

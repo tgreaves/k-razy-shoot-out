@@ -14,6 +14,6 @@ if [ ! -f "$PICOTRON_APP" ]; then
     exit 1
 fi
 
-# Run Picotron with the cartridge
+# Run Picotron with the cartridge folder
 echo "Starting K-Razy Shoot-Out in Picotron..."
-"$PICOTRON_APP" -x "$SCRIPT_DIR/krazy_shootout.p64.lua"
+"$PICOTRON_APP" "$SCRIPT_DIR/krazy_shootout.p64"
