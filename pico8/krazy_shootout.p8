@@ -20,9 +20,8 @@ state_bonus=7
 max_enemies=3
 player_speed=1
 
--- test mode: scaled sprites (toggle with tab key)
-test_scaled_sprites=false
-sprite_scale=0.75  -- 75% scale (6x9 instead of 8x12)
+-- debug mode flag
+debug_mode=false  -- set to true to enable debug features
 
 -- exit positions (set during arena generation)
 left_exit_y=0
@@ -162,13 +161,16 @@ function draw_title()
  
  -- credits at bottom center
  -- "original by" = 11 chars * 4px = 44px, center = (128-44)/2 = 42
- print("original by",42,84,5)
+ print("original by",42,80,5)
  
  -- "cbs electronics" = 15 chars * 4px = 60px, center = (128-60)/2 = 34
- print("cbs electronics",34,92,5)
+ print("cbs electronics",34,88,5)
  
  -- "demake by tristan greaves" = 25 chars * 4px = 100px, center = (128-100)/2 = 14
- print("demake by tristan greaves",14,100,5)
+ print("demake by tristan greaves",14,96,5)
+ 
+ -- "sounds by starvingindie" = 23 chars * 4px = 92px, center = (128-92)/2 = 18
+ print("sounds by starvingindie",18,104,5)
 end
 
 -- sector intro screen
@@ -381,13 +383,16 @@ function update_player()
     return
    end
    
-   -- keep in bounds only if NOT in an exit gap
+   -- check if player is in an exit gap (safe zone)
    local in_left_exit=(player.x<=8 and abs(player.y-left_exit_y)<=8)
    local in_right_exit=(player.x>=120 and abs(player.y-right_exit_y)<=8)
    
+   -- check if player hit outer walls (death) - but not if in exit gap
    if not in_left_exit and not in_right_exit then
-    player.x=mid(8,player.x,120)
-    player.y=mid(8,player.y,120)
+    if player.x<8 or player.x>120 or player.y<8 or player.y>120 then
+     player_hit()
+     return
+    end
    end
    
    -- animation
@@ -520,12 +525,8 @@ function draw_player()
  end
  
  -- draw player sprite
- if test_scaled_sprites then
-  draw_scaled_sprite(spr_num,player.x,player.y,sprite_scale)
- else
-  -- normal 8x12 sprite (8x16 with 1,2 to render 2 sprite slots vertically)
-  spr(spr_num,player.x-4,player.y-8,1,2)
- end
+ -- normal 8x12 sprite (8x16 with 1,2 to render 2 sprite slots vertically)
+ spr(spr_num,player.x-4,player.y-8,1,2)
  
  -- draw missile as line
  if player.missile then
@@ -967,16 +968,12 @@ function draw_enemies()
   end
   
   -- draw enemy sprite
-  if test_scaled_sprites then
-   draw_scaled_sprite(spr_num,e.x,e.y,sprite_scale,e.color)
-  else
-   -- swap color 8 (red) to enemy's color
-   pal(8,e.color)
-   -- normal 8x12 sprite (8x16 with 1,2 to render 2 sprite slots vertically)
-   spr(spr_num,e.x-4,e.y-8,1,2)
-   -- reset palette
-   pal()
-  end
+  -- swap color 8 (red) to enemy's color
+  pal(8,e.color)
+  -- normal 8x12 sprite (8x16 with 1,2 to render 2 sprite slots vertically)
+  spr(spr_num,e.x-4,e.y-8,1,2)
+  -- reset palette
+  pal()
  end
  
  -- draw enemy missiles
@@ -1060,11 +1057,17 @@ function update_death_freeze()
    -- respawn everything except arena
    init_player()
    
-   -- clear all enemies and respawn
+   -- clear all enemies and respawn only if not all defeated
    enemies={}
    enemy_missiles={}
-   for i=1,max_enemies do
-    spawn_enemy()
+   
+   -- only spawn new enemies if we haven't defeated all of them yet
+   if enemies_defeated<total_enemies then
+    -- spawn up to max_enemies, but not more than remaining
+    local enemies_to_spawn=min(max_enemies,total_enemies-enemies_defeated)
+    for i=1,enemies_to_spawn do
+     spawn_enemy()
+    end
    end
    
    -- clear spawn queue
@@ -1132,7 +1135,7 @@ function init_arena()
  
  -- add random interior walls
  -- use systematic placement for better coverage
- local num_walls=4+flr(rnd(2))  -- 4-5 walls (reduced to ensure gaps)
+ local num_walls=7+flr(rnd(2))  -- 7-8 walls
  local attempts=0
  local placed=0
  
@@ -1182,12 +1185,19 @@ function init_arena()
        add(arena,{x=x,y=y+dy})
       end
      end
-     -- mark all cells and buffers
+     -- mark all cells and buffers (extended for vertical walls)
      for c=0,cells do
       mark_cell(grid_x,grid_y+c)
       mark_cell(grid_x-1,grid_y+c)  -- left buffer
       mark_cell(grid_x+1,grid_y+c)  -- right buffer
+      mark_cell(grid_x-2,grid_y+c)  -- extra left buffer
+      mark_cell(grid_x+2,grid_y+c)  -- extra right buffer
      end
+     -- mark extra cells above and below
+     mark_cell(grid_x,grid_y-1)
+     mark_cell(grid_x,grid_y-2)
+     mark_cell(grid_x,grid_y+cells+1)
+     mark_cell(grid_x,grid_y+cells+2)
      placed+=1
     end
     
@@ -1212,12 +1222,19 @@ function init_arena()
        add(arena,{x=x+dx,y=y})
       end
      end
-     -- mark all cells and buffers
+     -- mark all cells and buffers (extended for horizontal walls)
      for c=0,cells do
       mark_cell(grid_x+c,grid_y)
       mark_cell(grid_x+c,grid_y-1)  -- top buffer
       mark_cell(grid_x+c,grid_y+1)  -- bottom buffer
+      mark_cell(grid_x+c,grid_y-2)  -- extra top buffer
+      mark_cell(grid_x+c,grid_y+2)  -- extra bottom buffer
      end
+     -- mark extra cells left and right
+     mark_cell(grid_x-1,grid_y)
+     mark_cell(grid_x-2,grid_y)
+     mark_cell(grid_x+cells+1,grid_y)
+     mark_cell(grid_x+cells+2,grid_y)
      placed+=1
     end
     
@@ -1226,31 +1243,97 @@ function init_arena()
     local size=12+flr(rnd(2))*8
     local dir=flr(rnd(4))
     
-    -- place wall
-    if dir==0 then
-     for d=0,size,2 do
-      if y+d<=114 then add(arena,{x=x,y=y+d}) end
-      if x+d<=124 then add(arena,{x=x+d,y=y}) end
-     end
-    elseif dir==1 then
-     for d=0,size,2 do
-      if y+d<=114 then add(arena,{x=x,y=y+d}) end
-      if x-d>=8 then add(arena,{x=x-d,y=y}) end
-     end
-    elseif dir==2 then
-     for d=0,size,2 do
-      if y-d>=10 then add(arena,{x=x,y=y-d}) end
-      if x+d<=124 then add(arena,{x=x+d,y=y}) end
-     end
+    -- check if we have space for L-shape (need 2x2 grid minimum)
+    local can_place=true
+    if dir==0 or dir==1 then
+     -- vertical + horizontal, check down and right/left
+     if grid_y+1>6 then can_place=false end
+     if dir==0 and grid_x+1>7 then can_place=false end
+     if dir==1 and grid_x-1<0 then can_place=false end
     else
-     for d=0,size,2 do
-      if y-d>=10 then add(arena,{x=x,y=y-d}) end
-      if x-d>=8 then add(arena,{x=x-d,y=y}) end
-     end
+     -- vertical up + horizontal, check up and right/left
+     if grid_y-1<0 then can_place=false end
+     if dir==2 and grid_x+1>7 then can_place=false end
+     if dir==3 and grid_x-1<0 then can_place=false end
     end
-    -- only mark center cell (allow L-shapes to connect to other walls)
-    mark_cell(grid_x,grid_y)
-    placed+=1
+    
+    if can_place then
+     -- place wall
+     if dir==0 then
+      for d=0,size,2 do
+       if y+d<=114 then add(arena,{x=x,y=y+d}) end
+       if x+d<=124 then add(arena,{x=x+d,y=y}) end
+      end
+      -- mark L-shape cells and buffers (extensive marking)
+      mark_cell(grid_x,grid_y)
+      mark_cell(grid_x,grid_y+1)
+      mark_cell(grid_x+1,grid_y)
+      mark_cell(grid_x+1,grid_y+1)  -- corner cell
+      mark_cell(grid_x-1,grid_y)  -- left buffer
+      mark_cell(grid_x,grid_y-1)  -- top buffer
+      mark_cell(grid_x-2,grid_y)  -- extra left buffer
+      mark_cell(grid_x,grid_y-2)  -- extra top buffer
+      mark_cell(grid_x+2,grid_y)  -- extra right buffer
+      mark_cell(grid_x,grid_y+2)  -- extra bottom buffer
+      mark_cell(grid_x+1,grid_y-1)  -- diagonal buffer
+      mark_cell(grid_x-1,grid_y+1)  -- diagonal buffer
+     elseif dir==1 then
+      for d=0,size,2 do
+       if y+d<=114 then add(arena,{x=x,y=y+d}) end
+       if x-d>=8 then add(arena,{x=x-d,y=y}) end
+      end
+      -- mark L-shape cells and buffers (extensive marking)
+      mark_cell(grid_x,grid_y)
+      mark_cell(grid_x,grid_y+1)
+      mark_cell(grid_x-1,grid_y)
+      mark_cell(grid_x-1,grid_y+1)  -- corner cell
+      mark_cell(grid_x+1,grid_y)  -- right buffer
+      mark_cell(grid_x,grid_y-1)  -- top buffer
+      mark_cell(grid_x-2,grid_y)  -- extra left buffer
+      mark_cell(grid_x,grid_y-2)  -- extra top buffer
+      mark_cell(grid_x+2,grid_y)  -- extra right buffer
+      mark_cell(grid_x,grid_y+2)  -- extra bottom buffer
+      mark_cell(grid_x-1,grid_y-1)  -- diagonal buffer
+      mark_cell(grid_x+1,grid_y+1)  -- diagonal buffer
+     elseif dir==2 then
+      for d=0,size,2 do
+       if y-d>=10 then add(arena,{x=x,y=y-d}) end
+       if x+d<=124 then add(arena,{x=x+d,y=y}) end
+      end
+      -- mark L-shape cells and buffers (extensive marking)
+      mark_cell(grid_x,grid_y)
+      mark_cell(grid_x,grid_y-1)
+      mark_cell(grid_x+1,grid_y)
+      mark_cell(grid_x+1,grid_y-1)  -- corner cell
+      mark_cell(grid_x-1,grid_y)  -- left buffer
+      mark_cell(grid_x,grid_y+1)  -- bottom buffer
+      mark_cell(grid_x-2,grid_y)  -- extra left buffer
+      mark_cell(grid_x,grid_y-2)  -- extra top buffer
+      mark_cell(grid_x+2,grid_y)  -- extra right buffer
+      mark_cell(grid_x,grid_y+2)  -- extra bottom buffer
+      mark_cell(grid_x+1,grid_y+1)  -- diagonal buffer
+      mark_cell(grid_x-1,grid_y-1)  -- diagonal buffer
+     else
+      for d=0,size,2 do
+       if y-d>=10 then add(arena,{x=x,y=y-d}) end
+       if x-d>=8 then add(arena,{x=x-d,y=y}) end
+      end
+      -- mark L-shape cells and buffers (extensive marking)
+      mark_cell(grid_x,grid_y)
+      mark_cell(grid_x,grid_y-1)
+      mark_cell(grid_x-1,grid_y)
+      mark_cell(grid_x-1,grid_y-1)  -- corner cell
+      mark_cell(grid_x+1,grid_y)  -- right buffer
+      mark_cell(grid_x,grid_y+1)  -- bottom buffer
+      mark_cell(grid_x-2,grid_y)  -- extra left buffer
+      mark_cell(grid_x,grid_y-2)  -- extra top buffer
+      mark_cell(grid_x+2,grid_y)  -- extra right buffer
+      mark_cell(grid_x,grid_y+2)  -- extra bottom buffer
+      mark_cell(grid_x-1,grid_y+1)  -- diagonal buffer
+      mark_cell(grid_x+1,grid_y-1)  -- diagonal buffer
+     end
+     placed+=1
+    end
    end
   end
  end
@@ -1329,13 +1412,8 @@ end
 
 -- game update/draw
 function update_game()
- -- toggle scaled sprite test mode with Z key (but not if X is held)
- if btnp(4) and not btn(5) then  -- Z pressed, X not held
-  test_scaled_sprites=not test_scaled_sprites
- end
- 
  -- debug: skip to next sector with both buttons
- if btn(4) and btn(5) then  -- both action buttons together
+ if debug_mode and btn(4) and btn(5) then  -- both action buttons together
   level+=1
   if level>7 then level=7 end
   state=state_sector_intro
@@ -1473,16 +1551,13 @@ function draw_game()
  print("sector:"..level,2,120,7)
  print("lives:"..lives,90,120,7)
  
- -- show test mode indicator
- if test_scaled_sprites then
-  print("test:75%",2,2,10)
- end
- 
  -- debug: show fire freq and enemies remaining
- print("freq:"..enemy_fire_freq,2,8,7)
- local remaining=total_enemies-enemies_defeated
- print("left:"..remaining.."/"..total_enemies,2,14,7)
- print("speed:"..enemy_speed,2,20,7)
+ if debug_mode then
+  print("freq:"..enemy_fire_freq,2,8,7)
+  local remaining=total_enemies-enemies_defeated
+  print("left:"..remaining.."/"..total_enemies,2,14,7)
+  print("speed:"..enemy_speed,2,20,7)
+ end
  
  -- draw timer bar at top (LAST so nothing covers it)
  draw_timer_bar()
@@ -1654,48 +1729,6 @@ function draw_bonus()
  -- show how many awarded
  print(bonus_awarded.."/"..bonus_amount,56,70,7)
  print("+"..bonus_awarded*bonus_points_each,52,80,11)
-end
-
--- scaled sprite drawing (for testing smaller sprites)
-function draw_scaled_sprite(spr_num,cx,cy,scale,color_swap)
- -- draw a sprite at reduced scale
- -- cx,cy = center position
- -- scale = scale factor (0.75 = 75%)
- -- color_swap = optional color to replace color 8
- 
- local sw=8  -- sprite width
- local sh=12 -- sprite height (using 2 vertical slots)
- local dw=flr(sw*scale)
- local dh=flr(sh*scale)
- 
- -- calculate top-left corner
- local dx=cx-flr(dw/2)
- local dy=cy-flr(dh*2/3)  -- offset for sprite center
- 
- -- sample and draw pixels
- for py=0,dh-1 do
-  for px=0,dw-1 do
-   -- map scaled pixel back to source sprite
-   local sx=flr(px/scale)
-   local sy=flr(py/scale)
-   
-   -- read pixel from sprite sheet
-   -- sprites are 8x8, but we use 2 vertical (8x16)
-   local spr_x=(spr_num%16)*8+sx
-   local spr_y=flr(spr_num/16)*8+sy
-   local c=sget(spr_x,spr_y)
-   
-   -- apply color swap if specified
-   if color_swap and c==8 then
-    c=color_swap
-   end
-   
-   -- draw pixel if not transparent
-   if c!=0 then
-    pset(dx+px,dy+py,c)
-   end
-  end
- end
 end
 
 __gfx__
