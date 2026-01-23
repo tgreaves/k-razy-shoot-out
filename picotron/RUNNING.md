@@ -28,11 +28,13 @@
 
 ## Current Status
 
-The game logic is **100% complete** and should run in Picotron! However:
+The game is **fully playable** in Picotron!
 
-- **Sprites are placeholders** - Currently drawing colored rectangles instead of actual sprites
-- **Sound effects work** - Using Picotron's native `sfx()` function (but no sounds are defined yet)
-- **All gameplay mechanics are implemented** - Movement, firing, enemies, collisions, escape, etc.
+- ✅ **Player sprites working** - 8x12 sprites with animation (standing, left, right, up/down)
+- ✅ **Explosion sprites working** - 8-frame explosion animation
+- ⚠️ **Enemy sprites missing** - Need to be created in sprite editor (sprites 7-13)
+- ✅ **Sound effects working** - Weapon fire (sfx 0), explosions (sfx 1), spawns (sfx 2)
+- ✅ **All gameplay mechanics implemented** - Movement, firing, enemies, collisions, escape, timer, etc.
 
 ## What Works
 
@@ -40,18 +42,24 @@ The game logic is **100% complete** and should run in Picotron! However:
 ✅ 320x192 resolution (matching Atari 5200)
 ✅ Proper HUD layout at bottom
 ✅ Arena generation with random layouts
+✅ Player sprites with animation
+✅ Explosion animation (8 frames)
 ✅ Player and enemy AI
-✅ Collision detection
-✅ Escape mechanic
-✅ Difficulty scaling
-✅ Lives system
-✅ Timer countdown
+✅ Collision detection (walls, missiles, explosions)
+✅ Escape mechanic through exit gaps
+✅ Wave replay if enemies remain when escaping
+✅ Game over when timer runs out
+✅ Difficulty scaling across 7 sectors
+✅ Lives system with death freeze
+✅ Timer countdown with color bar
+✅ Sound effects (weapon, explosion, spawn)
+✅ Score tracking and HUD display
 
 ## Next Steps to Complete
 
-1. **Create sprite assets** - Need to create the 8x12 sprites in Picotron's sprite editor
-2. **Add sound effects** - Define sfx 0, 1, 2 in Picotron's sound editor
-3. **Test and polish** - Play through all 7 sectors
+1. **Create enemy sprites** - Need sprites 7-13 in Picotron's sprite editor (same as player: stand, left x2, right x2, up/down x2)
+2. **Fine-tune sound effects** - Adjust sfx 0, 1, 2 in Picotron's sound editor if needed
+3. **Test and polish** - Play through all 7 sectors for balance
 
 ## Troubleshooting
 
@@ -60,21 +68,26 @@ If you get errors about missing functions:
 - Check that all .lua files are in the same folder
 - Try running from the terminal with: `cd picotron` then `load krazy_shootout.p64`
 
-If the game runs but looks wrong:
-- The sprites are intentionally placeholders (colored rectangles)
-- This is normal until sprite assets are created
+If the game runs but enemies are invisible:
+- Enemy sprites (7-13) haven't been created yet
+- They still work for collision detection, just not visible
+- You can still play and test the game mechanics
 
-## Creating Sprites
+## Creating Enemy Sprites
 
-To add actual sprites:
+Enemy sprites (7-13) still need to be created. To add them:
 
-1. In Picotron, open the sprite editor (gfx workspace)
-2. Create 8x12 pixel sprites for:
-   - Player (sprites 0-6): stand, left x2, right x2, up/down x2
-   - Enemy (sprites 7-13): same as player
-   - Explosions (sprites 32-39): 8 frames
-3. Save as `gfx/0.gfx` in the cartridge
-4. Update `draw_sprite()` in sprites.lua to use `spr()` instead of rectangles
+1. In Picotron, load the cartridge: `load krazy_shootout.p64`
+2. Open the sprite editor: press `CTRL-G` or type `gfx`
+3. Create 8x12 pixel sprites for enemies (similar to player):
+   - Sprite 7: Enemy standing
+   - Sprites 8-9: Enemy walking left (2 frames)
+   - Sprites 10-11: Enemy walking right (2 frames)
+   - Sprites 12-13: Enemy walking up/down (2 frames)
+4. Save the cartridge: `save`
+5. Run to test: `run`
+
+The sprites should match the player style but use different colors (enemies are drawn with random colors).
 
 ## Picotron API Compatibility
 
