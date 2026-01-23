@@ -3,6 +3,14 @@
 -- based on atari 5200 original
 -- by tristan greaves
 
+-- include modules
+include("utils.lua")
+include("sprites.lua")
+include("collision.lua")
+include("arena.lua")
+include("entities.lua")
+include("hud.lua")
+
 -- set screen resolution to match atari 5200
 function _init()
  -- set 320x192 resolution (matching atari 5200 mode 8)
@@ -173,19 +181,171 @@ end
 
 -- placeholder functions (to be implemented)
 function init_game()
- -- TODO: implement game initialization
+ -- randomize arena color for this sector
+ arena_color = atari_colors[flr(rnd(#atari_colors)) + 1]
+ 
+ init_arena()  -- create arena first
+ load_sector_difficulty()  -- load difficulty params
+ init_player()  -- then spawn player (needs arena for collision check)
+ init_enemies()
+ explosions = {}
+ enemies_defeated = 0
+ time_remaining = 77
+ time_counter = 0
+ spawn_queue = {}  -- queue of pending enemy spawns
+end
+
+-- load difficulty parameters
+function load_sector_difficulty()
+ -- clamp sector to 1-7
+ local sector = mid(1, level, 7)
+ 
+ local params = difficulty_table[sector]
+ 
+ total_enemies = params[1]      -- spawn limit
+ enemy_fire_freq = params[2]    -- firing frequency
+ local game_speed = params[3]   -- speed multiplier
+ anim_timing = params[4]        -- animation timing
+ 
+ -- scale speeds based on game_speed parameter
+ if game_speed <= 2 then
+  enemy_speed = 1
+  missile_speed = 2
+ elseif game_speed <= 3 then
+  enemy_speed = 1
+  missile_speed = 2
+ elseif game_speed <= 4 then
+  enemy_speed = 1
+  missile_speed = 2
+ elseif game_speed <= 10 then
+  enemy_speed = 1
+  missile_speed = 3
+ elseif game_speed <= 80 then
+  enemy_speed = 2
+  missile_speed = 3
+ else
+  enemy_speed = 2
+  missile_speed = 4
+ end
+end
+
+function init_enemies()
+ enemies = {}
+ for i = 1, MAX_ENEMIES do
+  spawn_enemy()
+ end
 end
 
 function update_game()
- -- TODO: implement game update
+ -- debug: skip to next sector with both action buttons
+ if btn(4) and btn(5) then
+  level += 1
+  if level > 7 then level = 7 end
+  state = STATE_SECTOR_INTRO
+  sector_intro_timer = 0
+  return
+ end
+ 
+ update_player()
+ update_enemies()
+ update_explosions()
+ update_timer()
+ update_spawn_queue()
+end
+
+function update_spawn_queue()
+ for sq in all(spawn_queue) do
+  sq.timer -= 1
+  if sq.timer <= 0 then
+   spawn_enemy()
+   del(spawn_queue, sq)
+  end
+ end
+end
+
+function update_explosions()
+ for ex in all(explosions) do
+  ex.timer += 1
+  if ex.timer > 3 then
+   ex.timer = 0
+   ex.frame += 1
+   if ex.frame >= 8 then  -- 8 frames of explosion
+    del(explosions, ex)
+   end
+  end
+ end
+end
+
+function update_timer()
+ time_counter += 1
+ if time_counter >= 127 then
+  time_counter = 0
+  time_remaining -= 1
+  
+  -- check if time ran out
+  if time_remaining <= 2 then
+   -- time's up - clear arena then game over
+   enemies = {}
+   explosions = {}
+   spawn_queue = {}
+   clear_line = 0
+   clear_timer = 0
+   next_state_after_clear = STATE_GAMEOVER
+   state = STATE_ARENA_CLEAR
+  end
+ end
 end
 
 function draw_game()
- -- TODO: implement game drawing
+ -- draw arena
+ draw_arena()
+ 
+ -- draw timer bar at top
+ draw_timer_bar()
+ 
+ -- draw entities
+ draw_player()
+ draw_enemies()
+ draw_explosions()
+ 
+ -- draw HUD at bottom
+ draw_hud()
 end
 
 function update_death_freeze()
- -- TODO: implement death freeze
+ -- only update explosions during freeze
+ update_explosions()
+ 
+ death_freeze_timer -= 1
+ if death_freeze_timer <= 0 then
+  if lives <= 0 then
+   -- game over after freeze - clear arena first
+   enemies = {}
+   explosions = {}
+   spawn_queue = {}
+   clear_line = 0
+   clear_timer = 0
+   next_state_after_clear = STATE_GAMEOVER
+   state = STATE_ARENA_CLEAR
+  else
+   -- respawn everything except arena
+   init_player()
+   
+   -- clear all enemies and respawn
+   enemies = {}
+   for i = 1, MAX_ENEMIES do
+    spawn_enemy()
+   end
+   
+   -- clear spawn queue
+   spawn_queue = {}
+   
+   -- keep enemies_defeated counter (progress persists across deaths)
+   
+   -- resume game
+   state = STATE_GAME
+  end
+ end
 end
 
 function update_gameover()
