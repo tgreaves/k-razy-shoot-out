@@ -35,22 +35,22 @@ SPR_EXPLOSION_8 = 39
 
 -- draw a sprite at x,y with optional color override
 function draw_sprite(sprite_id, x, y, color)
- -- Picotron's spr() function works like PICO-8
- -- spr(s, x, y, [flip_x], [flip_y])
- -- For now, draw as colored rectangles until we have actual sprites
+ -- Picotron's spr() function: spr(s, x, y, [flip_x], [flip_y])
+ -- Sprites in Picotron are drawn from top-left corner
+ -- Our sprites are 8x12, so we need to offset to center them at x,y
  
- local col = color or 7
- 
- -- center sprite at x,y
  local sx = x - SPRITE_WIDTH / 2
  local sy = y - SPRITE_HEIGHT / 2
  
- -- draw placeholder rectangle
- rectfill(sx, sy, sx + SPRITE_WIDTH - 1, sy + SPRITE_HEIGHT - 1, col)
- rect(sx, sy, sx + SPRITE_WIDTH - 1, sy + SPRITE_HEIGHT - 1, 0)
- 
- -- TODO: Once we have actual sprite data, use:
- -- spr(sprite_id, sx, sy)
+ -- If color override is specified, we need to use pal() to swap colors
+ if color then
+  -- Swap color 7 (white) to the specified color
+  pal(7, color)
+  spr(sprite_id, sx, sy)
+  pal() -- reset palette
+ else
+  spr(sprite_id, sx, sy)
+ end
 end
 
 -- create sprite sheet from PICO-8 data

@@ -10,6 +10,7 @@ include("collision.lua")
 include("arena.lua")
 include("entities.lua")
 include("hud.lua")
+include("sprite_data.lua")
 
 -- set screen resolution to match atari 5200
 function _init()
@@ -21,6 +22,7 @@ function _init()
  })
  
  init_game_state()
+ init_sprites()
 end
 
 -- game states
