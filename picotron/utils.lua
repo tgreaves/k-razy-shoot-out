@@ -57,49 +57,6 @@ function all(t)
  end
 end
 
--- button state (placeholder - needs picotron API)
-function btn(n)
- -- TODO: implement with picotron input API
- return false
-end
-
--- button pressed (placeholder - needs picotron API)
-function btnp(n)
- -- TODO: implement with picotron input API
- return false
-end
-
--- sound effect (placeholder - needs picotron audio API)
-function sfx(n)
- -- TODO: implement with picotron audio API
-end
-
--- print text (placeholder - needs picotron draw API)
-function print(text, x, y, col)
- -- TODO: implement with picotron draw API
-end
-
--- draw line (placeholder - needs picotron draw API)
-function line(x1, y1, x2, y2, col)
- -- TODO: implement with picotron draw API
-end
-
--- draw rectangle (placeholder - needs picotron draw API)
-function rect(x1, y1, x2, y2, col)
- -- TODO: implement with picotron draw API
-end
-
--- draw filled rectangle (placeholder - needs picotron draw API)
-function rectfill(x1, y1, x2, y2, col)
- -- TODO: implement with picotron draw API
-end
-
--- clear screen (placeholder - needs picotron draw API)
-function cls(col)
- -- TODO: implement with picotron draw API
-end
-
--- window setup (placeholder - needs picotron window API)
-function window(params)
- -- TODO: implement with picotron window API
-end
+-- Note: btn, btnp, print, line, rect, rectfill, cls, spr, sfx, window
+-- are all native Picotron functions and don't need to be redefined!
+-- They work exactly like PICO-8 with the same parameters.

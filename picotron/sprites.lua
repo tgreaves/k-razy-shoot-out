@@ -35,8 +35,9 @@ SPR_EXPLOSION_8 = 39
 
 -- draw a sprite at x,y with optional color override
 function draw_sprite(sprite_id, x, y, color)
- -- for now, draw a simple rectangle as placeholder
- -- TODO: load actual sprite data
+ -- Picotron's spr() function works like PICO-8
+ -- spr(s, x, y, [flip_x], [flip_y])
+ -- For now, draw as colored rectangles until we have actual sprites
  
  local col = color or 7
  
@@ -44,9 +45,12 @@ function draw_sprite(sprite_id, x, y, color)
  local sx = x - SPRITE_WIDTH / 2
  local sy = y - SPRITE_HEIGHT / 2
  
- -- draw placeholder
+ -- draw placeholder rectangle
  rectfill(sx, sy, sx + SPRITE_WIDTH - 1, sy + SPRITE_HEIGHT - 1, col)
  rect(sx, sy, sx + SPRITE_WIDTH - 1, sy + SPRITE_HEIGHT - 1, 0)
+ 
+ -- TODO: Once we have actual sprite data, use:
+ -- spr(sprite_id, sx, sy)
 end
 
 -- create sprite sheet from PICO-8 data
