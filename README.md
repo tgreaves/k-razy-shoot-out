@@ -19,6 +19,7 @@ This is a fully disassembly and commentary of one of my favourite Atari 5200 gam
 - **sound/** - Scripts to generate WAV equivalents of the game audio
 - **sprites/** - Scripts to extract images from the game, as well as generated sprite sheets
 - **font/** - Custom font extraction and character mapping from the game's character set
+- **pico8/** - A recreation of the game for the PICO-8 fantasy console
 
 ## The core disassembly
 
@@ -33,4 +34,8 @@ Any input, especially from those that know more about the hardware than I do (no
 ## How was this done?
 
 This work was done in conjunction with Amazon Kiro. It required a lot of coaching / teamwork to work through the game logic and understand the nature of the game.  
+
+## Can I play this in PICO-8?
+
+Yes, yes you can!  See the **pico8** directory for more information.
 
