@@ -4,13 +4,15 @@ Original game by Dr. Keith Dreyer and Torre Meede.
 
 Published by CBS Electronics.
 
-This diassembly work by Tristan Greaves <tristan@extricate.org>
+Disassembly and PICO-8 de-make by Tristan Greaves <tristan@extricate.org>
 
 Please see LICENSE for full information.
 
 ## What is this?
 
-This is a fully disassembly and commentary of one of my favourite Atari 5200 games. The original game is a clone of Berzerk, but IMHO, much better.
+This is a fully disassembly, commentary and PICO-8 de-make of one of my favourite Atari 5200 games. The original game is a clone of Berzerk, but IMHO, much better.
+
+![Alt text](/screenshots/pico-8-screenshot.png?raw=true "Optional Title")
 
 ## Files to look at
 
